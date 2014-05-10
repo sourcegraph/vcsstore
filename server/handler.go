@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -18,7 +19,7 @@ var (
 
 	router = client.NewRouter()
 
-	Log *log.Logger
+	Log = log.New(ioutil.Discard, "", 0)
 
 	// InformativeErrors is whether to report internal error messages to HTTP
 	// clients. This should be set to false in publicly available servers, as
@@ -32,6 +33,7 @@ func NewHandler() http.Handler {
 	r.Get(client.RouteRepo).Handler(handler(serveRepo))
 	r.Get(client.RouteRepoBranch).Handler(handler(serveRepoBranch))
 	r.Get(client.RouteRepoCommit).Handler(handler(serveRepoCommit))
+	r.Get(client.RouteRepoCommitLog).Handler(handler(serveRepoCommitLog))
 	r.Get(client.RouteRepoRevision).Handler(handler(serveRepoRevision))
 	r.Get(client.RouteRepoTag).Handler(handler(serveRepoTag))
 	r.Get(client.RouteRepoTreeEntry).Handler(handler(serveRepoTreeEntry))

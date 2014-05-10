@@ -60,6 +60,13 @@ func TestMatch(t *testing.T) {
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid"},
 		},
 
+		// Repo commit log
+		{
+			path:          "/repos/git/" + cloneURLEscaped + "/commits/mycommitid/log",
+			wantRouteName: RouteRepoCommitLog,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid"},
+		},
+
 		// Repo tree
 		{
 			path:          "/repos/git/" + cloneURLEscaped + "/commits/mycommitid/tree",

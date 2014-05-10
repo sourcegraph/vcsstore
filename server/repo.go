@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
+	"strings"
 	"sync"
-	"time"
 
 	"github.com/sourcegraph/go-vcs/vcs"
+	"github.com/sourcegraph/vcsstore/client"
 	"github.com/sqs/mux"
 )
 
@@ -34,10 +36,10 @@ func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	type branchResolver interface {
+	type resolveBranch interface {
 		ResolveBranch(string) (vcs.CommitID, error)
 	}
-	if repo, ok := repo.(branchResolver); ok {
+	if repo, ok := repo.(resolveBranch); ok {
 		commitID, err := repo.ResolveBranch(v["Branch"])
 		if err != nil {
 			return err
@@ -51,15 +53,55 @@ func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 }
 
 func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
-	repo, cloneURL, err := getRepo(r)
+	repo, _, err := getRepo(r)
 	if err != nil {
 		return err
 	}
 
-	_ = repo
-	_ = cloneURL
+	commitID, err := getCommitID(r)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	type getCommit interface {
+		GetCommit(vcs.CommitID) (*vcs.Commit, error)
+	}
+	if repo, ok := repo.(getCommit); ok {
+		commit, err := repo.GetCommit(commitID)
+		if err != nil {
+			return err
+		}
+
+		return writeJSON(w, commit)
+	}
+
+	return &httpError{http.StatusNotImplemented, fmt.Errorf("GetCommit not yet implemented for %T", repo)}
+}
+
+func serveRepoCommitLog(w http.ResponseWriter, r *http.Request) error {
+	repo, _, err := getRepo(r)
+	if err != nil {
+		return err
+	}
+
+	commitID, err := getCommitID(r)
+	if err != nil {
+		return err
+	}
+
+	type commitLog interface {
+		CommitLog(to vcs.CommitID) ([]*vcs.Commit, error)
+	}
+	if repo, ok := repo.(commitLog); ok {
+		commits, err := repo.CommitLog(commitID)
+		if err != nil {
+			return err
+		}
+
+		return writeJSON(w, commits)
+	}
+
+	return &httpError{http.StatusNotImplemented, fmt.Errorf("GetCommit not yet implemented for %T", repo)}
 }
 
 func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
@@ -70,10 +112,10 @@ func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	type revisionResolver interface {
+	type resolveRevision interface {
 		ResolveRevision(string) (vcs.CommitID, error)
 	}
-	if repo, ok := repo.(revisionResolver); ok {
+	if repo, ok := repo.(resolveRevision); ok {
 		commitID, err := repo.ResolveRevision(v["RevSpec"])
 		if err != nil {
 			return err
@@ -94,10 +136,10 @@ func serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	type tagResolver interface {
+	type resolveTag interface {
 		ResolveTag(string) (vcs.CommitID, error)
 	}
-	if repo, ok := repo.(tagResolver); ok {
+	if repo, ok := repo.(resolveTag); ok {
 		commitID, err := repo.ResolveTag(v["Tag"])
 		if err != nil {
 			return err
@@ -118,37 +160,18 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	commitID, err := getCommitID(r)
+	if err != nil {
+		return err
+	}
+
 	type fileSystem interface {
 		FileSystem(vcs.CommitID) (vcs.FileSystem, error)
 	}
 	if repo, ok := repo.(fileSystem); ok {
-		fs, err := repo.FileSystem(vcs.CommitID(v["CommitID"]))
+		fs, err := repo.FileSystem(commitID)
 		if err != nil {
 			return err
-		}
-
-		type entry struct {
-			Name     string
-			Size     int
-			Type     string
-			ModTime  time.Time
-			Contents []byte   `json:",omitempty"`
-			Entries  []*entry `json:",omitempty"`
-		}
-		makeEntry := func(fi os.FileInfo) *entry {
-			e := &entry{
-				Name:    fi.Name(),
-				Size:    int(fi.Size()),
-				ModTime: fi.ModTime(),
-			}
-			if fi.Mode().IsDir() {
-				e.Type = "dir"
-			} else if fi.Mode().IsRegular() {
-				e.Type = "file"
-			} else if fi.Mode()&os.ModeSymlink != 0 {
-				e.Type = "symlink"
-			}
-			return e
 		}
 
 		path := v["Path"]
@@ -160,7 +183,7 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		e := makeEntry(fi)
+		e := newTreeEntry(fi)
 
 		if fi.Mode().IsDir() {
 			entries, err := fs.ReadDir(path)
@@ -168,10 +191,11 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 				return err
 			}
 
-			e.Entries = make([]*entry, len(entries))
+			e.Entries = make([]*client.TreeEntry, len(entries))
 			for i, fi := range entries {
-				e.Entries[i] = makeEntry(fi)
+				e.Entries[i] = newTreeEntry(fi)
 			}
+			sort.Sort(treeEntries(e.Entries))
 		} else if fi.Mode().IsRegular() {
 			f, err := fs.Open(path)
 			if err != nil {
@@ -193,9 +217,31 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("FileSystem not yet implemented for %T", repo)}
 }
 
+func newTreeEntry(fi os.FileInfo) *client.TreeEntry {
+	e := &client.TreeEntry{
+		Name:    fi.Name(),
+		Size:    int(fi.Size()),
+		ModTime: fi.ModTime(),
+	}
+	if fi.Mode().IsDir() {
+		e.Type = client.DirEntry
+	} else if fi.Mode().IsRegular() {
+		e.Type = client.FileEntry
+	} else if fi.Mode()&os.ModeSymlink != 0 {
+		e.Type = client.SymlinkEntry
+	}
+	return e
+}
+
+type treeEntries []*client.TreeEntry
+
+func (v treeEntries) Len() int           { return len(v) }
+func (v treeEntries) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
+func (v treeEntries) Less(i, j int) bool { return v[i].Name < v[j].Name }
+
 var getRepoMu sync.Mutex
 
-func getRepo(r *http.Request) (vcs.Repository, *url.URL, error) {
+func getRepo(r *http.Request) (interface{}, *url.URL, error) {
 	// TODO(sqs): only lock per-repo if there are write ops going on
 	getRepoMu.Lock()
 	defer getRepoMu.Unlock()
@@ -219,4 +265,22 @@ func getRepo(r *http.Request) (vcs.Repository, *url.URL, error) {
 	}
 
 	return repo, cloneURL, nil
+}
+
+func getCommitID(r *http.Request) (vcs.CommitID, error) {
+	v := mux.Vars(r)
+	commitID := v["CommitID"]
+	if commitID == "" {
+		return "", &httpError{http.StatusBadRequest, errors.New("CommitID is empty")}
+	}
+
+	// check that it is lowercase hex
+	i := strings.IndexFunc(commitID, func(c rune) bool {
+		return !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
+	})
+	if i != -1 {
+		return "", &httpError{http.StatusBadRequest, errors.New("CommitID must be lowercase hex")}
+	}
+
+	return vcs.CommitID(commitID), nil
 }

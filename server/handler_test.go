@@ -1,17 +1,57 @@
 package server
 
-import "net/http/httptest"
+import (
+	"errors"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+)
 
 var (
-	handler *Handler
-	server  *httptest.Server
+	server *httptest.Server
 )
 
 func setupHandlerTest() {
-	handler = NewHandler(nil)
-	server = httptest.NewServer(handler)
+	server = httptest.NewServer(NewHandler())
 }
 
-func urlTo(route string, vars ...string) string {
-	return server.URL + uriTo(handler.router, route, vars...).RequestURI()
+func teardownHandlerTest() {
+	server.Close()
+}
+
+func testRedirectedTo(t *testing.T, resp *http.Response, status int, wantLocation *url.URL) {
+	if got, want := resp.StatusCode, status; got != want {
+		t.Errorf("got redirection code %d, want %d", got, want)
+	}
+	if status >= 300 && status < 400 {
+		if location := resp.Header.Get("location"); location != wantLocation.String() {
+			t.Errorf("got redirection Location: %s, want %s", location, wantLocation)
+		}
+	}
+}
+
+func logResponseBody(t *testing.T, r *http.Response) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("HTTP response body was: %q", body)
+}
+
+var (
+	errIgnoredRedirect    = errors.New("not following redirect")
+	ignoreRedirectsClient = http.Client{
+		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+			return errIgnoredRedirect
+		},
+	}
+)
+
+func isIgnoredRedirectErr(err error) bool {
+	if err, ok := err.(*url.Error); ok && err.Err == errIgnoredRedirect {
+		return true
+	}
+	return false
 }

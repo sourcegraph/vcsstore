@@ -15,6 +15,7 @@ const (
 	RouteRepo          = "repo"
 	RouteRepoBranch    = "repo.branch"
 	RouteRepoCommit    = "repo.commit"
+	RouteRepoCommitLog = "repo.commit.log"
 	RouteRepoRevision  = "repo.rev"
 	RouteRepoTag       = "repo.tag"
 	RouteRepoTreeEntry = "repo.tree-entry"
@@ -52,6 +53,7 @@ func NewRouter() *Router {
 	commitPath := "/commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
 	commit := repo.PathPrefix(commitPath).Subrouter()
+	commit.Path("/log").Methods("GET").Name(RouteRepoCommitLog)
 
 	// cleanTreeVars modifies the Path route var to be a clean filepath. If it
 	// is empty, it is changed to ".".
@@ -77,8 +79,32 @@ func NewRouter() *Router {
 	return (*Router)(r)
 }
 
+func (r *Router) URLToRepo(vcsType string, cloneURL *url.URL) *url.URL {
+	return r.URLTo(RouteRepo, "VCS", vcsType, "CloneURL", cloneURL.String())
+}
+
+func (r *Router) URLToRepoBranch(vcsType string, cloneURL *url.URL, branch string) *url.URL {
+	return r.URLTo(RouteRepoBranch, "VCS", vcsType, "CloneURL", cloneURL.String(), "Branch", branch)
+}
+
+func (r *Router) URLToRepoRevision(vcsType string, cloneURL *url.URL, revSpec string) *url.URL {
+	return r.URLTo(RouteRepoRevision, "VCS", vcsType, "CloneURL", cloneURL.String(), "RevSpec", revSpec)
+}
+
+func (r *Router) URLToRepoTag(vcsType string, cloneURL *url.URL, tag string) *url.URL {
+	return r.URLTo(RouteRepoTag, "VCS", vcsType, "CloneURL", cloneURL.String(), "Tag", tag)
+}
+
 func (r *Router) URLToRepoCommit(vcsType string, cloneURL *url.URL, commitID vcs.CommitID) *url.URL {
 	return r.URLTo(RouteRepoCommit, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID))
+}
+
+func (r *Router) URLToRepoCommitLog(vcsType string, cloneURL *url.URL, commitID vcs.CommitID) *url.URL {
+	return r.URLTo(RouteRepoCommitLog, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID))
+}
+
+func (r *Router) URLToRepoTreeEntry(vcsType string, cloneURL *url.URL, commitID vcs.CommitID, path string) *url.URL {
+	return r.URLTo(RouteRepoTreeEntry, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID), "Path", path)
 }
 
 func (r *Router) URLTo(route string, vars ...string) *url.URL {

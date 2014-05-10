@@ -7,7 +7,12 @@ type httpError struct {
 	err        error // Optional reason for the HTTP error.
 }
 
-func (err httpError) Error() string { return err.Error() }
+func (err httpError) Error() string {
+	if err.err != nil {
+		return err.err.Error()
+	}
+	return http.StatusText(err.statusCode)
+}
 
 func (err httpError) httpStatusCode() int { return err.statusCode }
 

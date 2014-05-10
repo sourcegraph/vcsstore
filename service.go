@@ -12,7 +12,7 @@ import (
 )
 
 type Service interface {
-	Open(vcs string, cloneURL *url.URL) (vcs.Repository, error)
+	Open(vcs string, cloneURL *url.URL) (interface{}, error)
 }
 
 type Config struct {
@@ -37,7 +37,7 @@ type service struct {
 	Config
 }
 
-func (s *service) Open(vcsType string, cloneURL *url.URL) (vcs.Repository, error) {
+func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
 	cloneDir := filepath.Join(s.StorageDir, url.QueryEscape(cloneURL.String()))
 
 	_, err := os.Stat(cloneDir)
