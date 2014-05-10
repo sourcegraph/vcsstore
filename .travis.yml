@@ -7,4 +7,6 @@ go:
 install:
   - git config --global user.email "a@a.com"
   - git config --global user.name "a"
+  - mkdir -p gopath/src/github.com/sourcegraph
+  - cd gopath/src/github.com/sourcegraph && git clone -b dev git://github.com/sourcegraph/go-vcs.git
   - go get -d -v -t ./...
