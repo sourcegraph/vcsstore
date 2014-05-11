@@ -60,7 +60,7 @@ func init() {
 		}
 		return time.Duration(total / count).String()
 	})
-	m := expvar.NewMap("vcsserver")
+	m := expvar.NewMap("vcsstore")
 	m.Set("AvgTreeEntryResponseTime", avgTreeEntry)
 	m.Set("AvgResolveRevisionResponseTime", avgResolveRevision)
 	m.Set("NumRequests", numRequests)
