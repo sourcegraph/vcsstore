@@ -137,3 +137,15 @@ func isIgnoredRedirectErr(err error) bool {
 	}
 	return false
 }
+
+type RepositoryOpener interface {
+	Repository(vcsType string, cloneURL *url.URL) vcs.Repository
+}
+
+type MockRepositoryOpener struct{ Return vcs.Repository }
+
+var _ RepositoryOpener = MockRepositoryOpener{}
+
+func (m MockRepositoryOpener) Repository(vcsType string, cloneURL *url.URL) vcs.Repository {
+	return m.Return
+}
