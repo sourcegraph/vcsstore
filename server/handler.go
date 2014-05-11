@@ -31,6 +31,7 @@ func NewHandler() http.Handler {
 	r := (*mux.Router)(client.NewRouter())
 	r.Get(client.RouteRoot).Handler(handler(serveRoot))
 	r.Get(client.RouteRepo).Handler(handler(serveRepo))
+	r.Get(client.RouteRepoUpdate).Handler(handler(serveRepoUpdate))
 	r.Get(client.RouteRepoBranch).Handler(handler(serveRepoBranch))
 	r.Get(client.RouteRepoCommit).Handler(handler(serveRepoCommit))
 	r.Get(client.RouteRepoCommitLog).Handler(handler(serveRepoCommitLog))

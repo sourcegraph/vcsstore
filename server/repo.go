@@ -21,6 +21,27 @@ func serveRepo(w http.ResponseWriter, r *http.Request) error {
 	}{fmt.Sprintf("%T", repo), cloneURL.String()})
 }
 
+func serveRepoUpdate(w http.ResponseWriter, r *http.Request) error {
+	repo, _, err := getRepo(r)
+	if err != nil {
+		return err
+	}
+
+	type mirrorUpdate interface {
+		MirrorUpdate() error
+	}
+	if repo, ok := repo.(mirrorUpdate); ok {
+		err := repo.MirrorUpdate()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return &httpError{http.StatusNotImplemented, fmt.Errorf("MirrorUpdate not yet implemented for %T", repo)}
+}
+
 func getRepo(r *http.Request) (interface{}, *url.URL, error) {
 	v := mux.Vars(r)
 	cloneURLStr := v["CloneURL"]

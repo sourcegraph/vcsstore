@@ -33,6 +33,56 @@ func TestServeRepo(t *testing.T) {
 	}
 }
 
+func TestServeRepoUpdate(t *testing.T) {
+	setupHandlerTest()
+	defer teardownHandlerTest()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	rm := &mockMirrorUpdate{t: t}
+	sm := &mockService{
+		t:        t,
+		vcs:      "git",
+		cloneURL: cloneURL,
+		repo:     rm,
+	}
+	Service = sm
+
+	req, err := http.NewRequest("PUT", server.URL+router.URLToRepoUpdate("git", cloneURL).String(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if !sm.opened {
+		t.Errorf("!opened")
+	}
+	if !rm.called {
+		t.Errorf("!called")
+	}
+	if got, want := resp.StatusCode, http.StatusOK; got != want {
+		t.Errorf("got code %d, want %d", got, want)
+		logResponseBody(t, resp)
+	}
+}
+
+type mockMirrorUpdate struct {
+	t *testing.T
+
+	// return values
+	err error
+
+	called bool
+}
+
+func (m *mockMirrorUpdate) MirrorUpdate() error {
+	m.called = true
+	return m.err
+}
+
 type mockService struct {
 	t *testing.T
 

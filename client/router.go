@@ -19,6 +19,7 @@ const (
 	RouteRepoRevision  = "repo.rev"
 	RouteRepoTag       = "repo.tag"
 	RouteRepoTreeEntry = "repo.tree-entry"
+	RouteRepoUpdate    = "repo.update"
 	RouteRoot          = "root"
 )
 
@@ -47,6 +48,7 @@ func NewRouter() *Router {
 	repoPath := "/repos/{VCS}/{CloneURLEscaped:[^/]+}"
 	r.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
 	repo := r.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
+	repo.Path("/update").Methods("PUT").Name(RouteRepoUpdate)
 	repo.Path("/branches/{Branch}").Methods("GET").Name(RouteRepoBranch)
 	repo.Path("/revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
 	repo.Path("/tags/{Tag}").Methods("GET").Name(RouteRepoTag)
@@ -81,6 +83,10 @@ func NewRouter() *Router {
 
 func (r *Router) URLToRepo(vcsType string, cloneURL *url.URL) *url.URL {
 	return r.URLTo(RouteRepo, "VCS", vcsType, "CloneURL", cloneURL.String())
+}
+
+func (r *Router) URLToRepoUpdate(vcsType string, cloneURL *url.URL) *url.URL {
+	return r.URLTo(RouteRepoUpdate, "VCS", vcsType, "CloneURL", cloneURL.String())
 }
 
 func (r *Router) URLToRepoBranch(vcsType string, cloneURL *url.URL, branch string) *url.URL {
