@@ -199,7 +199,7 @@ func TestServeRepoCommit(t *testing.T) {
 	Service = sm
 
 	resp, err := http.Get(server.URL + router.URLToRepoCommit("git", cloneURL, "abcd").String())
-	if err != nil && !isIgnoredRedirectErr(err) {
+	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
@@ -221,6 +221,42 @@ func TestServeRepoCommit(t *testing.T) {
 		t.Errorf("got commit %+v, want %+v", commit, rm.commit)
 	}
 }
+
+func TestServeRepoCommit_RedirectToFull(t *testing.T) {
+	setupHandlerTest()
+	defer teardownHandlerTest()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	rm := &mockGetCommit{
+		t:      t,
+		id:     "ab",
+		commit: &vcs.Commit{ID: "abcd"},
+	}
+	sm := &mockService{
+		t:        t,
+		vcs:      "git",
+		cloneURL: cloneURL,
+		repo:     rm,
+	}
+	Service = sm
+
+	resp, err := ignoreRedirectsClient.Get(server.URL + router.URLToRepoCommit("git", cloneURL, "ab").String())
+	if err != nil && !isIgnoredRedirectErr(err) {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if !sm.opened {
+		t.Errorf("!opened")
+	}
+	if !rm.called {
+		t.Errorf("!called")
+	}
+	testRedirectedTo(t, resp, http.StatusSeeOther, router.URLToRepoCommit("git", cloneURL, "abcd"))
+}
+
+// TODO(sqs): Add redirects to the full commit ID for other endpoints that
+// include the commit ID.
 
 func TestServeRepoCommitLog(t *testing.T) {
 	setupHandlerTest()

@@ -53,7 +53,9 @@ func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 }
 
 func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
-	repo, _, err := getRepo(r)
+	v := mux.Vars(r)
+
+	repo, cloneURL, err := getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -70,6 +72,11 @@ func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
 		commit, err := repo.GetCommit(commitID)
 		if err != nil {
 			return err
+		}
+
+		if commit.ID != commitID {
+			http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commit.ID).String(), http.StatusSeeOther)
+			return nil
 		}
 
 		return writeJSON(w, commit)
