@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "expvar"
 	"flag"
 	"fmt"
 	"io"

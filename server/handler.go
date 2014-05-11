@@ -3,11 +3,14 @@ package server
 import (
 	"bufio"
 	"encoding/json"
+	"expvar"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/sourcegraph/vcsstore"
 	"github.com/sourcegraph/vcsstore/client"
@@ -27,6 +30,44 @@ var (
 	InformativeErrors bool
 )
 
+var (
+	// Published expvars
+	numRequests       = &expvar.Int{}
+	numResponses      = &expvar.Int{}
+	numResponseErrors = &expvar.Int{}
+
+	totalTreeEntryResponseTime = &expvar.Int{}
+	numTreeEntryResponses      = &expvar.Int{}
+
+	totalResolveRevisionResponseTime = &expvar.Int{}
+	numResolveRevisionResponses      = &expvar.Int{}
+)
+
+func init() {
+	avgTreeEntry := expvar.Func(func() interface{} {
+		total, _ := strconv.ParseInt(totalTreeEntryResponseTime.String(), 10, 64)
+		count, _ := strconv.ParseInt(numTreeEntryResponses.String(), 10, 64)
+		if count == 0 {
+			return nil
+		}
+		return time.Duration(total / count).String()
+	})
+	avgResolveRevision := expvar.Func(func() interface{} {
+		total, _ := strconv.ParseInt(totalResolveRevisionResponseTime.String(), 10, 64)
+		count, _ := strconv.ParseInt(numResolveRevisionResponses.String(), 10, 64)
+		if count == 0 {
+			return nil
+		}
+		return time.Duration(total / count).String()
+	})
+	m := expvar.NewMap("vcsserver")
+	m.Set("AvgTreeEntryResponseTime", avgTreeEntry)
+	m.Set("AvgResolveRevisionResponseTime", avgResolveRevision)
+	m.Set("NumRequests", numRequests)
+	m.Set("NumResponses", numResponses)
+	m.Set("NumResponseErrors", numResponseErrors)
+}
+
 func NewHandler() http.Handler {
 	r := (*mux.Router)(client.NewRouter())
 	r.Get(client.RouteRoot).Handler(handler(serveRoot))
@@ -45,9 +86,12 @@ type handler func(w http.ResponseWriter, r *http.Request) error
 
 // handler wraps f to handle errors it returns.
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	numRequests.Add(1)
 	rw := newRecorder(w)
 	err := h(rw, r)
+	numResponses.Add(1)
 	if err != nil {
+		numResponseErrors.Add(1)
 		c := errorHTTPStatusCode(err)
 		Log.Printf("HTTP %d error serving %q: %s.", c, r.URL.RequestURI(), err)
 		if rw.Code == 0 {

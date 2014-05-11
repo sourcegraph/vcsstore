@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/sourcegraph/go-vcs/vcs"
 	"github.com/sourcegraph/vcsstore/client"
@@ -14,6 +15,7 @@ import (
 
 func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
+	start := time.Now()
 
 	repo, _, err := getRepo(r)
 	if err != nil {
@@ -70,6 +72,9 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 
 			e.Contents = contents
 		}
+
+		numTreeEntryResponses.Add(1)
+		totalTreeEntryResponseTime.Add(int64(time.Since(start)))
 
 		return writeJSON(w, e)
 	}
