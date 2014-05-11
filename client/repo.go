@@ -130,7 +130,10 @@ func (r *repository) CommitLog(to vcs.CommitID) ([]*vcs.Commit, error) {
 }
 
 func (r *repository) FileSystem(at vcs.CommitID) (vcs.FileSystem, error) {
-	return nil, nil
+	return &repositoryFS{
+		at:   at,
+		repo: r,
+	}, nil
 }
 
 // url generates the URL to the named vcsstore API endpoint, using the
