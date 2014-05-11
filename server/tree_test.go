@@ -12,7 +12,7 @@ import (
 	godoc_vfs "code.google.com/p/go.tools/godoc/vfs"
 	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore/client"
+	"github.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestServeRepoTreeEntry_File(t *testing.T) {
@@ -49,14 +49,14 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 		t.Errorf("!called")
 	}
 
-	var e *client.TreeEntry
+	var e *vcsclient.TreeEntry
 	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
 		t.Fatal(err)
 	}
 
-	wantEntry := &client.TreeEntry{
+	wantEntry := &vcsclient.TreeEntry{
 		Name:     "myfile",
-		Type:     client.FileEntry,
+		Type:     vcsclient.FileEntry,
 		Size:     6,
 		Contents: []byte("mydata"),
 	}
@@ -101,22 +101,22 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 		t.Errorf("!called")
 	}
 
-	var e *client.TreeEntry
+	var e *vcsclient.TreeEntry
 	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
 		t.Fatal(err)
 	}
 
-	wantEntry := &client.TreeEntry{
+	wantEntry := &vcsclient.TreeEntry{
 		Name: ".",
-		Type: client.DirEntry,
-		Entries: []*client.TreeEntry{
+		Type: vcsclient.DirEntry,
+		Entries: []*vcsclient.TreeEntry{
 			{
 				Name: "mydir",
-				Type: client.DirEntry,
+				Type: vcsclient.DirEntry,
 			},
 			{
 				Name: "myfile",
-				Type: client.FileEntry,
+				Type: vcsclient.FileEntry,
 				Size: 6,
 			},
 		},
@@ -160,7 +160,7 @@ func (fs vfs) Lstat(path string) (os.FileInfo, error)       { return fs.FileSyst
 func (fs vfs) Stat(path string) (os.FileInfo, error)        { return fs.FileSystem.Stat("/" + path) }
 func (fs vfs) ReadDir(path string) ([]os.FileInfo, error)   { return fs.FileSystem.ReadDir("/" + path) }
 
-func normalizeTreeEntry(e *client.TreeEntry) {
+func normalizeTreeEntry(e *vcsclient.TreeEntry) {
 	e.ModTime = e.ModTime.In(time.UTC)
 	for _, e := range e.Entries {
 		normalizeTreeEntry(e)

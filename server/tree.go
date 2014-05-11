@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore/client"
+	"github.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
 )
 
@@ -53,7 +53,7 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 				return err
 			}
 
-			e.Entries = make([]*client.TreeEntry, len(entries))
+			e.Entries = make([]*vcsclient.TreeEntry, len(entries))
 			for i, fi := range entries {
 				e.Entries[i] = newTreeEntry(fi)
 			}
@@ -82,23 +82,23 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("FileSystem not yet implemented for %T", repo)}
 }
 
-func newTreeEntry(fi os.FileInfo) *client.TreeEntry {
-	e := &client.TreeEntry{
+func newTreeEntry(fi os.FileInfo) *vcsclient.TreeEntry {
+	e := &vcsclient.TreeEntry{
 		Name:    fi.Name(),
 		Size:    int(fi.Size()),
 		ModTime: fi.ModTime(),
 	}
 	if fi.Mode().IsDir() {
-		e.Type = client.DirEntry
+		e.Type = vcsclient.DirEntry
 	} else if fi.Mode().IsRegular() {
-		e.Type = client.FileEntry
+		e.Type = vcsclient.FileEntry
 	} else if fi.Mode()&os.ModeSymlink != 0 {
-		e.Type = client.SymlinkEntry
+		e.Type = vcsclient.SymlinkEntry
 	}
 	return e
 }
 
-type treeEntries []*client.TreeEntry
+type treeEntries []*vcsclient.TreeEntry
 
 func (v treeEntries) Len() int           { return len(v) }
 func (v treeEntries) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }

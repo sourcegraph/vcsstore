@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/sourcegraph/vcsstore"
-	"github.com/sourcegraph/vcsstore/client"
+	"github.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
 )
 
 var (
 	Service vcsstore.Service
 
-	router = client.NewRouter()
+	router = vcsclient.NewRouter()
 
 	Log = log.New(ioutil.Discard, "", 0)
 
@@ -69,16 +69,16 @@ func init() {
 }
 
 func NewHandler() http.Handler {
-	r := (*mux.Router)(client.NewRouter())
-	r.Get(client.RouteRoot).Handler(handler(serveRoot))
-	r.Get(client.RouteRepo).Handler(handler(serveRepo))
-	r.Get(client.RouteRepoUpdate).Handler(handler(serveRepoUpdate))
-	r.Get(client.RouteRepoBranch).Handler(handler(serveRepoBranch))
-	r.Get(client.RouteRepoCommit).Handler(handler(serveRepoCommit))
-	r.Get(client.RouteRepoCommitLog).Handler(handler(serveRepoCommitLog))
-	r.Get(client.RouteRepoRevision).Handler(handler(serveRepoRevision))
-	r.Get(client.RouteRepoTag).Handler(handler(serveRepoTag))
-	r.Get(client.RouteRepoTreeEntry).Handler(handler(serveRepoTreeEntry))
+	r := (*mux.Router)(vcsclient.NewRouter())
+	r.Get(vcsclient.RouteRoot).Handler(handler(serveRoot))
+	r.Get(vcsclient.RouteRepo).Handler(handler(serveRepo))
+	r.Get(vcsclient.RouteRepoUpdate).Handler(handler(serveRepoUpdate))
+	r.Get(vcsclient.RouteRepoBranch).Handler(handler(serveRepoBranch))
+	r.Get(vcsclient.RouteRepoCommit).Handler(handler(serveRepoCommit))
+	r.Get(vcsclient.RouteRepoCommitLog).Handler(handler(serveRepoCommitLog))
+	r.Get(vcsclient.RouteRepoRevision).Handler(handler(serveRepoRevision))
+	r.Get(vcsclient.RouteRepoTag).Handler(handler(serveRepoTag))
+	r.Get(vcsclient.RouteRepoTreeEntry).Handler(handler(serveRepoTreeEntry))
 	return r
 }
 

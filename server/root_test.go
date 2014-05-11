@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/sourcegraph/vcsstore/client"
+	"github.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestHandler_serveRoot(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	resp, err := http.Get(server.URL + router.URLTo(client.RouteRoot).String())
+	resp, err := http.Get(server.URL + router.URLTo(vcsclient.RouteRoot).String())
 	if err != nil {
 		log.Fatal(err)
 	}
