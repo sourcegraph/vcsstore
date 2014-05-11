@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sync"
+
 	"github.com/sqs/mux"
 )
 
@@ -21,13 +21,7 @@ func serveRepo(w http.ResponseWriter, r *http.Request) error {
 	}{fmt.Sprintf("%T", repo), cloneURL.String()})
 }
 
-var getRepoMu sync.Mutex
-
 func getRepo(r *http.Request) (interface{}, *url.URL, error) {
-	// TODO(sqs): only lock per-repo if there are write ops going on
-	getRepoMu.Lock()
-	defer getRepoMu.Unlock()
-
 	v := mux.Vars(r)
 	cloneURLStr := v["CloneURL"]
 	if cloneURLStr == "" {
@@ -39,6 +33,10 @@ func getRepo(r *http.Request) (interface{}, *url.URL, error) {
 	cloneURL, err := url.Parse(cloneURLStr)
 	if err != nil {
 		return nil, nil, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (parsing failed)")}
+	}
+
+	if cloneURL.Scheme == "" || cloneURL.Host == "" || cloneURL.User != nil {
+		return nil, nil, errors.New("invalid clone URL")
 	}
 
 	repo, err := Service.Open(v["VCS"], cloneURL)
