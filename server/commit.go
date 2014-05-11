@@ -50,13 +50,15 @@ func getCommitID(r *http.Request) (vcs.CommitID, error) {
 		return "", &httpError{http.StatusBadRequest, errors.New("CommitID is empty")}
 	}
 
-	// check that it is lowercase hex
-	i := strings.IndexFunc(commitID, func(c rune) bool {
-		return !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
-	})
-	if i != -1 {
+	if !isLowercaseHex(commitID) {
 		return "", &httpError{http.StatusBadRequest, errors.New("CommitID must be lowercase hex")}
 	}
 
 	return vcs.CommitID(commitID), nil
+}
+
+func isLowercaseHex(s string) bool {
+	return strings.IndexFunc(s, func(c rune) bool {
+		return !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
+	}) == -1
 }
