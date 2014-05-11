@@ -4,14 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"testing"
 	"time"
-
-	godoc_vfs "code.google.com/p/go.tools/godoc/vfs"
-	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 	"github.com/sourcegraph/go-vcs/vcs"
+	vcs_testing "github.com/sourcegraph/go-vcs/vcs/testing"
 	"github.com/sourcegraph/vcsstore/vcsclient"
 )
 
@@ -23,7 +20,7 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: "abcd",
-		fs: vfs{mapfs.New(map[string]string{"myfile": "mydata"})},
+		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockService{
 		t:        t,
@@ -75,7 +72,7 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: "abcd",
-		fs: vfs{mapfs.New(map[string]string{"myfile": "mydata", "mydir/f": ""})},
+		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata", "mydir/f": ""}),
 	}
 	sm := &mockService{
 		t:        t,
@@ -148,17 +145,6 @@ func (m *mockFileSystem) FileSystem(at vcs.CommitID) (vcs.FileSystem, error) {
 	m.called = true
 	return m.fs, m.err
 }
-
-// vfs wraps a godoc/vfs.FileSystem to implement vcs.FileSystem.
-type vfs struct{ godoc_vfs.FileSystem }
-
-// Open implements vcs.FileSystem (using the underlying godoc/vfs.FileSystem
-// Open method, which returns an interface with the same methods but at a
-// different import path).
-func (fs vfs) Open(name string) (vcs.ReadSeekCloser, error) { return fs.FileSystem.Open("/" + name) }
-func (fs vfs) Lstat(path string) (os.FileInfo, error)       { return fs.FileSystem.Lstat("/" + path) }
-func (fs vfs) Stat(path string) (os.FileInfo, error)        { return fs.FileSystem.Stat("/" + path) }
-func (fs vfs) ReadDir(path string) ([]os.FileInfo, error)   { return fs.FileSystem.ReadDir("/" + path) }
 
 func normalizeTreeEntry(e *vcsclient.TreeEntry) {
 	e.ModTime = e.ModTime.In(time.UTC)
