@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sqs/mux"
+	muxpkg "github.com/sqs/mux"
 )
 
 const (
@@ -23,17 +23,17 @@ const (
 	RouteRoot          = "root"
 )
 
-type Router mux.Router
+type Router muxpkg.Router
 
 // NewRouter creates a new router that matches and generates URLs that the HTTP
 // handler recognizes.
 func NewRouter() *Router {
-	r := mux.NewRouter()
+	r := muxpkg.NewRouter()
 	r.StrictSlash(true)
 
 	r.Path("/").Methods("GET").Name(RouteRoot)
 
-	unescapeRepoVars := func(req *http.Request, match *mux.RouteMatch, r *mux.Route) {
+	unescapeRepoVars := func(req *http.Request, match *muxpkg.RouteMatch, r *muxpkg.Route) {
 		esc := strings.Replace(match.Vars["CloneURLEscaped"], "$", "%2F", -1)
 		match.Vars["CloneURL"], _ = url.QueryUnescape(esc)
 		delete(match.Vars, "CloneURLEscaped")
@@ -59,7 +59,7 @@ func NewRouter() *Router {
 
 	// cleanTreeVars modifies the Path route var to be a clean filepath. If it
 	// is empty, it is changed to ".".
-	cleanTreeVars := func(req *http.Request, match *mux.RouteMatch, r *mux.Route) {
+	cleanTreeVars := func(req *http.Request, match *muxpkg.RouteMatch, r *muxpkg.Route) {
 		path := filepath.Clean(strings.TrimPrefix(match.Vars["Path"], "/"))
 		if path == "" || path == "." {
 			match.Vars["Path"] = "."
@@ -114,7 +114,7 @@ func (r *Router) URLToRepoTreeEntry(vcsType string, cloneURL *url.URL, commitID 
 }
 
 func (r *Router) URLTo(route string, vars ...string) *url.URL {
-	url, err := (*mux.Router)(r).Get(route).URL(vars...)
+	url, err := (*muxpkg.Router)(r).Get(route).URL(vars...)
 	if err != nil {
 		panic(err.Error())
 	}
