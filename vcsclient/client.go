@@ -164,7 +164,7 @@ func GetFile(o RepositoryOpener, vcsType string, cloneURL *url.URL, at vcs.Commi
 	if err != nil {
 		return nil, nil, err
 	}
-	if fi.Mode().IsRegular() {
+	if !fi.Mode().IsRegular() {
 		return nil, fi, errors.New("tree entry is not a file")
 	}
 
