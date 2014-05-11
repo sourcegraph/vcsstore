@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/sourcegraph/go-vcs/vcs"
 )
@@ -148,4 +149,35 @@ var _ RepositoryOpener = MockRepositoryOpener{}
 
 func (m MockRepositoryOpener) Repository(vcsType string, cloneURL *url.URL) vcs.Repository {
 	return m.Return
+}
+
+// GetFile gets a file from the repository's tree at a specific commit. If the
+// path does not refer to a file, a non-nil error is returned.
+func GetFile(o RepositoryOpener, vcsType string, cloneURL *url.URL, at vcs.CommitID, path string) ([]byte, os.FileInfo, error) {
+	r := o.Repository(vcsType, cloneURL)
+	fs, err := r.FileSystem(at)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fi, err := fs.Stat(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	if fi.Mode().IsRegular() {
+		return nil, fi, errors.New("tree entry is not a file")
+	}
+
+	f, err := fs.Open(path)
+	if err != nil {
+		return nil, fi, err
+	}
+	defer f.Close()
+
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, fi, err
+	}
+
+	return data, fi, nil
 }

@@ -1,6 +1,7 @@
 package vcsclient
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -33,14 +34,31 @@ func NewRouter() *Router {
 
 	r.Path("/").Methods("GET").Name(RouteRoot)
 
+	// Encode the repository clone URL as its base64.URLEncoding-encoded string.
+	// Add the repository URI after it (as a convenience) so that it's possible
+	// to tell which repository is being requested by inspecting the URL, but
+	// don't heed this friendly URI when decoding.
 	unescapeRepoVars := func(req *http.Request, match *muxpkg.RouteMatch, r *muxpkg.Route) {
-		esc := strings.Replace(match.Vars["CloneURLEscaped"], "$", "%2F", -1)
-		match.Vars["CloneURL"], _ = url.QueryUnescape(esc)
+		s := match.Vars["CloneURLEscaped"]
 		delete(match.Vars, "CloneURLEscaped")
+		i := strings.Index(s, "!")
+		if i == -1 {
+			return
+		}
+		urlBytes, _ := base64.URLEncoding.DecodeString(s[:i])
+		match.Vars["CloneURL"] = string(urlBytes)
 	}
 	escapeRepoVars := func(vars map[string]string) map[string]string {
-		esc := url.QueryEscape(vars["CloneURL"])
-		vars["CloneURLEscaped"] = strings.Replace(esc, "%2F", "$", -1)
+		enc := base64.URLEncoding.EncodeToString([]byte(vars["CloneURL"]))
+		vars["CloneURLEscaped"] = enc + "!" + strings.Map(func(c rune) rune {
+			if c == '/' {
+				return '_'
+			}
+			if c == '.' || c == '_' || (c >= '0' && c <= 'z') {
+				return c
+			}
+			return '-'
+		}, vars["CloneURL"])
 		delete(vars, "CloneURL")
 		return vars
 	}

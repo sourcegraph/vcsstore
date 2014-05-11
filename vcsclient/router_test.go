@@ -15,7 +15,7 @@ func TestMatch(t *testing.T) {
 
 	const (
 		cloneURL        = "git://example.com/my/repo.git"
-		cloneURLEscaped = "git%3A$$example.com$my$repo.git"
+		cloneURLEscaped = "Z2l0Oi8vZXhhbXBsZS5jb20vbXkvcmVwby5naXQ=!git:__example.com_my_repo.git"
 	)
 
 	tests := []struct {
