@@ -17,6 +17,7 @@ import (
 var (
 	bindAddr   = flag.String("http", ":9090", "HTTP listen address")
 	storageDir = flag.String("storage", "/tmp/vcsstore", "storage root dir for VCS repos")
+	hashedPath = flag.Bool("hashed-path", false, "use nested dirs based on VCS/repo hash instead of flat (HashedRepositoryPath)")
 	verbose    = flag.Bool("v", true, "show verbose output")
 	debug      = flag.Bool("d", false, "debug mode (don't use on publicly available servers)")
 )
@@ -34,6 +35,10 @@ func main() {
 	flag.Parse()
 	if flag.NArg() != 0 {
 		flag.Usage()
+	}
+
+	if *hashedPath {
+		vcsstore.RepositoryPath = vcsstore.HashedRepositoryPath
 	}
 
 	err := os.MkdirAll(*storageDir, 0700)
