@@ -95,7 +95,7 @@ func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
 	_, err := os.Stat(cloneDir)
 	if os.IsNotExist(err) {
 		// Repository hasn't been cloned locally. Try cloning and opening it.
-		if err := os.Mkdir(filepath.Join(s.StorageDir, vcsType), 0700); err != nil && !os.IsExist(err) {
+		if err := os.MkdirAll(filepath.Join(s.StorageDir, vcsType), 0700); err != nil {
 			return nil, err
 		}
 		start := time.Now()
