@@ -35,7 +35,7 @@ func HashedRepositoryPath(vcsType string, cloneURL *url.URL) string {
 	h.Write([]byte(vcsType))
 	h.Write([]byte(cloneURL.String()))
 	s := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	return fmt.Sprintf(vcsType, "%s/%s/%s", s[:2], s[2:4], s[4:])
+	return fmt.Sprintf("%s/%s/%s/%s", vcsType, s[:2], s[2:4], s[4:])
 }
 
 type Service interface {
