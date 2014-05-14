@@ -154,5 +154,5 @@ The options are:
 
 	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.RepositoryPath(vcsType, cloneURL)))
 	fmt.Println("HashedRepositoryPath:", filepath.Join(*storageDir, vcsstore.HashedRepositoryPath(vcsType, cloneURL)))
-	fmt.Println("URL:                 ", vcsclient.NewRouter().URLToRepo(vcsType, cloneURL))
+	fmt.Println("URL:                 ", vcsclient.NewRouter("/").URLToRepo(vcsType, cloneURL))
 }

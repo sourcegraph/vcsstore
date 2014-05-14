@@ -49,7 +49,7 @@ func New(base *url.URL, httpClient *http.Client) *Client {
 
 	c := &Client{
 		BaseURL:                   base,
-		router:                    NewRouter(),
+		router:                    NewRouter("/"),
 		UserAgent:                 userAgent,
 		httpClient:                httpClient,
 		ignoreRedirectsHTTPClient: &ignoreRedirectsHTTPClient,

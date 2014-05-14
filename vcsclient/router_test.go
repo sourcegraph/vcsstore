@@ -11,7 +11,7 @@ import (
 )
 
 func TestMatch(t *testing.T) {
-	router := (*muxpkg.Router)(NewRouter())
+	router := (*muxpkg.Router)(NewRouter("/"))
 
 	const (
 		cloneURL        = "git://example.com/my/repo.git"

@@ -28,8 +28,8 @@ type Router muxpkg.Router
 
 // NewRouter creates a new router that matches and generates URLs that the HTTP
 // handler recognizes.
-func NewRouter() *Router {
-	r := muxpkg.NewRouter()
+func NewRouter(prefix string) *Router {
+	r := muxpkg.NewRouter().PathPrefix(prefix).Subrouter()
 	r.StrictSlash(true)
 
 	r.Path("/").Methods("GET").Name(RouteRoot)

@@ -20,7 +20,7 @@ import (
 var (
 	Service vcsstore.Service
 
-	router      = vcsclient.NewRouter()
+	router      = vcsclient.NewRouter("/")
 	routePrefix string
 
 	Log = log.New(ioutil.Discard, "", 0)
@@ -70,11 +70,8 @@ func init() {
 }
 
 func NewHandler(prefix string) http.Handler {
-	router = vcsclient.NewRouter()
+	router = vcsclient.NewRouter(prefix)
 	r := (*mux.Router)(router)
-	if prefix != "" {
-		r = r.PathPrefix(prefix).Subrouter()
-	}
 	r.Get(vcsclient.RouteRoot).Handler(handler(serveRoot))
 	r.Get(vcsclient.RouteRepo).Handler(handler(serveRepo))
 	r.Get(vcsclient.RouteRepoUpdate).Handler(handler(serveRepoUpdate))
