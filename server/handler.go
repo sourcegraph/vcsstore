@@ -70,7 +70,8 @@ func init() {
 }
 
 func NewHandler(prefix string) http.Handler {
-	r := (*mux.Router)(vcsclient.NewRouter())
+	router = vcsclient.NewRouter()
+	r := (*mux.Router)(router)
 	if prefix != "" {
 		r = r.PathPrefix(prefix).Subrouter()
 	}
