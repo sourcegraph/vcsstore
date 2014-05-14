@@ -119,7 +119,7 @@ The options are:
 	server.Log = log.New(logw, "server: ", log.LstdFlags)
 	server.InformativeErrors = *debug
 
-	http.Handle("/", server.NewHandler(""))
+	http.Handle("/", server.NewHandler(nil))
 
 	fmt.Fprintf(os.Stderr, "Starting server on %s\n", *bindAddr)
 	err = http.ListenAndServe(*bindAddr, nil)
@@ -154,5 +154,5 @@ The options are:
 
 	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.RepositoryPath(vcsType, cloneURL)))
 	fmt.Println("HashedRepositoryPath:", filepath.Join(*storageDir, vcsstore.HashedRepositoryPath(vcsType, cloneURL)))
-	fmt.Println("URL:                 ", vcsclient.NewRouter("/").URLToRepo(vcsType, cloneURL))
+	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(vcsType, cloneURL))
 }

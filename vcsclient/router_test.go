@@ -11,7 +11,7 @@ import (
 )
 
 func TestMatch(t *testing.T) {
-	router := (*muxpkg.Router)(NewRouter("/"))
+	router := NewRouter(nil)
 
 	const (
 		cloneURL        = "git://example.com/my/repo.git"
@@ -94,7 +94,7 @@ func TestMatch(t *testing.T) {
 
 	for _, test := range tests {
 		var routeMatch muxpkg.RouteMatch
-		match := router.Match(&http.Request{Method: "GET", URL: &url.URL{Path: test.path}}, &routeMatch)
+		match := (*muxpkg.Router)(router).Match(&http.Request{Method: "GET", URL: &url.URL{Path: test.path}}, &routeMatch)
 
 		if match && test.wantNoMatch {
 			t.Errorf("%s: got match (route %q), want no match", test.path, routeMatch.Route.GetName())

@@ -20,7 +20,7 @@ import (
 var (
 	Service vcsstore.Service
 
-	router      = vcsclient.NewRouter("/")
+	router      = vcsclient.NewRouter(nil)
 	routePrefix string
 
 	Log = log.New(ioutil.Discard, "", 0)
@@ -69,8 +69,8 @@ func init() {
 	m.Set("NumResponseErrors", numResponseErrors)
 }
 
-func NewHandler(prefix string) http.Handler {
-	router = vcsclient.NewRouter(prefix)
+func NewHandler(parent *mux.Router) http.Handler {
+	router = vcsclient.NewRouter(parent)
 	r := (*mux.Router)(router)
 	r.Get(vcsclient.RouteRoot).Handler(handler(serveRoot))
 	r.Get(vcsclient.RouteRepo).Handler(handler(serveRepo))

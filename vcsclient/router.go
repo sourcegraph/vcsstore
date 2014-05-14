@@ -28,11 +28,12 @@ type Router muxpkg.Router
 
 // NewRouter creates a new router that matches and generates URLs that the HTTP
 // handler recognizes.
-func NewRouter(prefix string) *Router {
-	r := muxpkg.NewRouter().PathPrefix(prefix).Subrouter()
-	r.StrictSlash(true)
+func NewRouter(parent *muxpkg.Router) *Router {
+	if parent == nil {
+		parent = muxpkg.NewRouter()
+	}
 
-	r.Path("/").Methods("GET").Name(RouteRoot)
+	parent.Path("/").Methods("GET").Name(RouteRoot)
 
 	// Encode the repository clone URL as its base64.URLEncoding-encoded string.
 	// Add the repository URI after it (as a convenience) so that it's possible
@@ -64,8 +65,8 @@ func NewRouter(prefix string) *Router {
 	}
 
 	repoPath := "/repos/{VCS}/{CloneURLEscaped:[^/]+}"
-	r.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
-	repo := r.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
+	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
+	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
 	repo.Path("/update").Methods("PUT").Name(RouteRepoUpdate)
 	repo.Path("/branches/{Branch}").Methods("GET").Name(RouteRepoBranch)
 	repo.Path("/revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
@@ -96,7 +97,7 @@ func NewRouter(prefix string) *Router {
 	}
 	commit.Path("/tree{Path:(?:/.*)*}").Methods("GET").PostMatchFunc(cleanTreeVars).BuildVarsFunc(prepareTreeVars).Name(RouteRepoTreeEntry)
 
-	return (*Router)(r)
+	return (*Router)(parent)
 }
 
 func (r *Router) URLToRepo(vcsType string, cloneURL *url.URL) *url.URL {
