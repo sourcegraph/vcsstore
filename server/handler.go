@@ -69,18 +69,26 @@ func init() {
 	m.Set("NumResponseErrors", numResponseErrors)
 }
 
-func NewHandler(parent *mux.Router) http.Handler {
+// NewHandler adds routes and handlers to an existing parent router (or creates
+// one if parent is nil). If wrap is non-nil, it is called on each internal
+// handler before being registered as the handler for a router.
+func NewHandler(parent *mux.Router, wrap func(http.Handler) http.Handler) http.Handler {
 	router = vcsclient.NewRouter(parent)
 	r := (*mux.Router)(router)
-	r.Get(vcsclient.RouteRoot).Handler(handler(serveRoot))
-	r.Get(vcsclient.RouteRepo).Handler(handler(serveRepo))
-	r.Get(vcsclient.RouteRepoUpdate).Handler(handler(serveRepoUpdate))
-	r.Get(vcsclient.RouteRepoBranch).Handler(handler(serveRepoBranch))
-	r.Get(vcsclient.RouteRepoCommit).Handler(handler(serveRepoCommit))
-	r.Get(vcsclient.RouteRepoCommitLog).Handler(handler(serveRepoCommitLog))
-	r.Get(vcsclient.RouteRepoRevision).Handler(handler(serveRepoRevision))
-	r.Get(vcsclient.RouteRepoTag).Handler(handler(serveRepoTag))
-	r.Get(vcsclient.RouteRepoTreeEntry).Handler(handler(serveRepoTreeEntry))
+
+	if wrap == nil {
+		wrap = func(h http.Handler) http.Handler { return h }
+	}
+
+	r.Get(vcsclient.RouteRoot).Handler(wrap(handler(serveRoot)))
+	r.Get(vcsclient.RouteRepo).Handler(wrap(handler(serveRepo)))
+	r.Get(vcsclient.RouteRepoUpdate).Handler(wrap(handler(serveRepoUpdate)))
+	r.Get(vcsclient.RouteRepoBranch).Handler(wrap(handler(serveRepoBranch)))
+	r.Get(vcsclient.RouteRepoCommit).Handler(wrap(handler(serveRepoCommit)))
+	r.Get(vcsclient.RouteRepoCommitLog).Handler(wrap(handler(serveRepoCommitLog)))
+	r.Get(vcsclient.RouteRepoRevision).Handler(wrap(handler(serveRepoRevision)))
+	r.Get(vcsclient.RouteRepoTag).Handler(wrap(handler(serveRepoTag)))
+	r.Get(vcsclient.RouteRepoTreeEntry).Handler(wrap(handler(serveRepoTreeEntry)))
 	return r
 }
 

@@ -14,7 +14,7 @@ var (
 )
 
 func setupHandlerTest() {
-	server = httptest.NewServer(NewHandler(nil))
+	server = httptest.NewServer(NewHandler(nil, nil))
 }
 
 func teardownHandlerTest() {

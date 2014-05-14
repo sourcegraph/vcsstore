@@ -119,7 +119,7 @@ The options are:
 	server.Log = log.New(logw, "server: ", log.LstdFlags)
 	server.InformativeErrors = *debug
 
-	http.Handle("/", server.NewHandler(nil))
+	http.Handle("/", server.NewHandler(nil, nil))
 
 	fmt.Fprintf(os.Stderr, "Starting server on %s\n", *bindAddr)
 	err = http.ListenAndServe(*bindAddr, nil)
