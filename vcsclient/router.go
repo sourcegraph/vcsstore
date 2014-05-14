@@ -13,15 +13,15 @@ import (
 
 const (
 	// Route names
-	RouteRepo          = "repo"
-	RouteRepoBranch    = "repo.branch"
-	RouteRepoCommit    = "repo.commit"
-	RouteRepoCommitLog = "repo.commit.log"
-	RouteRepoRevision  = "repo.rev"
-	RouteRepoTag       = "repo.tag"
-	RouteRepoTreeEntry = "repo.tree-entry"
-	RouteRepoUpdate    = "repo.update"
-	RouteRoot          = "root"
+	RouteRepo          = "vcsstore:repo"
+	RouteRepoBranch    = "vcsstore:repo.branch"
+	RouteRepoCommit    = "vcsstore:repo.commit"
+	RouteRepoCommitLog = "vcsstore:repo.commit.log"
+	RouteRepoRevision  = "vcsstore:repo.rev"
+	RouteRepoTag       = "vcsstore:repo.tag"
+	RouteRepoTreeEntry = "vcsstore:repo.tree-entry"
+	RouteRepoUpdate    = "vcsstore:repo.update"
+	RouteRoot          = "vcsstore:root"
 )
 
 type Router muxpkg.Router
