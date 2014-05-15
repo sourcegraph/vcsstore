@@ -101,7 +101,6 @@ func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
 		start := time.Now()
 		msg := fmt.Sprintf("%s %s to %s", vcsType, cloneURL.String(), cloneDir)
 		s.Log.Print("Cloning ", msg, "...")
-		time.Sleep(time.Second * 2)
 		defer s.Log.Print("Finished cloning ", msg, " in ", time.Since(start))
 		return vcs.CloneMirror(vcsType, cloneURL.String(), cloneDir)
 	} else if err != nil {
