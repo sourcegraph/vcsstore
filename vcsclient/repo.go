@@ -17,6 +17,35 @@ type repository struct {
 	cloneURL *url.URL
 }
 
+type RepositoryRemoteCloner interface {
+	// CloneRemote instructs the server to clone the repository so it is
+	// available to the client via the API. The call blocks until cloning
+	// finishes or fails.
+	CloneRemote() error
+}
+
+func (r *repository) CloneRemote() error {
+	url, err := r.url(RouteRepo, nil)
+	if err != nil {
+		return err
+	}
+
+	req, err := r.client.NewRequest("POST", url.String())
+	if err != nil {
+		return err
+	}
+
+	resp, err := r.client.Do(req, nil)
+	if err != nil {
+		return err
+	}
+	if c := resp.StatusCode; c != http.StatusOK && c != http.StatusCreated {
+		return fmt.Errorf("CloneRemote: HTTP error %d", c)
+	}
+
+	return nil
+}
+
 func (r *repository) ResolveBranch(name string) (vcs.CommitID, error) {
 	url, err := r.url(RouteRepoBranch, map[string]string{"Branch": name})
 	if err != nil {

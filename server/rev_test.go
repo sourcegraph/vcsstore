@@ -18,7 +18,7 @@ func TestServeRepoBranch(t *testing.T) {
 		name:     "mybranch",
 		commitID: "abcd",
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,
@@ -51,7 +51,7 @@ func TestServeRepoRevision(t *testing.T) {
 		revSpec:  "myrevspec",
 		commitID: "abcd",
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,
@@ -84,7 +84,7 @@ func TestServeRepoTag(t *testing.T) {
 		name:     "mytag",
 		commitID: "abcd",
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,

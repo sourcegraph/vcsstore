@@ -12,7 +12,7 @@ import (
 func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, err := getRepo(r)
+	repo, cloneURL, _, err := getRepo(r, 0)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 	start := time.Now()
 
-	repo, cloneURL, err := getRepo(r)
+	repo, cloneURL, _, err := getRepo(r, 0)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 func serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, err := getRepo(r)
+	repo, cloneURL, _, err := getRepo(r, 0)
 	if err != nil {
 		return err
 	}

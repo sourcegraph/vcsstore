@@ -20,6 +20,8 @@ import (
 var (
 	storageDir = flag.String("s", "/tmp/vcsstore", "storage root dir for VCS repos")
 	verbose    = flag.Bool("v", true, "show verbose output")
+
+	defaultPort = "9090"
 )
 
 func main() {
@@ -72,12 +74,13 @@ type subcommand struct {
 var subcommands = []subcommand{
 	{"serve", "start an HTTP server to serve VCS repository data", serveCmd},
 	{"repo", "display information about a repository", repoCmd},
+	{"clone", "clones a repository on the server", cloneCmd},
 }
 
 func serveCmd(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	debug := fs.Bool("d", false, "debug mode (don't use on publicly available servers)")
-	bindAddr := fs.String("http", ":9090", "HTTP listen address")
+	bindAddr := fs.String("http", ":"+defaultPort, "HTTP listen address")
 	hashedPath := fs.Bool("hashed-path", false, "use nested dirs based on VCS/repo hash instead of flat (HashedRepositoryPath)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore serve [options]
@@ -114,6 +117,9 @@ The options are:
 	conf := &vcsstore.Config{
 		StorageDir: *storageDir,
 		Log:        log.New(logw, "vcsstore: ", log.LstdFlags),
+	}
+	if *debug {
+		conf.DebugLog = log.New(logw, "vcsstore DEBUG: ", log.LstdFlags)
 	}
 	server.Service = vcsstore.NewService(conf)
 	server.Log = log.New(logw, "server: ", log.LstdFlags)
@@ -155,4 +161,50 @@ The options are:
 	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.RepositoryPath(vcsType, cloneURL)))
 	fmt.Println("HashedRepositoryPath:", filepath.Join(*storageDir, vcsstore.HashedRepositoryPath(vcsType, cloneURL)))
 	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(vcsType, cloneURL))
+}
+
+func cloneCmd(args []string) {
+	fs := flag.NewFlagSet("clone", flag.ExitOnError)
+	urlStr := fs.String("url", "http://localhost:"+defaultPort, "base URL to a running vcsstore API server")
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, `usage: vcsstore clone [options] vcs-type clone-url
+
+Clones a repository on the server. Once finished, the repository will be
+available to the client via the vcsstore API.
+
+The options are:
+`)
+		fs.PrintDefaults()
+		os.Exit(1)
+	}
+	fs.Parse(args)
+
+	if fs.NArg() != 2 {
+		fs.Usage()
+	}
+
+	baseURL, err := url.Parse(*urlStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	vcsType := fs.Arg(0)
+	cloneURL, err := url.Parse(fs.Arg(1))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	c := vcsclient.New(baseURL, nil)
+	repo := c.Repository(vcsType, cloneURL)
+
+	if repo, ok := repo.(vcsclient.RepositoryRemoteCloner); ok {
+		err := repo.CloneRemote()
+		if err != nil {
+			log.Fatal("Clone: ", err)
+		}
+	} else {
+		log.Fatalf("Remote cloning is not implemented for %T.", repo)
+	}
+
+	fmt.Printf("%-5s %-45s cloned OK\n", vcsType, cloneURL)
 }

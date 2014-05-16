@@ -21,7 +21,7 @@ func TestServeRepoCommitLog(t *testing.T) {
 		to:      "abcd",
 		commits: []*vcs.Commit{{ID: "abcd"}, {ID: "wxyz"}},
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,

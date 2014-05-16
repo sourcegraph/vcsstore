@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -39,7 +40,15 @@ func HashedRepositoryPath(vcsType string, cloneURL *url.URL) string {
 }
 
 type Service interface {
+	// Open opens a repository. If it doesn't exist. an
+	// os.ErrNotExist-satisfying error is returned. If opening succeeds, the
+	// repository is returned.
 	Open(vcs string, cloneURL *url.URL) (interface{}, error)
+
+	// Clone clones the repository if a clone doesn't yet exist locally.
+	// Otherwise, it opens the repository. If no errors occur, the repository is
+	// returned.
+	Clone(vcs string, cloneURL *url.URL) (interface{}, error)
 }
 
 type Config struct {
@@ -48,6 +57,8 @@ type Config struct {
 	StorageDir string
 
 	Log *log.Logger
+
+	DebugLog *log.Logger
 }
 
 func NewService(c *Config) Service {
@@ -55,6 +66,7 @@ func NewService(c *Config) Service {
 		c = &Config{
 			StorageDir: ".",
 			Log:        log.New(os.Stderr, "vcsstore: ", log.LstdFlags),
+			DebugLog:   log.New(ioutil.Discard, "", 0),
 		}
 	}
 	return &service{
@@ -66,7 +78,8 @@ func NewService(c *Config) Service {
 type service struct {
 	Config
 
-	// repoMu synchronizes access to repository data on the filesystem.
+	// repoMu prevents more than one goroutine from simultaneously cloning the
+	// same repository. Because clones are atomic
 	repoMu map[repoKey]*sync.Mutex
 
 	// repoMuMu synchronizes access to repoMu.
@@ -78,38 +91,102 @@ type repoKey struct {
 	cloneURL string
 }
 
-func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
+// cloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
+// the local directory that the repository should be cloned to (which it may
+// already exist at). If invalid, cloneDir returns a non-nil error.
+func (s *service) cloneDir(vcsType string, cloneURL *url.URL) (string, error) {
 	if !isLowercaseLetter(vcsType) {
-		return nil, errors.New("invalid VCS type")
+		return "", errors.New("invalid VCS type")
 	}
 	if cloneURL.Scheme == "" || cloneURL.Host == "" {
-		return nil, errors.New("invalid clone URL")
+		return "", errors.New("invalid clone URL")
 	}
 
-	cloneDir := filepath.Join(s.StorageDir, RepositoryPath(vcsType, cloneURL))
+	return filepath.Join(s.StorageDir, RepositoryPath(vcsType, cloneURL)), nil
+}
 
+func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
+	cloneDir, err := s.cloneDir(vcsType, cloneURL)
+	if err != nil {
+		return nil, err
+	}
+	return s.open(vcsType, cloneDir)
+}
+
+func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
+	if fi, err := os.Stat(cloneDir); err != nil {
+		return nil, err
+	} else if !fi.Mode().IsDir() {
+		return nil, fmt.Errorf("clone path %q is not a directory", cloneDir)
+	}
+	return vcs.OpenMirror(vcsType, cloneDir)
+}
+
+func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) {
+	cloneDir, err := s.cloneDir(vcsType, cloneURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// See if the clone directory exists and return immediately (without
+	// locking) if so.
+	if r, err := s.open(vcsType, cloneDir); !os.IsNotExist(err) {
+		if err == nil {
+			s.DebugLog.Printf("Clone(%s, %s): repository already exists at %s", vcsType, cloneURL, cloneDir)
+		} else {
+			s.DebugLog.Printf("Clone(%s, %s): opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
+		}
+		return r, err
+	}
+
+	// The local clone directory doesn't exist, so we need to clone the repository.
 	mu := s.Mutex(vcsType, cloneURL)
 	mu.Lock()
 	defer mu.Unlock()
 
-	_, err := os.Stat(cloneDir)
-	if os.IsNotExist(err) {
-		// Repository hasn't been cloned locally. Try cloning and opening it.
-		if err := os.MkdirAll(filepath.Join(s.StorageDir, vcsType), 0700); err != nil {
-			return nil, err
+	// Check again after obtaining the lock, so we don't clone multiple times.
+	if r, err := s.open(vcsType, cloneDir); !os.IsNotExist(err) {
+		if err == nil {
+			s.DebugLog.Printf("Clone(%s, %s): after obtaining clone lock, repository already exists at %s", vcsType, cloneURL, cloneDir)
+		} else {
+			s.DebugLog.Printf("Clone(%s, %s): after obtaining clone lock, opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
 		}
-		start := time.Now()
-		msg := fmt.Sprintf("%s %s to %s", vcsType, cloneURL.String(), cloneDir)
-		s.Log.Print("Cloning ", msg, "...")
-		defer func() {
-			s.Log.Print("Finished cloning ", msg, " in ", time.Since(start))
-		}()
-		return vcs.CloneMirror(vcsType, cloneURL.String(), cloneDir)
-	} else if err != nil {
+		return r, err
+	}
+
+	start := time.Now()
+	msg := fmt.Sprintf("%s %s to %s", vcsType, cloneURL.String(), cloneDir)
+	s.Log.Print("Cloning ", msg, "...")
+	defer func() {
+		s.Log.Print("Finished cloning ", msg, " in ", time.Since(start))
+	}()
+
+	// Atomically clone the repository. First, clone it to a temporary sibling
+	// directory. Once the clone is complete, atomically
+	// rename it to the intended cloneDir.
+	parentDir := filepath.Dir(cloneDir)
+	if err := os.MkdirAll(parentDir, 0700); err != nil {
 		return nil, err
 	}
 
-	return vcs.OpenMirror(vcsType, cloneDir)
+	cloneTmpDir, err := ioutil.TempDir(parentDir, "_tmp_"+filepath.Base(cloneDir)+"-")
+	if err != nil {
+		return nil, err
+	}
+	s.DebugLog.Printf("Clone(%s, %s): cloning to temporary sibling dir %s", vcsType, cloneURL, cloneTmpDir)
+
+	_, err = vcs.CloneMirror(vcsType, cloneURL.String(), cloneTmpDir)
+	if err != nil {
+		return nil, err
+	}
+	s.DebugLog.Printf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+
+	if err := os.Rename(cloneTmpDir, cloneDir); err != nil {
+		s.DebugLog.Printf("Clone(%s, %s): Rename(%s -> %s) failed: %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+		return nil, err
+	}
+
+	return s.open(vcsType, cloneDir)
 }
 
 func (s *service) Mutex(vcsType string, cloneURL *url.URL) *sync.Mutex {

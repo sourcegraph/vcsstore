@@ -17,7 +17,7 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 	start := time.Now()
 
-	repo, _, err := getRepo(r)
+	repo, _, _, err := getRepo(r, 0)
 	if err != nil {
 		return err
 	}

@@ -82,7 +82,7 @@ func NewHandler(parent *mux.Router, wrap func(http.Handler) http.Handler) http.H
 
 	r.Get(vcsclient.RouteRoot).Handler(wrap(handler(serveRoot)))
 	r.Get(vcsclient.RouteRepo).Handler(wrap(handler(serveRepo)))
-	r.Get(vcsclient.RouteRepoUpdate).Handler(wrap(handler(serveRepoUpdate)))
+	r.Get(vcsclient.RouteRepoCreateOrUpdate).Handler(wrap(handler(serveRepoCreateOrUpdate)))
 	r.Get(vcsclient.RouteRepoBranch).Handler(wrap(handler(serveRepoBranch)))
 	r.Get(vcsclient.RouteRepoCommit).Handler(wrap(handler(serveRepoCommit)))
 	r.Get(vcsclient.RouteRepoCommitLog).Handler(wrap(handler(serveRepoCommitLog)))

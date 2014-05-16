@@ -21,7 +21,7 @@ func TestHandlers_NotImplemented(t *testing.T) {
 		router.URLToRepoTreeEntry("git", cloneURL, "abcd", "."),
 	}
 
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,

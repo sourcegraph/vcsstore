@@ -20,7 +20,7 @@ func TestServeRepoCommit(t *testing.T) {
 		id:     "abcd",
 		commit: &vcs.Commit{ID: "abcd"},
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,
@@ -62,7 +62,7 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 		id:     "ab",
 		commit: &vcs.Commit{ID: "abcd"},
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,

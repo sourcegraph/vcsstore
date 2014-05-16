@@ -13,15 +13,15 @@ import (
 
 const (
 	// Route names
-	RouteRepo          = "vcs:repo"
-	RouteRepoBranch    = "vcs:repo.branch"
-	RouteRepoCommit    = "vcs:repo.commit"
-	RouteRepoCommitLog = "vcs:repo.commit.log"
-	RouteRepoRevision  = "vcs:repo.rev"
-	RouteRepoTag       = "vcs:repo.tag"
-	RouteRepoTreeEntry = "vcs:repo.tree-entry"
-	RouteRepoUpdate    = "vcs:repo.update"
-	RouteRoot          = "vcs:root"
+	RouteRepo               = "vcs:repo"
+	RouteRepoBranch         = "vcs:repo.branch"
+	RouteRepoCommit         = "vcs:repo.commit"
+	RouteRepoCommitLog      = "vcs:repo.commit.log"
+	RouteRepoRevision       = "vcs:repo.rev"
+	RouteRepoTag            = "vcs:repo.tag"
+	RouteRepoTreeEntry      = "vcs:repo.tree-entry"
+	RouteRepoCreateOrUpdate = "vcs:repo.create-or-update"
+	RouteRoot               = "vcs:root"
 )
 
 type Router muxpkg.Router
@@ -66,8 +66,8 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 	repoPath := "/repos/{VCS}/{CloneURLEscaped:[^/]+}"
 	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
+	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepoCreateOrUpdate)
 	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
-	repo.Path("/update").Methods("PUT").Name(RouteRepoUpdate)
 	repo.Path("/branches/{Branch}").Methods("GET").Name(RouteRepoBranch)
 	repo.Path("/revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
 	repo.Path("/tags/{Tag}").Methods("GET").Name(RouteRepoTag)
@@ -102,10 +102,6 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 func (r *Router) URLToRepo(vcsType string, cloneURL *url.URL) *url.URL {
 	return r.URLTo(RouteRepo, "VCS", vcsType, "CloneURL", cloneURL.String())
-}
-
-func (r *Router) URLToRepoUpdate(vcsType string, cloneURL *url.URL) *url.URL {
-	return r.URLTo(RouteRepoUpdate, "VCS", vcsType, "CloneURL", cloneURL.String())
 }
 
 func (r *Router) URLToRepoBranch(vcsType string, cloneURL *url.URL, branch string) *url.URL {

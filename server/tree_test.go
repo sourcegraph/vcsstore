@@ -22,7 +22,7 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 		at: "abcd",
 		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata"}),
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,
@@ -74,7 +74,7 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 		at: "abcd",
 		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata", "mydir/f": ""}),
 	}
-	sm := &mockService{
+	sm := &mockServiceForExistingRepo{
 		t:        t,
 		vcs:      "git",
 		cloneURL: cloneURL,

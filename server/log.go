@@ -8,7 +8,7 @@ import (
 )
 
 func serveRepoCommitLog(w http.ResponseWriter, r *http.Request) error {
-	repo, _, err := getRepo(r)
+	repo, _, _, err := getRepo(r, 0)
 	if err != nil {
 		return err
 	}
