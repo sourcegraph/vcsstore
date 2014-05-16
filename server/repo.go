@@ -79,6 +79,9 @@ func getRepo(r *http.Request, opt getRepoMode) (repo interface{}, cloneURL *url.
 		repo, err = Service.Clone(vcsType, cloneURL)
 	}
 	if err != nil {
+		if os.IsNotExist(err) {
+			err = &httpError{http.StatusNotFound, errors.New("repository does not exist on server")}
+		}
 		return nil, nil, cloned, err
 	}
 

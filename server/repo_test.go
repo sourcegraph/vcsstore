@@ -34,6 +34,47 @@ func TestServeRepo(t *testing.T) {
 	}
 }
 
+func TestServeRepo_DoesNotExist(t *testing.T) {
+	setupHandlerTest()
+	defer teardownHandlerTest()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	var calledOpen bool
+	sm := &mockService{
+		t:        t,
+		vcs:      "git",
+		cloneURL: cloneURL,
+		open: func(vcs string, cloneURL *url.URL) (interface{}, error) {
+			// Simulate that the repository doesn't exist locally.
+			calledOpen = true
+			return nil, os.ErrNotExist
+		},
+		clone: func(vcs string, cloneURL *url.URL) (interface{}, error) {
+			t.Fatal("unexpectedly called Clone")
+			panic("unreachable")
+		},
+	}
+	Service = sm
+
+	req, err := http.NewRequest("GET", server.URL+router.URLToRepo("git", cloneURL).String(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if !calledOpen {
+		t.Errorf("!calledOpen")
+	}
+	if got, want := resp.StatusCode, http.StatusNotFound; got != want {
+		t.Errorf("got code %d, want %d", got, want)
+		logResponseBody(t, resp)
+	}
+}
+
 func TestServeRepoCreateOrUpdate_CreateNew(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
