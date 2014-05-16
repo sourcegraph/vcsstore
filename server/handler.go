@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"expvar"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -113,11 +112,10 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // errorMessage formats an error message for the HTTP response.
 func errorMessage(err error) string {
-	c := errorHTTPStatusCode(err)
 	if InformativeErrors {
-		return fmt.Sprintf("HTTP %d (%s): %s", c, http.StatusText(c), err)
+		return err.Error()
 	}
-	return fmt.Sprintf("HTTP %d (%s)", c, http.StatusText(c))
+	return ""
 }
 
 // responseRecorder is an implementation of http.ResponseWriter that
