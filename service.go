@@ -174,6 +174,7 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) 
 		return nil, err
 	}
 	s.DebugLog.Printf("Clone(%s, %s): cloning to temporary sibling dir %s", vcsType, cloneURL, cloneTmpDir)
+	defer os.RemoveAll(cloneTmpDir)
 
 	_, err = vcs.CloneMirror(vcsType, cloneURL.String(), cloneTmpDir)
 	if err != nil {
