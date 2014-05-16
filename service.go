@@ -61,6 +61,20 @@ type Config struct {
 	DebugLog *log.Logger
 }
 
+// CloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
+// the local directory that the repository should be cloned to (which it may
+// already exist at). If invalid, cloneDir returns a non-nil error.
+func (c *Config) CloneDir(vcsType string, cloneURL *url.URL) (string, error) {
+	if !isLowercaseLetter(vcsType) {
+		return "", errors.New("invalid VCS type")
+	}
+	if cloneURL.Scheme == "" || cloneURL.Host == "" {
+		return "", errors.New("invalid clone URL")
+	}
+
+	return filepath.Join(c.StorageDir, RepositoryPath(vcsType, cloneURL)), nil
+}
+
 func NewService(c *Config) Service {
 	if c == nil {
 		c = &Config{
@@ -89,20 +103,6 @@ type service struct {
 type repoKey struct {
 	vcsType  string
 	cloneURL string
-}
-
-// CloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
-// the local directory that the repository should be cloned to (which it may
-// already exist at). If invalid, cloneDir returns a non-nil error.
-func (s *service) CloneDir(vcsType string, cloneURL *url.URL) (string, error) {
-	if !isLowercaseLetter(vcsType) {
-		return "", errors.New("invalid VCS type")
-	}
-	if cloneURL.Scheme == "" || cloneURL.Host == "" {
-		return "", errors.New("invalid clone URL")
-	}
-
-	return filepath.Join(s.StorageDir, RepositoryPath(vcsType, cloneURL)), nil
 }
 
 func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
