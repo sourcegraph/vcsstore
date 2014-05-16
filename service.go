@@ -79,7 +79,7 @@ type service struct {
 	Config
 
 	// repoMu prevents more than one goroutine from simultaneously cloning the
-	// same repository. Because clones are atomic
+	// same repository.
 	repoMu map[repoKey]*sync.Mutex
 
 	// repoMuMu synchronizes access to repoMu.
@@ -161,9 +161,13 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) 
 		s.Log.Print("Finished cloning ", msg, " in ", time.Since(start))
 	}()
 
-	// Atomically clone the repository. First, clone it to a temporary sibling
-	// directory. Once the clone is complete, atomically
+	// "Atomically" clone the repository. First, clone it to a temporary sibling
+	// directory. Once the clone is complete, "atomically"
 	// rename it to the intended cloneDir.
+	//
+	// "Atomically" is in quotes because this operation is not really atomic. It
+	// depends on the underlying FS. For now, for our purposes, it performs well
+	// enough on local ext4 and on GlusterFS.
 	parentDir := filepath.Dir(cloneDir)
 	if err := os.MkdirAll(parentDir, 0700); err != nil {
 		return nil, err
