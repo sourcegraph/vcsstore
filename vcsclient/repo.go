@@ -11,6 +11,21 @@ import (
 	muxpkg "github.com/sqs/mux"
 )
 
+var ErrRepoNotExist = errors.New("repository does not exist on remote server")
+
+func IsRepoNotExist(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err == ErrRepoNotExist {
+		return true
+	}
+	if err, ok := err.(*ErrorResponse); ok {
+		return err.Message == ErrRepoNotExist.Error()
+	}
+	return err.Error() == ErrRepoNotExist.Error()
+}
+
 type repository struct {
 	client   *Client
 	vcsType  string
