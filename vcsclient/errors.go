@@ -9,7 +9,7 @@ import (
 
 // An ErrorResponse reports errors caused by an API request.
 type ErrorResponse struct {
-	Response *http.Response // HTTP response that caused this error
+	Response *http.Response `json:",omitempty"` // HTTP response that caused this error
 	Message  string         // error message
 }
 
@@ -18,6 +18,8 @@ func (r *ErrorResponse) Error() string {
 		r.Response.Request.Method, r.Response.Request.URL,
 		r.Response.StatusCode, r.Message)
 }
+
+func (r *ErrorResponse) Description() string { return r.Message }
 
 func (r *ErrorResponse) HTTPStatusCode() int { return r.Response.StatusCode }
 

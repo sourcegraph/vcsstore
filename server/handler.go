@@ -105,15 +105,16 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Log.Printf("HTTP %d error serving %q: %s.", c, r.URL.RequestURI(), err)
 		if rw.Code == 0 {
 			// No response written yet, so we can write a response.
-			http.Error(w, errorMessage(err), c)
+			http.Error(w, errorBody(err), c)
 		}
 	}
 }
 
-// errorMessage formats an error message for the HTTP response.
-func errorMessage(err error) string {
+// errorBody formats an error message for the HTTP response.
+func errorBody(err error) string {
 	if InformativeErrors {
-		return err.Error()
+		data, _ := json.Marshal(&vcsclient.ErrorResponse{Message: err.Error()})
+		return string(data)
 	}
 	return ""
 }
