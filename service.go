@@ -91,10 +91,10 @@ type repoKey struct {
 	cloneURL string
 }
 
-// cloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
+// CloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
 // the local directory that the repository should be cloned to (which it may
 // already exist at). If invalid, cloneDir returns a non-nil error.
-func (s *service) cloneDir(vcsType string, cloneURL *url.URL) (string, error) {
+func (s *service) CloneDir(vcsType string, cloneURL *url.URL) (string, error) {
 	if !isLowercaseLetter(vcsType) {
 		return "", errors.New("invalid VCS type")
 	}
@@ -106,7 +106,7 @@ func (s *service) cloneDir(vcsType string, cloneURL *url.URL) (string, error) {
 }
 
 func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
-	cloneDir, err := s.cloneDir(vcsType, cloneURL)
+	cloneDir, err := s.CloneDir(vcsType, cloneURL)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
 }
 
 func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) {
-	cloneDir, err := s.cloneDir(vcsType, cloneURL)
+	cloneDir, err := s.CloneDir(vcsType, cloneURL)
 	if err != nil {
 		return nil, err
 	}
