@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
 )
 
@@ -80,7 +81,7 @@ func getRepo(r *http.Request, opt getRepoMode) (repo interface{}, cloneURL *url.
 	}
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = &httpError{http.StatusNotFound, errors.New("repository does not exist on server")}
+			err = &httpError{http.StatusNotFound, vcsclient.ErrRepoNotExist}
 		}
 		return nil, nil, cloned, err
 	}
