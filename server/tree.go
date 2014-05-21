@@ -57,7 +57,7 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 			for i, fi := range entries {
 				e.Entries[i] = newTreeEntry(fi)
 			}
-			sort.Sort(treeEntries(e.Entries))
+			sort.Sort(vcsclient.TreeEntriesByTypeByName(e.Entries))
 		} else if fi.Mode().IsRegular() {
 			f, err := fs.Open(path)
 			if err != nil {
@@ -97,9 +97,3 @@ func newTreeEntry(fi os.FileInfo) *vcsclient.TreeEntry {
 	}
 	return e
 }
-
-type treeEntries []*vcsclient.TreeEntry
-
-func (v treeEntries) Len() int           { return len(v) }
-func (v treeEntries) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
-func (v treeEntries) Less(i, j int) bool { return v[i].Name < v[j].Name }

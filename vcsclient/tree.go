@@ -57,3 +57,14 @@ func (fi *fileInfo) Mode() os.FileMode  { return fi.mode }
 func (fi *fileInfo) ModTime() time.Time { return fi.mtime }
 func (fi *fileInfo) IsDir() bool        { return fi.Mode().IsDir() }
 func (fi *fileInfo) Sys() interface{}   { return nil }
+
+type TreeEntriesByTypeByName []*TreeEntry
+
+func (v TreeEntriesByTypeByName) Len() int      { return len(v) }
+func (v TreeEntriesByTypeByName) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
+func (v TreeEntriesByTypeByName) Less(i, j int) bool {
+	if v[i].Type != v[j].Type {
+		return v[i].Type < v[j].Type
+	}
+	return v[i].Name < v[j].Name
+}
