@@ -180,6 +180,10 @@ func (r *repository) CommitLog(to vcs.CommitID) ([]*vcs.Commit, error) {
 	return commits, nil
 }
 
+// FileSystem returns a vcs.FileSystem that accesses the repository tree. The
+// returned interface also satisfies vcsclient.FileSystem, which has an
+// additional Get method that is useful for fetching all information about an
+// entry in the tree.
 func (r *repository) FileSystem(at vcs.CommitID) (vcs.FileSystem, error) {
 	return &repositoryFS{
 		at:   at,

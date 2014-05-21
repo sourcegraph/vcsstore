@@ -10,13 +10,20 @@ import (
 	"github.com/sourcegraph/go-vcs/vcs"
 )
 
+type FileSystem interface {
+	vcs.FileSystem
+	Get(path string) (*TreeEntry, error)
+}
+
 type repositoryFS struct {
 	at   vcs.CommitID
 	repo *repository
 }
 
+var _ FileSystem = &repositoryFS{}
+
 func (fs *repositoryFS) Open(name string) (vcs.ReadSeekCloser, error) {
-	e, err := fs.get(name)
+	e, err := fs.Get(name)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +32,7 @@ func (fs *repositoryFS) Open(name string) (vcs.ReadSeekCloser, error) {
 }
 
 func (fs *repositoryFS) Lstat(path string) (os.FileInfo, error) {
-	e, err := fs.get(path)
+	e, err := fs.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +42,7 @@ func (fs *repositoryFS) Lstat(path string) (os.FileInfo, error) {
 
 func (fs *repositoryFS) Stat(path string) (os.FileInfo, error) {
 	// TODO(sqs): follow symlinks (as Stat specification requires)
-	e, err := fs.get(path)
+	e, err := fs.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +51,7 @@ func (fs *repositoryFS) Stat(path string) (os.FileInfo, error) {
 }
 
 func (fs *repositoryFS) ReadDir(path string) ([]os.FileInfo, error) {
-	e, err := fs.get(path)
+	e, err := fs.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +71,8 @@ func (fs *repositoryFS) String() string {
 	return fmt.Sprintf("%s repository %s commit %s (client)", fs.repo.vcsType, fs.repo.cloneURL, fs.at)
 }
 
-func (fs *repositoryFS) get(path string) (*TreeEntry, error) {
+// Get returns the whole TreeEntry struct for a tree entry.
+func (fs *repositoryFS) Get(path string) (*TreeEntry, error) {
 	url, err := fs.url(path)
 	if err != nil {
 		return nil, err
