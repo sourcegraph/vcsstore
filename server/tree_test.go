@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+
 	"github.com/sourcegraph/go-vcs/vcs"
 	vcs_testing "github.com/sourcegraph/go-vcs/vcs/testing"
 	"github.com/sourcegraph/vcsstore/vcsclient"
@@ -16,10 +18,12 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
+	commitID := vcs.CommitID(strings.Repeat("a", 40))
+
 	cloneURL, _ := url.Parse("git://a.b/c")
 	rm := &mockFileSystem{
 		t:  t,
-		at: "abcd",
+		at: commitID,
 		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockServiceForExistingRepo{
@@ -30,7 +34,7 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 	}
 	Service = sm
 
-	resp, err := http.Get(server.URL + router.URLToRepoTreeEntry("git", cloneURL, "abcd", "myfile").String())
+	resp, err := http.Get(server.URL + router.URLToRepoTreeEntry("git", cloneURL, commitID, "myfile").String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,6 +65,11 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 
 	if !reflect.DeepEqual(e, wantEntry) {
 		t.Errorf("got tree entry %+v, want %+v", e, wantEntry)
+	}
+
+	// used canonical commit ID, so should be long-cached
+	if cc := resp.Header.Get("cache-control"); cc != longCacheControl {
+		t.Errorf("got cache-control %q, want %q", cc, longCacheControl)
 	}
 }
 
@@ -122,6 +131,11 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 
 	if !reflect.DeepEqual(e, wantEntry) {
 		t.Errorf("got tree entry %+v, want %+v", e, wantEntry)
+	}
+
+	// used short commit ID, so should not be long-cached
+	if cc := resp.Header.Get("cache-control"); cc != "" {
+		t.Errorf("got cache-control %q, want %q", cc, "")
 	}
 }
 

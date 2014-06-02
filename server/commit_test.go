@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/sourcegraph/go-vcs/vcs"
@@ -14,11 +15,13 @@ func TestServeRepoCommit(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
+	commitID := vcs.CommitID(strings.Repeat("a", 40))
+
 	cloneURL, _ := url.Parse("git://a.b/c")
 	rm := &mockGetCommit{
 		t:      t,
-		id:     "abcd",
-		commit: &vcs.Commit{ID: "abcd"},
+		id:     commitID,
+		commit: &vcs.Commit{ID: commitID},
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -28,7 +31,7 @@ func TestServeRepoCommit(t *testing.T) {
 	}
 	Service = sm
 
-	resp, err := http.Get(server.URL + router.URLToRepoCommit("git", cloneURL, "abcd").String())
+	resp, err := http.Get(server.URL + router.URLToRepoCommit("git", cloneURL, commitID).String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,6 +52,10 @@ func TestServeRepoCommit(t *testing.T) {
 	normalizeCommit(rm.commit)
 	if !reflect.DeepEqual(commit, rm.commit) {
 		t.Errorf("got commit %+v, want %+v", commit, rm.commit)
+	}
+
+	if cc := resp.Header.Get("cache-control"); cc != longCacheControl {
+		t.Errorf("got cache-control %q, want %q", cc, longCacheControl)
 	}
 }
 
@@ -83,6 +90,10 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 		t.Errorf("!called")
 	}
 	testRedirectedTo(t, resp, http.StatusSeeOther, router.URLToRepoCommit("git", cloneURL, "abcd"))
+
+	if cc := resp.Header.Get("cache-control"); cc != "" {
+		t.Errorf("got cache-control %q, want %q", cc, "")
+	}
 }
 
 // TODO(sqs): Add redirects to the full commit ID for other endpoints that

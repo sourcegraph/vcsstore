@@ -32,9 +32,10 @@ var (
 
 var (
 	// Published expvars
-	numRequests       = &expvar.Int{}
-	numResponses      = &expvar.Int{}
-	numResponseErrors = &expvar.Int{}
+	numRequests            = &expvar.Int{}
+	numLongCachedResponses = &expvar.Int{}
+	numResponses           = &expvar.Int{}
+	numResponseErrors      = &expvar.Int{}
 
 	totalTreeEntryResponseTime = &expvar.Int{}
 	numTreeEntryResponses      = &expvar.Int{}
@@ -65,6 +66,7 @@ func init() {
 	m.Set("AvgResolveRevisionResponseTime", avgResolveRevision)
 	m.Set("NumRequests", numRequests)
 	m.Set("NumResponses", numResponses)
+	m.Set("NumLongCachedResponses", numLongCachedResponses)
 	m.Set("NumResponseErrors", numResponseErrors)
 }
 

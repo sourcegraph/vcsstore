@@ -13,7 +13,7 @@ func serveRepoCommitLog(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	commitID, err := getCommitID(r)
+	commitID, canon, err := getCommitID(r)
 	if err != nil {
 		return err
 	}
@@ -27,6 +27,9 @@ func serveRepoCommitLog(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
+		if canon {
+			setLongCache(w)
+		}
 		return writeJSON(w, commits)
 	}
 

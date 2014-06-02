@@ -22,7 +22,7 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	commitID, err := getCommitID(r)
+	commitID, canon, err := getCommitID(r)
 	if err != nil {
 		return err
 	}
@@ -76,6 +76,9 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 		numTreeEntryResponses.Add(1)
 		totalTreeEntryResponseTime.Add(int64(time.Since(start)))
 
+		if canon {
+			setLongCache(w)
+		}
 		return writeJSON(w, e)
 	}
 

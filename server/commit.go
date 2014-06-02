@@ -18,7 +18,7 @@ func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	commitID, err := getCommitID(r)
+	commitID, canon, err := getCommitID(r)
 	if err != nil {
 		return err
 	}
@@ -37,24 +37,30 @@ func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
 			return nil
 		}
 
+		if canon {
+			setLongCache(w)
+		}
 		return writeJSON(w, commit)
 	}
 
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("GetCommit not yet implemented for %T", repo)}
 }
 
-func getCommitID(r *http.Request) (vcs.CommitID, error) {
+// getCommitID retrieves the CommitID from the querystring and returns the
+// commit ID, whether it is canonical (i.e., the full 40-character commit ID),
+// and an error (if any).
+func getCommitID(r *http.Request) (vcs.CommitID, bool, error) {
 	v := mux.Vars(r)
 	commitID := v["CommitID"]
 	if commitID == "" {
-		return "", &httpError{http.StatusBadRequest, errors.New("CommitID is empty")}
+		return "", false, &httpError{http.StatusBadRequest, errors.New("CommitID is empty")}
 	}
 
 	if !isLowercaseHex(commitID) {
-		return "", &httpError{http.StatusBadRequest, errors.New("CommitID must be lowercase hex")}
+		return "", false, &httpError{http.StatusBadRequest, errors.New("CommitID must be lowercase hex")}
 	}
 
-	return vcs.CommitID(commitID), nil
+	return vcs.CommitID(commitID), len(commitID) == 40, nil
 }
 
 func isLowercaseHex(s string) bool {
