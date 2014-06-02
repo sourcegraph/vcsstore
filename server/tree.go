@@ -78,6 +78,8 @@ func serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 
 		if canon {
 			setLongCache(w)
+		} else {
+			setShortCache(w)
 		}
 		return writeJSON(w, e)
 	}

@@ -134,8 +134,8 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	}
 
 	// used short commit ID, so should not be long-cached
-	if cc := resp.Header.Get("cache-control"); cc != "" {
-		t.Errorf("got cache-control %q, want %q", cc, "")
+	if cc := resp.Header.Get("cache-control"); cc != shortCacheControl {
+		t.Errorf("got cache-control %q, want %q", cc, shortCacheControl)
 	}
 }
 

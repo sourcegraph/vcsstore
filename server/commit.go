@@ -33,7 +33,8 @@ func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		if commit.ID != commitID {
-			http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commit.ID).String(), http.StatusSeeOther)
+			setShortCache(w)
+			http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commit.ID).String(), http.StatusFound)
 			return nil
 		}
 

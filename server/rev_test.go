@@ -38,7 +38,7 @@ func TestServeRepoBranch(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusSeeOther, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
 }
 
 func TestServeRepoRevision(t *testing.T) {
@@ -71,7 +71,7 @@ func TestServeRepoRevision(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusSeeOther, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
 }
 
 func TestServeRepoTag(t *testing.T) {
@@ -104,7 +104,7 @@ func TestServeRepoTag(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusSeeOther, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
 }
 
 type mockResolveBranch struct {

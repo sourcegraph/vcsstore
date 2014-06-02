@@ -89,10 +89,10 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusSeeOther, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
 
-	if cc := resp.Header.Get("cache-control"); cc != "" {
-		t.Errorf("got cache-control %q, want %q", cc, "")
+	if cc := resp.Header.Get("cache-control"); cc != shortCacheControl {
+		t.Errorf("got cache-control %q, want %q", cc, shortCacheControl)
 	}
 }
 

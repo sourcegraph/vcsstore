@@ -23,7 +23,7 @@ func TestRepository_ResolveBranch(t *testing.T) {
 		called = true
 		testMethod(t, r, "GET")
 
-		http.Redirect(w, r, urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), http.StatusSeeOther)
+		http.Redirect(w, r, urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), http.StatusFound)
 	})
 
 	commitID, err := repo.ResolveBranch("mybranch")
@@ -54,7 +54,7 @@ func TestRepository_ResolveRevision(t *testing.T) {
 		called = true
 		testMethod(t, r, "GET")
 
-		http.Redirect(w, r, urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), http.StatusSeeOther)
+		http.Redirect(w, r, urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), http.StatusFound)
 	})
 
 	commitID, err := repo.ResolveRevision("myrevspec")
@@ -85,7 +85,7 @@ func TestRepository_ResolveTag(t *testing.T) {
 		called = true
 		testMethod(t, r, "GET")
 
-		http.Redirect(w, r, urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), http.StatusSeeOther)
+		http.Redirect(w, r, urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), http.StatusFound)
 	})
 
 	commitID, err := repo.ResolveTag("mytag")

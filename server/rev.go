@@ -26,7 +26,8 @@ func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusSeeOther)
+		setShortCache(w)
+		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
 		return nil
 	}
 
@@ -54,7 +55,8 @@ func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 		numResolveRevisionResponses.Add(1)
 		totalResolveRevisionResponseTime.Add(int64(time.Since(start)))
 
-		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusSeeOther)
+		setShortCache(w)
+		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
 		return nil
 	}
 
@@ -78,7 +80,8 @@ func serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusSeeOther)
+		setShortCache(w)
+		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
 		return nil
 	}
 
