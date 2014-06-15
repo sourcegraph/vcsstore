@@ -132,7 +132,7 @@ func (r *repository) parseCommitIDInURL(urlStr string) (vcs.CommitID, error) {
 	}
 
 	var info muxpkg.RouteMatch
-	match := (*muxpkg.Router)(r.client.router).Match(&http.Request{Method: "GET", URL: url}, &info)
+	match := (*muxpkg.Router)(router).Match(&http.Request{Method: "GET", URL: url}, &info)
 	if !match || info.Vars["CommitID"] == "" {
 		return "", errors.New("failed to determine CommitID from URL")
 	}
@@ -191,10 +191,13 @@ func (r *repository) FileSystem(at vcs.CommitID) (vcs.FileSystem, error) {
 	}, nil
 }
 
+// router used to generate URLs for the vcsstore API.
+var router = NewRouter(nil)
+
 // url generates the URL to the named vcsstore API endpoint, using the
 // specified route variables and query options.
 func (r *repository) url(routeName string, routeVars map[string]string) (*url.URL, error) {
-	route := (*muxpkg.Router)(r.client.router).Get(routeName)
+	route := (*muxpkg.Router)(router).Get(routeName)
 	if route == nil {
 		return nil, fmt.Errorf("no API route named %q", route)
 	}

@@ -22,9 +22,6 @@ type Client struct {
 	// Base URL for API requests, which should have a trailing slash.
 	BaseURL *url.URL
 
-	// Router used to generate URLs for the vcsstore API.
-	router *Router
-
 	// User agent used for HTTP requests to the vcsstore API.
 	UserAgent string
 
@@ -49,7 +46,6 @@ func New(base *url.URL, httpClient *http.Client) *Client {
 
 	c := &Client{
 		BaseURL:                   base,
-		router:                    NewRouter(nil),
 		UserAgent:                 userAgent,
 		httpClient:                httpClient,
 		ignoreRedirectsHTTPClient: &ignoreRedirectsHTTPClient,
