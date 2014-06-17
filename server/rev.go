@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/sourcegraph/go-vcs/vcs"
 	"github.com/sqs/mux"
@@ -36,7 +35,6 @@ func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 
 func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
-	start := time.Now()
 
 	repo, cloneURL, _, err := getRepo(r, 0)
 	if err != nil {
@@ -51,9 +49,6 @@ func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-
-		numResolveRevisionResponses.Add(1)
-		totalResolveRevisionResponseTime.Add(int64(time.Since(start)))
 
 		setShortCache(w)
 		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)

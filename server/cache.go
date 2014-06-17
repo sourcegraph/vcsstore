@@ -8,7 +8,6 @@ var (
 )
 
 func setLongCache(w http.ResponseWriter) {
-	numLongCachedResponses.Add(1)
 	w.Header().Set("cache-control", longCacheControl)
 }
 
