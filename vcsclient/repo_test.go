@@ -14,7 +14,8 @@ func TestRepository_ResolveBranch(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
@@ -45,7 +46,8 @@ func TestRepository_ResolveRevision(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
@@ -76,7 +78,8 @@ func TestRepository_ResolveTag(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
@@ -107,7 +110,8 @@ func TestRepository_CommitLog(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 
 	want := []*vcs.Commit{{ID: "abcd"}}
 	normalizeTime(&want[0].Author.Date)
@@ -139,7 +143,8 @@ func TestRepository_GetCommit(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 
 	want := &vcs.Commit{ID: "abcd"}
 	normalizeTime(&want.Author.Date)

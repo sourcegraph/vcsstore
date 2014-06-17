@@ -195,7 +195,10 @@ The options are:
 	}
 
 	c := vcsclient.New(baseURL, nil)
-	repo := c.Repository(vcsType, cloneURL)
+	repo, err := c.Repository(vcsType, cloneURL)
+	if err != nil {
+		log.Fatal("Open repository: ", err)
+	}
 
 	if repo, ok := repo.(vcsclient.RepositoryRemoteCloner); ok {
 		err := repo.CloneRemote()

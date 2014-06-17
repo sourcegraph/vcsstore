@@ -15,7 +15,8 @@ func TestRepository_FileSystem_Open(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 	want := []byte("c")
 	entry := &TreeEntry{
 		Contents: want,
@@ -59,7 +60,8 @@ func TestRepository_FileSystem_Lstat(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 	entry := &TreeEntry{Name: "f"}
 	normalizeTime(&entry.ModTime)
 	want, _ := entry.Stat()
@@ -97,7 +99,8 @@ func TestRepository_FileSystem_Stat(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 	entry := &TreeEntry{Name: "f"}
 	normalizeTime(&entry.ModTime)
 	want, _ := entry.Stat()
@@ -135,7 +138,8 @@ func TestRepository_FileSystem_ReadDir(t *testing.T) {
 	defer teardown()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	repo := vcsclient.Repository("git", cloneURL).(*repository)
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
 	entries := []*TreeEntry{{Name: "d/a"}, {Name: "d/b"}}
 	normalizeTime(&entries[0].ModTime)
 	normalizeTime(&entries[1].ModTime)
