@@ -17,15 +17,11 @@ import (
 	"github.com/sourcegraph/go-vcs/vcs"
 )
 
-var (
-	// RepositoryPath is called to determine the directory, relative to a
-	// Config's StorageDir, to which the repository should be cloned to. The
-	// default implementation stores repositories in directories of the form
-	// "vcs-type/escaped-clone-url".
-	RepositoryPath = func(vcsType string, cloneURL *url.URL) string {
-		return filepath.Join(vcsType, url.QueryEscape(cloneURL.String()))
-	}
-)
+// SimpleRepositoryPath returns repository paths of the form
+// "vcs-type/scheme/host/path1/path2".
+func SimpleRepositoryPath(vcsType string, cloneURL *url.URL) string {
+	return filepath.Join(vcsType, url.QueryEscape(cloneURL.String()))
+}
 
 // HashedRepositoryPath may be assigned to RepositoryPath to use paths
 // of the form "xx/yy/zzzzzzzz" where xx and yy are the first 4 characters of
@@ -59,6 +55,12 @@ type Config struct {
 	Log *log.Logger
 
 	DebugLog *log.Logger
+
+	// RepositoryPath is called to determine the directory, relative to
+	// StorageDir, to which the repository should be cloned to. The default
+	// implementation stores repositories in directories of the form
+	// "vcs-type/scheme/host/path1/path2".
+	RepositoryPath func(vcsType string, cloneURL *url.URL) string
 }
 
 // CloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
@@ -72,19 +74,29 @@ func (c *Config) CloneDir(vcsType string, cloneURL *url.URL) (string, error) {
 		return "", errors.New("invalid clone URL")
 	}
 
-	return filepath.Join(c.StorageDir, RepositoryPath(vcsType, cloneURL)), nil
+	pathFn := c.RepositoryPath
+	if pathFn == nil {
+		pathFn = SimpleRepositoryPath
+	}
+
+	return filepath.Join(c.StorageDir, pathFn(vcsType, cloneURL)), nil
 }
 
 func NewService(c *Config) Service {
 	if c == nil {
 		c = &Config{
 			StorageDir: ".",
-			Log:        log.New(os.Stderr, "vcsstore: ", log.LstdFlags),
-			DebugLog:   log.New(ioutil.Discard, "", 0),
 		}
 	}
+	c2 := *c
+	if c2.Log == nil {
+		c2.Log = log.New(os.Stderr, "vcsstore: ", log.LstdFlags)
+	}
+	if c2.DebugLog == nil {
+		c2.DebugLog = log.New(ioutil.Discard, "", 0)
+	}
 	return &service{
-		Config: *c,
+		Config: c2,
 		repoMu: make(map[repoKey]*sync.Mutex),
 	}
 }

@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 
+	"github.com/coreos/go-etcd/etcd"
+	"github.com/sourcegraph/datad"
 	"github.com/sourcegraph/vcsstore"
+	"github.com/sourcegraph/vcsstore/cluster"
 	"github.com/sourcegraph/vcsstore/server"
 	"github.com/sourcegraph/vcsstore/vcsclient"
 )
@@ -73,6 +75,7 @@ type subcommand struct {
 
 var subcommands = []subcommand{
 	{"serve", "start an HTTP server to serve VCS repository data", serveCmd},
+	{"serve-cluster", "start a datad provider and HTTP server", serveClusterCmd},
 	{"repo", "display information about a repository", repoCmd},
 	{"clone", "clones a repository on the server", cloneCmd},
 }
@@ -81,7 +84,6 @@ func serveCmd(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	debug := fs.Bool("d", false, "debug mode (don't use on publicly available servers)")
 	bindAddr := fs.String("http", ":"+defaultPort, "HTTP listen address")
-	hashedPath := fs.Bool("hashed-path", false, "use nested dirs based on VCS/repo hash instead of flat (HashedRepositoryPath)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore serve [options]
 
@@ -98,8 +100,38 @@ The options are:
 		fs.Usage()
 	}
 
-	if *hashedPath {
-		vcsstore.RepositoryPath = vcsstore.HashedRepositoryPath
+	err := os.MkdirAll(*storageDir, 0700)
+	if err != nil {
+		log.Fatalf("Error creating directory %q: %s.", *storageDir, err)
+	}
+
+	conf := &vcsstore.Config{StorageDir: *storageDir}
+
+	startServer(conf, *debug, *bindAddr)
+}
+
+func serveClusterCmd(args []string) {
+	fs := flag.NewFlagSet("serve-cluster", flag.ExitOnError)
+	debug := fs.Bool("d", false, "debug mode (don't use on publicly available servers)")
+	bindAddr := fs.String("http", "0.0.0.0:"+defaultPort, "HTTP listen address")
+	datadBindAddr := fs.String("datad-http", "0.0.0.0:4388", "datad provider HTTP listen address")
+	etcdEndpoint := fs.String("etcd", "http://127.0.0.1:4001", "etcd endpoint")
+	etcdKeyPrefix := fs.String("etcd-key-prefix", datad.DefaultKeyPrefix, "keyspace for datad registry and provider list in etcd")
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, `usage: vcsstore serve-cluster [options]
+
+Starts an HTTP server that serves information about VCS repositories, and a
+datad provider server.
+
+The options are:
+`)
+		fs.PrintDefaults()
+		os.Exit(1)
+	}
+	fs.Parse(args)
+
+	if fs.NArg() != 0 {
+		fs.Usage()
 	}
 
 	err := os.MkdirAll(*storageDir, 0700)
@@ -107,6 +139,28 @@ The options are:
 		log.Fatalf("Error creating directory %q: %s.", *storageDir, err)
 	}
 
+	conf := &vcsstore.Config{
+		StorageDir:     *storageDir,
+		RepositoryPath: cluster.RepositoryKey,
+	}
+
+	go startServer(conf, *debug, *bindAddr)
+
+	fmt.Fprintf(os.Stderr, "Connecting to etcd at %s (key prefix %q)\n", *etcdEndpoint, *etcdKeyPrefix)
+	datadBackend := datad.NewEtcdBackend(*etcdKeyPrefix, etcd.NewClient([]string{*etcdEndpoint}))
+	datadClient := datad.NewClient(datadBackend)
+	clusterServer := cluster.NewServer(datadClient, conf, vcsstore.NewService(conf))
+
+	err = datadClient.AddProvider("http://"+*datadBindAddr, "http://"+*bindAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintf(os.Stderr, "Starting datad provider on %s\n", *datadBindAddr)
+	log.Fatal(http.ListenAndServe(*datadBindAddr, clusterServer.ProviderHandler()))
+}
+
+func startServer(conf *vcsstore.Config, debug bool, bindAddr string) {
 	var logw io.Writer
 	if *verbose {
 		logw = os.Stderr
@@ -114,21 +168,19 @@ The options are:
 		logw = ioutil.Discard
 	}
 
-	conf := &vcsstore.Config{
-		StorageDir: *storageDir,
-		Log:        log.New(logw, "vcsstore: ", log.LstdFlags),
-	}
-	if *debug {
+	conf.Log = log.New(logw, "vcsstore: ", log.LstdFlags)
+
+	if debug {
 		conf.DebugLog = log.New(logw, "vcsstore DEBUG: ", log.LstdFlags)
 	}
 	server.Service = vcsstore.NewService(conf)
 	server.Log = log.New(logw, "server: ", log.LstdFlags)
-	server.InformativeErrors = *debug
+	server.InformativeErrors = debug
 
 	http.Handle("/", server.NewHandler(nil, nil))
 
-	fmt.Fprintf(os.Stderr, "Starting server on %s\n", *bindAddr)
-	err = http.ListenAndServe(*bindAddr, nil)
+	fmt.Fprintf(os.Stderr, "Starting server on %s\n", bindAddr)
+	err := http.ListenAndServe(bindAddr, nil)
 	if err != nil {
 		log.Fatalf("HTTP server failed to start: %s.", err)
 	}
@@ -158,9 +210,7 @@ The options are:
 		log.Fatal(err)
 	}
 
-	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.RepositoryPath(vcsType, cloneURL)))
-	fmt.Println("HashedRepositoryPath:", filepath.Join(*storageDir, vcsstore.HashedRepositoryPath(vcsType, cloneURL)))
-	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(vcsType, cloneURL))
+	fmt.Println("URL:  ", vcsclient.NewRouter(nil).URLToRepo(vcsType, cloneURL))
 }
 
 func cloneCmd(args []string) {

@@ -1,66 +1,24 @@
+// Package cluster uses datad to distribute VCS data storage across multiple
+// machines.
 package cluster
 
 import (
-	"log"
-	"math/rand"
-	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/coreos/go-etcd/etcd"
-	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore/vcsclient"
 )
 
-type Client struct {
-	dir *Directory
-
-	etcdClient *etcd.Client
-
-	// HTTP client used to communicate with the vcsstore API.
-	httpClient *http.Client
+func RepositoryKey(vcsType string, cloneURL *url.URL) string {
+	return strings.Join([]string{vcsType, cloneURL.Scheme, cloneURL.Host, cloneURL.Path}, "/")
 }
 
-func NewClient(etcdClient *etcd.Client, httpClient *http.Client) *Client {
-	return &Client{
-		dir:        &Directory{etcdClient},
-		httpClient: httpClient,
-		etcdClient: etcdClient,
+func DecodeRepositoryKey(key string) (vcsType string, cloneURL *url.URL, err error) {
+	parts := strings.SplitN(key, "/", 4)
+	if len(parts) != 4 {
+		tmp := make([]string, 4)
+		copy(tmp, parts)
+		parts = tmp
 	}
-}
-
-func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error) {
-	key := CloneURL{vcsType, cloneURL}
-	owner, err := c.dir.Owner(key)
-	if err == ErrNoOwner {
-		// This repository doesn't exist yet. Pick a machine at random from
-		// the cluster to designate the owner.
-		ms := c.etcdClient.GetCluster()
-		log.Printf("### etcd cluster is: %v", ms)
-		if len(ms) == 1 {
-			owner = ms[0]
-		} else {
-			owner = ms[rand.Intn(len(ms)-1)]
-		}
-		owner = strings.Replace(owner, ":4001", ":80", -1)
-
-		log.Printf("### etcd vcsclient: setting owner %q for %s %s", owner, vcsType, cloneURL)
-		err := c.dir.SetOwner(key, owner)
-		if err != nil {
-			return nil, err
-		}
-	} else if err != nil {
-		return nil, err
-	}
-
-	ownerBaseURL, err := url.Parse(owner)
-	if err != nil {
-		return nil, err
-	}
-	ownerBaseURL.Path = "/api/vcs/"
-
-	log.Printf("### etcd vcsclient: owner is %q for %s %s", owner, vcsType, cloneURL)
-
-	vc := vcsclient.New(ownerBaseURL, c.httpClient)
-	return vc.Repository(vcsType, cloneURL)
+	vcsType = parts[0]
+	cloneURL = &url.URL{Scheme: parts[1], Host: parts[2], Path: parts[3]}
+	return vcsType, cloneURL, nil
 }
