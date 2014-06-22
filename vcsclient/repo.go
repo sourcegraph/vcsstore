@@ -119,13 +119,6 @@ func (r *repository) ResolveTag(name string) (vcs.CommitID, error) {
 }
 
 func (r *repository) parseCommitIDInURL(urlStr string) (vcs.CommitID, error) {
-	// Chop off the route prefix, if any.
-	i := strings.Index(urlStr, "/repos")
-	if i == -1 {
-		return "", errors.New("failed to determine CommitID from URL")
-	}
-	urlStr = urlStr[i:]
-
 	url, err := url.Parse(urlStr)
 	if err != nil {
 		return "", err

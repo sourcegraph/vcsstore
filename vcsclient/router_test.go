@@ -34,62 +34,62 @@ func TestMatch(t *testing.T) {
 
 		// Repo
 		{
-			path:          "/repos/" + encodedRepoPath,
+			path:          "/" + encodedRepoPath,
 			wantRouteName: RouteRepo,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL},
 		},
 
 		// Repo revisions
 		{
-			path:          "/repos/" + encodedRepoPath + "/.branches/mybranch",
+			path:          "/" + encodedRepoPath + "/.branches/mybranch",
 			wantRouteName: RouteRepoBranch,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Branch": "mybranch"},
 		},
 		{
-			path:          "/repos/" + encodedRepoPath + "/.tags/mytag",
+			path:          "/" + encodedRepoPath + "/.tags/mytag",
 			wantRouteName: RouteRepoTag,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Tag": "mytag"},
 		},
 		{
-			path:          "/repos/" + encodedRepoPath + "/.revs/myrevspec",
+			path:          "/" + encodedRepoPath + "/.revs/myrevspec",
 			wantRouteName: RouteRepoRevision,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "RevSpec": "myrevspec"},
 		},
 		{
-			path:          "/repos/" + encodedRepoPath + "/.commits/mycommitid",
+			path:          "/" + encodedRepoPath + "/.commits/mycommitid",
 			wantRouteName: RouteRepoCommit,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid"},
 		},
 
 		// Repo commit log
 		{
-			path:          "/repos/" + encodedRepoPath + "/.commits/mycommitid/log",
+			path:          "/" + encodedRepoPath + "/.commits/mycommitid/log",
 			wantRouteName: RouteRepoCommitLog,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid"},
 		},
 
 		// Repo tree
 		{
-			path:          "/repos/" + encodedRepoPath + "/.commits/mycommitid/tree",
+			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree",
 			wantRouteName: RouteRepoTreeEntry,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "."},
 		},
 		{
-			path:          "/repos/" + encodedRepoPath + "/.commits/mycommitid/tree/",
+			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/",
 			wantRouteName: RouteRepoTreeEntry,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "."},
-			wantPath:      "/repos/" + encodedRepoPath + "/.commits/mycommitid/tree",
+			wantPath:      "/" + encodedRepoPath + "/.commits/mycommitid/tree",
 		},
 		{
-			path:          "/repos/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
+			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
 			wantRouteName: RouteRepoTreeEntry,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "a/b"},
 		},
 		{
-			path:          "/repos/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b/",
+			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b/",
 			wantRouteName: RouteRepoTreeEntry,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "a/b"},
-			wantPath:      "/repos/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
+			wantPath:      "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
 		},
 	}
 

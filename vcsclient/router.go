@@ -57,7 +57,7 @@ func NewRouter(parent *muxpkg.Router) *Router {
 		return vars
 	}
 
-	repoPath := "/repos/{EncodedRepo:(?:[^/]+)(?:/[^./][^/]*){2,}}"
+	repoPath := "/{EncodedRepo:(?:[^/]+)(?:/[^./][^/]*){2,}}"
 	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
 	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepoCreateOrUpdate)
 	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
