@@ -81,7 +81,6 @@ func serveCmd(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	debug := fs.Bool("d", false, "debug mode (don't use on publicly available servers)")
 	bindAddr := fs.String("http", ":"+defaultPort, "HTTP listen address")
-	hashedPath := fs.Bool("hashed-path", false, "use nested dirs based on VCS/repo hash instead of flat (HashedRepositoryPath)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore serve [options]
 
@@ -96,10 +95,6 @@ The options are:
 
 	if fs.NArg() != 0 {
 		fs.Usage()
-	}
-
-	if *hashedPath {
-		vcsstore.RepositoryPath = vcsstore.HashedRepositoryPath
 	}
 
 	err := os.MkdirAll(*storageDir, 0700)
@@ -158,8 +153,7 @@ The options are:
 		log.Fatal(err)
 	}
 
-	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.RepositoryPath(vcsType, cloneURL)))
-	fmt.Println("HashedRepositoryPath:", filepath.Join(*storageDir, vcsstore.HashedRepositoryPath(vcsType, cloneURL)))
+	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.EncodeRepositoryPath(vcsType, cloneURL)))
 	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(vcsType, cloneURL))
 }
 

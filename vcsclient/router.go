@@ -1,13 +1,13 @@
 package vcsclient
 
 import (
-	"encoding/base64"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 
 	"github.com/sourcegraph/go-vcs/vcs"
+	"github.com/sourcegraph/vcsstore"
 	muxpkg "github.com/sqs/mux"
 )
 
@@ -35,43 +35,36 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 	parent.Path("/").Methods("GET").Name(RouteRoot)
 
-	// Encode the repository clone URL as its base64.URLEncoding-encoded string.
-	// Add the repository URI after it (as a convenience) so that it's possible
-	// to tell which repository is being requested by inspecting the URL, but
-	// don't heed this friendly URI when decoding.
+	// Encode the repository VCS type and clone URL using
+	// vcsstore.{Encode,Decode}RepositoryPath.
 	unescapeRepoVars := func(req *http.Request, match *muxpkg.RouteMatch, r *muxpkg.Route) {
-		s := match.Vars["CloneURLEscaped"]
-		delete(match.Vars, "CloneURLEscaped")
-		i := strings.Index(s, "!")
-		if i == -1 {
+		vcsType, cloneURL, err := vcsstore.DecodeRepositoryPath(match.Vars["EncodedRepo"])
+		if err != nil {
 			return
 		}
-		urlBytes, _ := base64.URLEncoding.DecodeString(s[:i])
-		match.Vars["CloneURL"] = string(urlBytes)
+		match.Vars["VCS"] = vcsType
+		match.Vars["CloneURL"] = cloneURL.String()
+		delete(match.Vars, "EncodedRepo")
 	}
 	escapeRepoVars := func(vars map[string]string) map[string]string {
-		enc := base64.URLEncoding.EncodeToString([]byte(vars["CloneURL"]))
-		vars["CloneURLEscaped"] = enc + "!" + strings.Map(func(c rune) rune {
-			if c == '/' {
-				return '_'
-			}
-			if c == '.' || c == '_' || (c >= '0' && c <= 'z') {
-				return c
-			}
-			return '-'
-		}, vars["CloneURL"])
+		cloneURL, err := url.Parse(vars["CloneURL"])
+		if err != nil {
+			return vars
+		}
+		vars["EncodedRepo"] = vcsstore.EncodeRepositoryPath(vars["VCS"], cloneURL)
 		delete(vars, "CloneURL")
+		delete(vars, "VCS")
 		return vars
 	}
 
-	repoPath := "/repos/{VCS}/{CloneURLEscaped:[^/]+}"
+	repoPath := "/repos/{EncodedRepo:(?:[^/]+)(?:/[^./][^/]*){2,}}"
 	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
 	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepoCreateOrUpdate)
 	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
-	repo.Path("/branches/{Branch}").Methods("GET").Name(RouteRepoBranch)
-	repo.Path("/revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
-	repo.Path("/tags/{Tag}").Methods("GET").Name(RouteRepoTag)
-	commitPath := "/commits/{CommitID}"
+	repo.Path("/.branches/{Branch}").Methods("GET").Name(RouteRepoBranch)
+	repo.Path("/.revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
+	repo.Path("/.tags/{Tag}").Methods("GET").Name(RouteRepoTag)
+	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
 	commit := repo.PathPrefix(commitPath).Subrouter()
 	commit.Path("/log").Methods("GET").Name(RouteRepoCommitLog)

@@ -1,8 +1,6 @@
 package vcsstore
 
 import (
-	"crypto/sha1"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,28 +14,6 @@ import (
 
 	"github.com/sourcegraph/go-vcs/vcs"
 )
-
-var (
-	// RepositoryPath is called to determine the directory, relative to a
-	// Config's StorageDir, to which the repository should be cloned to. The
-	// default implementation stores repositories in directories of the form
-	// "vcs-type/escaped-clone-url".
-	RepositoryPath = func(vcsType string, cloneURL *url.URL) string {
-		return filepath.Join(vcsType, url.QueryEscape(cloneURL.String()))
-	}
-)
-
-// HashedRepositoryPath may be assigned to RepositoryPath to use paths
-// of the form "xx/yy/zzzzzzzz" where xx and yy are the first 4 characters of
-// some hash of vcsType and cloneURL, and zzzzzzzz is the full hash (minus the
-// first 4 characters).
-func HashedRepositoryPath(vcsType string, cloneURL *url.URL) string {
-	h := sha1.New()
-	h.Write([]byte(vcsType))
-	h.Write([]byte(cloneURL.String()))
-	s := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	return fmt.Sprintf("%s/%s/%s/%s", vcsType, s[:2], s[2:4], s[4:])
-}
 
 type Service interface {
 	// Open opens a repository. If it doesn't exist. an
@@ -72,7 +48,7 @@ func (c *Config) CloneDir(vcsType string, cloneURL *url.URL) (string, error) {
 		return "", errors.New("invalid clone URL")
 	}
 
-	return filepath.Join(c.StorageDir, RepositoryPath(vcsType, cloneURL)), nil
+	return filepath.Join(c.StorageDir, EncodeRepositoryPath(vcsType, cloneURL)), nil
 }
 
 func NewService(c *Config) Service {
