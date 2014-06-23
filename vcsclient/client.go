@@ -67,12 +67,16 @@ func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, 
 // URLs should always be specified without a preceding slash. If specified, the
 // value pointed to by body is JSON encoded and included as the request body.
 func (c *Client) NewRequest(method, urlStr string) (*http.Request, error) {
-	rel, err := url.Parse(urlStr)
+	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
 	}
 
-	u := c.BaseURL.ResolveReference(rel)
+	if c.BaseURL != nil {
+		u = c.BaseURL.ResolveReference(u)
+	} else {
+		u.Path = "/" + u.Path
+	}
 
 	req, err := http.NewRequest(method, u.String(), nil)
 	if err != nil {
