@@ -28,14 +28,14 @@ func NewClient(dc *datad.Client, t http.RoundTripper) *Client {
 
 var _ vcsclient.RepositoryOpener = &Client{}
 
-func (c *Client) TransportForRepository(vcsType string, cloneURL *url.URL) (http.RoundTripper, error) {
+func (c *Client) TransportForRepository(vcsType string, cloneURL *url.URL) (*datad.KeyTransport, error) {
 	key := vcsstore.EncodeRepositoryPath(vcsType, cloneURL)
 	return c.datad.TransportForKey(key, c.transport)
 }
 
 // Repository implements vcsclient.RepositoryOpener.
 func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error) {
-	repo, err := c.Clone(vcsType, cloneURL)
+	repo, err := c.Open(vcsType, cloneURL)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (c *Client) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &repository{c.datad, key, repo}, nil
+	return &repository{c.datad, key, repo, t}, nil
 }
 
 // Clone implements vcsstore.Service and clones a repository.
@@ -92,6 +92,7 @@ type repository struct {
 	datad    *datad.Client
 	datadKey string
 	vcs.Repository
+	keyTransport *datad.KeyTransport
 }
 
 func (r *repository) CloneRemote() error {
@@ -100,12 +101,16 @@ func (r *repository) CloneRemote() error {
 		return nil
 	}
 
-	// TODO(sqs): make the datad transport look up new nodes in the registry if
-	// the key doesn't have any nodes. otherwise, for new repositories, the
-	// transport given to this `type repository` will have no nodes. it's a
-	// chicken-and-the-egg problem: it won't have nodes until it's updated here.
-	// so, as a hack, we are calling update for each call to
-	// (*Client).Repository, but that is inefficient.
+	// Update the node list in this transport. The transport is used by all of
+	// the other standard vcs.Repository methods on *repository. Updating the
+	// node list here lets the other methods be called on *this* *repository
+	// instead of having to get a new KeyTransport from the datad.Client.
+	err = r.keyTransport.SyncWithRegistry()
+	if err != nil {
+		return err
+	}
+
+	// TODO(sqs): doing double work here? Update triggers a clone, and we call CloneRemote.
 
 	if rrc, ok := r.Repository.(vcsclient.RepositoryRemoteCloner); ok {
 		return rrc.CloneRemote()
