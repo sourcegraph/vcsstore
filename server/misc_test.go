@@ -12,13 +12,13 @@ func TestHandlers_NotImplemented(t *testing.T) {
 
 	cloneURL, _ := url.Parse("git://a.b/c")
 	uris := []*url.URL{
-		router.URLToRepoBranch("git", cloneURL, "mybranch"),
-		router.URLToRepoRevision("git", cloneURL, "myrevspec"),
-		router.URLToRepoTag("git", cloneURL, "mytag"),
-		router.URLToRepoCommit("git", cloneURL, "abcd"),
-		router.URLToRepoCommitLog("git", cloneURL, "abcd"),
-		router.URLToRepoTreeEntry("git", cloneURL, "abcd", "myfile"),
-		router.URLToRepoTreeEntry("git", cloneURL, "abcd", "."),
+		testHandler.router.URLToRepoBranch("git", cloneURL, "mybranch"),
+		testHandler.router.URLToRepoRevision("git", cloneURL, "myrevspec"),
+		testHandler.router.URLToRepoTag("git", cloneURL, "mytag"),
+		testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"),
+		testHandler.router.URLToRepoCommitLog("git", cloneURL, "abcd"),
+		testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", "myfile"),
+		testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", "."),
 	}
 
 	sm := &mockServiceForExistingRepo{
@@ -27,7 +27,7 @@ func TestHandlers_NotImplemented(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     nil, // doesn't implement any repo methods
 	}
-	Service = sm
+	testHandler.Service = sm
 
 	for _, uri := range uris {
 		resp, err := http.Get(server.URL + uri.String())

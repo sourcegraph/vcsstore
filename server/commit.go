@@ -10,10 +10,10 @@ import (
 	"github.com/sqs/mux"
 )
 
-func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, _, err := getRepo(r, 0)
+	repo, cloneURL, _, err := h.getRepo(r, 0)
 	if err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
 
 		if commit.ID != commitID {
 			setShortCache(w)
-			http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commit.ID).String(), http.StatusFound)
+			http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commit.ID).String(), http.StatusFound)
 			return nil
 		}
 

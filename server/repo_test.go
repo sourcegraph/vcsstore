@@ -17,9 +17,9 @@ func TestServeRepo(t *testing.T) {
 		vcs:      "git",
 		cloneURL: cloneURL,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + router.URLToRepo("git", cloneURL).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepo("git", cloneURL).String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,9 +54,9 @@ func TestServeRepo_DoesNotExist(t *testing.T) {
 			panic("unreachable")
 		},
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	req, err := http.NewRequest("GET", server.URL+router.URLToRepo("git", cloneURL).String(), nil)
+	req, err := http.NewRequest("GET", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,9 +96,9 @@ func TestServeRepoCreateOrUpdate_CreateNew(t *testing.T) {
 			return rm, nil
 		},
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	req, err := http.NewRequest("POST", server.URL+router.URLToRepo("git", cloneURL).String(), nil)
+	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,9 +132,9 @@ func TestServeRepoCreateOrUpdate_UpdateExisting(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	req, err := http.NewRequest("POST", server.URL+router.URLToRepo("git", cloneURL).String(), nil)
+	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

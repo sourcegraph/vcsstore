@@ -11,8 +11,8 @@ import (
 	"github.com/sqs/mux"
 )
 
-func serveRepo(w http.ResponseWriter, r *http.Request) error {
-	repo, cloneURL, _, err := getRepo(r, 0)
+func (h *Handler) serveRepo(w http.ResponseWriter, r *http.Request) error {
+	repo, cloneURL, _, err := h.getRepo(r, 0)
 	if err != nil {
 		return err
 	}
@@ -23,8 +23,8 @@ func serveRepo(w http.ResponseWriter, r *http.Request) error {
 	}{fmt.Sprintf("%T", repo), cloneURL.String()})
 }
 
-func serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request) error {
-	repo, _, cloned, err := getRepo(r, cloneIfNotExists)
+func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request) error {
+	repo, _, cloned, err := h.getRepo(r, cloneIfNotExists)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ const (
 	cloneIfNotExists = 1 << iota
 )
 
-func getRepo(r *http.Request, opt getRepoMode) (repo interface{}, cloneURL *url.URL, cloned bool, err error) {
+func (h *Handler) getRepo(r *http.Request, opt getRepoMode) (repo interface{}, cloneURL *url.URL, cloned bool, err error) {
 	v := mux.Vars(r)
 	vcsType := v["VCS"]
 	cloneURLStr := v["CloneURL"]
@@ -74,10 +74,10 @@ func getRepo(r *http.Request, opt getRepoMode) (repo interface{}, cloneURL *url.
 		return nil, nil, false, errors.New("invalid clone URL")
 	}
 
-	repo, err = Service.Open(vcsType, cloneURL)
+	repo, err = h.Service.Open(vcsType, cloneURL)
 	if os.IsNotExist(err) && opt&cloneIfNotExists != 0 {
 		cloned = true
-		repo, err = Service.Clone(vcsType, cloneURL)
+		repo, err = h.Service.Clone(vcsType, cloneURL)
 	}
 	if err != nil {
 		if os.IsNotExist(err) {

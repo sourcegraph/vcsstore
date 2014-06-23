@@ -7,8 +7,8 @@ import (
 	"github.com/sourcegraph/go-vcs/vcs"
 )
 
-func serveRepoCommitLog(w http.ResponseWriter, r *http.Request) error {
-	repo, _, _, err := getRepo(r, 0)
+func (h *Handler) serveRepoCommitLog(w http.ResponseWriter, r *http.Request) error {
+	repo, _, _, err := h.getRepo(r, 0)
 	if err != nil {
 		return err
 	}

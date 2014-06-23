@@ -24,9 +24,9 @@ func TestServeRepoBranch(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + router.URLToRepoBranch("git", cloneURL, "mybranch").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoBranch("git", cloneURL, "mybranch").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestServeRepoBranch(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
 }
 
 func TestServeRepoRevision(t *testing.T) {
@@ -57,9 +57,9 @@ func TestServeRepoRevision(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + router.URLToRepoRevision("git", cloneURL, "myrevspec").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoRevision("git", cloneURL, "myrevspec").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestServeRepoRevision(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
 }
 
 func TestServeRepoTag(t *testing.T) {
@@ -90,9 +90,9 @@ func TestServeRepoTag(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + router.URLToRepoTag("git", cloneURL, "mytag").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoTag("git", cloneURL, "mytag").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestServeRepoTag(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
 }
 
 type mockResolveBranch struct {

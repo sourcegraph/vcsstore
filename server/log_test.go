@@ -27,9 +27,9 @@ func TestServeRepoCommitLog(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + router.URLToRepoCommitLog("git", cloneURL, "abcd").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommitLog("git", cloneURL, "abcd").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}

@@ -12,7 +12,7 @@ func TestHandler_serveRoot(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	resp, err := http.Get(server.URL + router.URLTo(vcsclient.RouteRoot).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLTo(vcsclient.RouteRoot).String())
 	if err != nil {
 		log.Fatal(err)
 	}

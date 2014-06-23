@@ -8,10 +8,10 @@ import (
 	"github.com/sqs/mux"
 )
 
-func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, _, err := getRepo(r, 0)
+	repo, cloneURL, _, err := h.getRepo(r, 0)
 	if err != nil {
 		return err
 	}
@@ -26,17 +26,17 @@ func serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		setShortCache(w)
-		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
+		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
 		return nil
 	}
 
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("ResolveBranch not yet implemented for %T", repo)}
 }
 
-func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, _, err := getRepo(r, 0)
+	repo, cloneURL, _, err := h.getRepo(r, 0)
 	if err != nil {
 		return err
 	}
@@ -51,17 +51,17 @@ func serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		setShortCache(w)
-		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
+		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
 		return nil
 	}
 
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("ResolveRevision not yet implemented for %T", repo)}
 }
 
-func serveRepoTag(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, _, err := getRepo(r, 0)
+	repo, cloneURL, _, err := h.getRepo(r, 0)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		setShortCache(w)
-		http.Redirect(w, r, router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
+		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
 		return nil
 	}
 

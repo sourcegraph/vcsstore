@@ -32,9 +32,9 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + router.URLToRepoTreeEntry("git", cloneURL, commitID, "myfile").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry("git", cloneURL, commitID, "myfile").String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,9 +89,9 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + router.URLToRepoTreeEntry("git", cloneURL, "abcd", ".").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", ".").String())
 	if err != nil {
 		t.Fatal(err)
 	}

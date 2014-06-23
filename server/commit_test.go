@@ -29,9 +29,9 @@ func TestServeRepoCommit(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + router.URLToRepoCommit("git", cloneURL, commitID).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommit("git", cloneURL, commitID).String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,9 +75,9 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 		cloneURL: cloneURL,
 		repo:     rm,
 	}
-	Service = sm
+	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + router.URLToRepoCommit("git", cloneURL, "ab").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoCommit("git", cloneURL, "ab").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
 
 	if cc := resp.Header.Get("cache-control"); cc != shortCacheControl {
 		t.Errorf("got cache-control %q, want %q", cc, shortCacheControl)

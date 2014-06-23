@@ -131,12 +131,13 @@ The options are:
 	if *debug {
 		conf.DebugLog = log.New(logw, "vcsstore DEBUG: ", log.LstdFlags)
 	}
-	server.Service = vcsstore.NewService(conf)
-	server.Log = log.New(logw, "server: ", log.LstdFlags)
-	server.InformativeErrors = *debug
+
+	h := server.NewHandler(vcsstore.NewService(conf), nil, nil)
+	h.Log = log.New(logw, "server: ", log.LstdFlags)
+	h.Debug = *debug
 
 	if *datadNode {
-		node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, server.Service))
+		node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, h.Service))
 		err := node.Start()
 		if err != nil {
 			log.Fatal("Failed to start datad node: ", err)
@@ -144,7 +145,7 @@ The options are:
 		log.Printf("Started datad node %s.", *datadNodeName)
 	}
 
-	http.Handle("/", server.NewHandler(nil, nil))
+	http.Handle("/", h)
 
 	fmt.Fprintf(os.Stderr, "Starting server on %s\n", *bindAddr)
 	err = http.ListenAndServe(*bindAddr, nil)

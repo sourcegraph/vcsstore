@@ -10,15 +10,18 @@ import (
 )
 
 var (
-	server *httptest.Server
+	server      *httptest.Server
+	testHandler *Handler
 )
 
 func setupHandlerTest() {
-	server = httptest.NewServer(NewHandler(nil, nil))
+	testHandler = NewHandler(nil, nil, nil)
+	server = httptest.NewServer(testHandler)
 }
 
 func teardownHandlerTest() {
 	server.Close()
+	testHandler = nil
 }
 
 func testRedirectedTo(t *testing.T, resp *http.Response, status int, wantLocation *url.URL) {
