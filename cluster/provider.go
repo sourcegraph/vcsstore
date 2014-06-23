@@ -92,12 +92,25 @@ func (p *VCSDataProvider) Update(key string) error {
 		return err
 	}
 
-	repo, err := p.svc.Clone(vcsType, cloneURL)
+	cloned := false
+	repo, err := p.svc.Open(vcsType, cloneURL)
+	if os.IsNotExist(err) {
+		cloned = true
+		repo, err = p.svc.Clone(vcsType, cloneURL)
+	}
 	if err != nil {
 		return err
 	}
 
-	return updateRepository(repo)
+	if !cloned {
+		// No need to update it now if it was just cloned.
+		err := updateRepository(repo)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (p *VCSDataProvider) logf(format string, a ...interface{}) {
