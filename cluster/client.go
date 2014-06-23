@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -32,13 +33,25 @@ func (c *Client) TransportForRepository(vcsType string, cloneURL *url.URL) (http
 	return c.datad.TransportForKey(key, c.transport)
 }
 
+// Repository implements vcsclient.RepositoryOpener.
 func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error) {
-	key := vcsstore.EncodeRepositoryPath(vcsType, cloneURL)
-
-	_, err := c.datad.Update(key)
+	repo, err := c.Clone(vcsType, cloneURL)
 	if err != nil {
 		return nil, err
 	}
+
+	if repo, ok := repo.(vcs.Repository); ok {
+		return repo, nil
+	}
+
+	return nil, errors.New("repository does not support this operation")
+}
+
+// Open implements vcsstore.Service and opens a repository. If the repository
+// does not exist in the cluster, an os.ErrNotExist-satisfying error is
+// returned.
+func (c *Client) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
+	key := vcsstore.EncodeRepositoryPath(vcsType, cloneURL)
 
 	t, err := c.TransportForRepository(vcsType, cloneURL)
 	if err != nil {
@@ -53,7 +66,25 @@ func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, 
 	return &repository{c.datad, key, repo}, nil
 }
 
-var _ vcsclient.RepositoryOpener = &Client{}
+// Clone implements vcsstore.Service and clones a repository.
+func (c *Client) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) {
+	key := vcsstore.EncodeRepositoryPath(vcsType, cloneURL)
+
+	_, err := c.datad.Update(key)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(sqs): add option for waiting for clone (triggered by Update) to
+	// complete?
+
+	return c.Open(vcsType, cloneURL)
+}
+
+var (
+	_ vcsclient.RepositoryOpener = &Client{}
+	_ vcsstore.Service           = &Client{}
+)
 
 // repository wraps a vcsclient.repository to make CloneRemote also add the
 // repository key to the datad registry.
