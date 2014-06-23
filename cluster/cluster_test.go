@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sync"
 	"testing"
 	"time"
 
@@ -40,6 +41,7 @@ func TestIntegration(t *testing.T) {
 	nodes := map[string]*nodeInfo{}
 
 	repos := map[repoInfo]vcs.Repository{}
+	var reposMu sync.Mutex
 
 	if *etcdDebugLog {
 		etcd_client.SetLogger(log.New(os.Stderr, "etcd: ", 0))
@@ -91,20 +93,30 @@ func TestIntegration(t *testing.T) {
 
 		// Clone the repositories.
 		cloneStart := time.Now()
-		for _, ri := range repoInfos {
-			log.Printf("cloning %v...", ri)
-			repo, err := cc.Repository(ri.vcsType, mustParseURL(ri.cloneURL))
-			if err != nil {
-				t.Errorf("clone %v failed: %s", ri, err)
-				continue
-			}
-			err = repo.(vcsclient.RepositoryRemoteCloner).CloneRemote()
-			if err != nil {
-				t.Errorf("remote clone %v failed: %s", ri, err)
-			}
+		var wg sync.WaitGroup
+		for _, ri_ := range repoInfos {
+			ri := ri_
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				log.Printf("cloning %v...", ri)
+				repo, err := cc.Repository(ri.vcsType, mustParseURL(ri.cloneURL))
+				if err != nil {
+					t.Errorf("clone %v failed: %s", ri, err)
+					return
+				}
+				err = repo.(vcsclient.RepositoryRemoteCloner).CloneRemote()
+				if err != nil {
+					t.Errorf("remote clone %v failed: %s", ri, err)
+					return
+				}
 
-			repos[ri] = repo
+				reposMu.Lock()
+				defer reposMu.Unlock()
+				repos[ri] = repo
+			}()
 		}
+		wg.Wait()
 		t.Logf("Cloned %d repositories in %s.", len(repoInfos), time.Since(cloneStart))
 
 		performRepoOps := func() error {

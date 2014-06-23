@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/coreos/go-etcd/etcd"
@@ -138,6 +139,7 @@ The options are:
 
 	if *datadNode {
 		node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, h.Service))
+		node.Updaters = runtime.GOMAXPROCS(0)
 		err := node.Start()
 		if err != nil {
 			log.Fatal("Failed to start datad node: ", err)
