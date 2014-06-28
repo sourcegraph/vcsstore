@@ -1,0 +1,30 @@
+{
+	"ImportPath": "github.com/sourcegraph/vcsstore",
+	"GoVersion": "go1.3",
+	"Deps": [
+		{
+			"ImportPath": "github.com/Unknwon/cae",
+			"Rev": "6bde15bd1674803df1a10f16db242f9767ed0ba6"
+		},
+		{
+			"ImportPath": "github.com/Unknwon/com",
+			"Rev": "235d114e18aac7f559626c4bb01b8e6f56ab1f74"
+		},
+		{
+			"ImportPath": "github.com/beyang/hgo",
+			"Rev": "80c5ee850d4b465181c49d9e1c2bf10aa40eb5c7"
+		},
+		{
+			"ImportPath": "github.com/gogits/git",
+			"Rev": "7c7b047fea329a54731021872b8216311ef3f2d0"
+		},
+		{
+			"ImportPath": "github.com/libgit2/git2go",
+			"Rev": "f5e1252d6e391c634b4bfd008124a58e9e0a5bf3"
+		},
+		{
+			"ImportPath": "github.com/sourcegraph/go-vcs/vcs",
+			"Rev": "65bf7f705ca6ace39660e0038867c7f08ce3fc64"
+		}
+	]
+}

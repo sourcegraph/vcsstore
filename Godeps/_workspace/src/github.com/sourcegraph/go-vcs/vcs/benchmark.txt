@@ -1,0 +1,17 @@
+PASS
+BenchmarkFileSystem_GitNative-8	     500	   3286671 ns/op	 2607453 B/op	    1715 allocs/op
+BenchmarkFileSystem_GitLibGit2-8	    5000	    603938 ns/op	   44344 B/op	     468 allocs/op
+BenchmarkFileSystem_GitCmd-8	      50	 128117482 ns/op	  889338 B/op	   10640 allocs/op
+BenchmarkFileSystem_HgNative-8	     100	  20813761 ns/op	11920160 B/op	    9824 allocs/op
+BenchmarkFileSystem_HgCmd-8	       1	2168347553 ns/op	 1201392 B/op	   15608 allocs/op
+BenchmarkGetCommit_GitNative-8	   10000	    118056 ns/op	   56059 B/op	      78 allocs/op
+BenchmarkGetCommit_GitLibGit2-8	   10000	    147425 ns/op	    1393 B/op	      38 allocs/op
+BenchmarkGetCommit_GitCmd-8	       5	 345247882 ns/op	 1024984 B/op	   14233 allocs/op
+BenchmarkGetCommit_HgNative-8	   10000	    338239 ns/op	  215672 B/op	     260 allocs/op
+BenchmarkGetCommit_HgCmd-8	       1	1386151924 ns/op	 1002696 B/op	   14229 allocs/op
+BenchmarkCommitLog_GitNative-8	    5000	   1072472 ns/op	  721917 B/op	     674 allocs/op
+BenchmarkCommitLog_GitLibGit2-8	    5000	    516577 ns/op	   15740 B/op	     360 allocs/op
+BenchmarkCommitLog_GitCmd-8	       5	 320740713 ns/op	 1037811 B/op	   14361 allocs/op
+BenchmarkCommitLog_HgNative-8	    2000	   1707461 ns/op	 1360515 B/op	    1280 allocs/op
+BenchmarkCommitLog_HgCmd-8	       1	1407344528 ns/op	 1018544 B/op	   14369 allocs/op
+ok  	github.com/sourcegraph/go-vcs/vcs	61.768s
