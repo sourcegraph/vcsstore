@@ -108,9 +108,9 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) 
 	// locking) if so.
 	if r, err := s.open(vcsType, cloneDir); !os.IsNotExist(err) {
 		if err == nil {
-			s.DebugLog.Printf("Clone(%s, %s): repository already exists at %s", vcsType, cloneURL, cloneDir)
+			s.debugLogf("Clone(%s, %s): repository already exists at %s", vcsType, cloneURL, cloneDir)
 		} else {
-			s.DebugLog.Printf("Clone(%s, %s): opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
+			s.debugLogf("Clone(%s, %s): opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
 		}
 		return r, err
 	}
@@ -123,9 +123,9 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) 
 	// Check again after obtaining the lock, so we don't clone multiple times.
 	if r, err := s.open(vcsType, cloneDir); !os.IsNotExist(err) {
 		if err == nil {
-			s.DebugLog.Printf("Clone(%s, %s): after obtaining clone lock, repository already exists at %s", vcsType, cloneURL, cloneDir)
+			s.debugLogf("Clone(%s, %s): after obtaining clone lock, repository already exists at %s", vcsType, cloneURL, cloneDir)
 		} else {
-			s.DebugLog.Printf("Clone(%s, %s): after obtaining clone lock, opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
+			s.debugLogf("Clone(%s, %s): after obtaining clone lock, opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
 		}
 		return r, err
 	}
@@ -153,17 +153,17 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) 
 	if err != nil {
 		return nil, err
 	}
-	s.DebugLog.Printf("Clone(%s, %s): cloning to temporary sibling dir %s", vcsType, cloneURL, cloneTmpDir)
+	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", vcsType, cloneURL, cloneTmpDir)
 	defer os.RemoveAll(cloneTmpDir)
 
 	_, err = vcs.CloneMirror(vcsType, cloneURL.String(), cloneTmpDir)
 	if err != nil {
 		return nil, err
 	}
-	s.DebugLog.Printf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+	s.debugLogf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
 
 	if err := os.Rename(cloneTmpDir, cloneDir); err != nil {
-		s.DebugLog.Printf("Clone(%s, %s): Rename(%s -> %s) failed: %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
 		return nil, err
 	}
 
@@ -186,4 +186,10 @@ func isLowercaseLetter(s string) bool {
 	return strings.IndexFunc(s, func(c rune) bool {
 		return !(c >= 'a' && c <= 'z')
 	}) == -1
+}
+
+func (s *service) debugLogf(format string, args ...interface{}) {
+	if s.DebugLog != nil {
+		s.debugLogf(format, args...)
+	}
 }
