@@ -190,6 +190,6 @@ func isLowercaseLetter(s string) bool {
 
 func (s *service) debugLogf(format string, args ...interface{}) {
 	if s.DebugLog != nil {
-		s.debugLogf(format, args...)
+		s.DebugLog.Printf(format, args...)
 	}
 }
