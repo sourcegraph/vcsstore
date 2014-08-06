@@ -17,6 +17,7 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/sourcegraph/datad"
 	"github.com/sourcegraph/go-vcs/vcs"
+	_ "github.com/sourcegraph/go-vcs/vcs/git_libgit2"
 	"github.com/sourcegraph/vcsstore"
 	"github.com/sourcegraph/vcsstore/cluster"
 	"github.com/sourcegraph/vcsstore/server"
