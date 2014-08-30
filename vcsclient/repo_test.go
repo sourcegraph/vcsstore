@@ -105,6 +105,70 @@ func TestRepository_ResolveTag(t *testing.T) {
 	}
 }
 
+func TestRepository_Branches(t *testing.T) {
+	setup()
+	defer teardown()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
+
+	want := []*vcs.Branch{{Name: "mybranch", Head: "abcd"}}
+
+	var called bool
+	mux.HandleFunc(urlPath(t, RouteRepoBranches, repo, nil), func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		testMethod(t, r, "GET")
+
+		writeJSON(w, want)
+	})
+
+	branches, err := repo.Branches()
+	if err != nil {
+		t.Errorf("Repository.Branches returned error: %v", err)
+	}
+
+	if !called {
+		t.Fatal("!called")
+	}
+
+	if !reflect.DeepEqual(branches, want) {
+		t.Errorf("Repository.Branches returned %+v, want %+v", branches, want)
+	}
+}
+
+func TestRepository_Tags(t *testing.T) {
+	setup()
+	defer teardown()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
+
+	want := []*vcs.Tag{{Name: "mytag", CommitID: "abcd"}}
+
+	var called bool
+	mux.HandleFunc(urlPath(t, RouteRepoTags, repo, nil), func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		testMethod(t, r, "GET")
+
+		writeJSON(w, want)
+	})
+
+	tags, err := repo.Tags()
+	if err != nil {
+		t.Errorf("Repository.Tags returned error: %v", err)
+	}
+
+	if !called {
+		t.Fatal("!called")
+	}
+
+	if !reflect.DeepEqual(tags, want) {
+		t.Errorf("Repository.Tags returned %+v, want %+v", tags, want)
+	}
+}
+
 func TestRepository_CommitLog(t *testing.T) {
 	setup()
 	defer teardown()

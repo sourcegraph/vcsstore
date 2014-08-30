@@ -133,6 +133,46 @@ func (r *repository) parseCommitIDInURL(urlStr string) (vcs.CommitID, error) {
 	return vcs.CommitID(info.Vars["CommitID"]), nil
 }
 
+func (r *repository) Branches() ([]*vcs.Branch, error) {
+	url, err := r.url(RouteRepoBranches, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := r.client.NewRequest("GET", url.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var branches []*vcs.Branch
+	_, err = r.client.Do(req, &branches)
+	if err != nil {
+		return nil, err
+	}
+
+	return branches, nil
+}
+
+func (r *repository) Tags() ([]*vcs.Tag, error) {
+	url, err := r.url(RouteRepoTags, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := r.client.NewRequest("GET", url.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var tags []*vcs.Tag
+	_, err = r.client.Do(req, &tags)
+	if err != nil {
+		return nil, err
+	}
+
+	return tags, nil
+}
+
 func (r *repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
 	url, err := r.url(RouteRepoCommit, map[string]string{"CommitID": string(id)})
 	if err != nil {

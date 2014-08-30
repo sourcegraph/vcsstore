@@ -15,12 +15,14 @@ const (
 	// Route names
 	RouteRepo               = "vcs:repo"
 	RouteRepoBranch         = "vcs:repo.branch"
+	RouteRepoBranches       = "vcs:repo.branches"
 	RouteRepoCommit         = "vcs:repo.commit"
 	RouteRepoCommitLog      = "vcs:repo.commit.log"
+	RouteRepoCreateOrUpdate = "vcs:repo.create-or-update"
 	RouteRepoRevision       = "vcs:repo.rev"
 	RouteRepoTag            = "vcs:repo.tag"
+	RouteRepoTags           = "vcs:repo.tags"
 	RouteRepoTreeEntry      = "vcs:repo.tree-entry"
-	RouteRepoCreateOrUpdate = "vcs:repo.create-or-update"
 	RouteRoot               = "vcs:root"
 )
 
@@ -61,8 +63,10 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
 	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepoCreateOrUpdate)
 	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
+	repo.Path("/.branches").Methods("GET").Name(RouteRepoBranches)
 	repo.Path("/.branches/{Branch}").Methods("GET").Name(RouteRepoBranch)
 	repo.Path("/.revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
+	repo.Path("/.tags").Methods("GET").Name(RouteRepoTags)
 	repo.Path("/.tags/{Tag}").Methods("GET").Name(RouteRepoTag)
 	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
@@ -101,12 +105,20 @@ func (r *Router) URLToRepoBranch(vcsType string, cloneURL *url.URL, branch strin
 	return r.URLTo(RouteRepoBranch, "VCS", vcsType, "CloneURL", cloneURL.String(), "Branch", branch)
 }
 
+func (r *Router) URLToRepoBranches(vcsType string, cloneURL *url.URL) *url.URL {
+	return r.URLTo(RouteRepoBranches, "VCS", vcsType, "CloneURL", cloneURL.String())
+}
+
 func (r *Router) URLToRepoRevision(vcsType string, cloneURL *url.URL, revSpec string) *url.URL {
 	return r.URLTo(RouteRepoRevision, "VCS", vcsType, "CloneURL", cloneURL.String(), "RevSpec", revSpec)
 }
 
 func (r *Router) URLToRepoTag(vcsType string, cloneURL *url.URL, tag string) *url.URL {
 	return r.URLTo(RouteRepoTag, "VCS", vcsType, "CloneURL", cloneURL.String(), "Tag", tag)
+}
+
+func (r *Router) URLToRepoTags(vcsType string, cloneURL *url.URL) *url.URL {
+	return r.URLTo(RouteRepoTags, "VCS", vcsType, "CloneURL", cloneURL.String())
 }
 
 func (r *Router) URLToRepoCommit(vcsType string, cloneURL *url.URL, commitID vcs.CommitID) *url.URL {

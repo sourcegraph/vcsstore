@@ -8,6 +8,7 @@ import (
 	"net/mail"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -79,6 +80,28 @@ func (r *HgRepositoryNative) ResolveBranch(name string) (CommitID, error) {
 		return CommitID(id), nil
 	}
 	return "", ErrBranchNotFound
+}
+
+func (r *HgRepositoryNative) Branches() ([]*Branch, error) {
+	bs := make([]*Branch, len(r.branchHeads.IdByName))
+	i := 0
+	for name, id := range r.branchHeads.IdByName {
+		bs[i] = &Branch{Name: name, Head: CommitID(id)}
+		i++
+	}
+	sort.Sort(Branches(bs))
+	return bs, nil
+}
+
+func (r *HgRepositoryNative) Tags() ([]*Tag, error) {
+	ts := make([]*Tag, len(r.allTags.IdByName))
+	i := 0
+	for name, id := range r.allTags.IdByName {
+		ts[i] = &Tag{Name: name, CommitID: CommitID(id)}
+		i++
+	}
+	sort.Sort(Tags(ts))
+	return ts, nil
 }
 
 func (r *HgRepositoryNative) GetCommit(id CommitID) (*Commit, error) {
@@ -264,7 +287,17 @@ func (fs *hgFSNative) getEntry(path string) (*hg_revlog.Rec, *hg_store.ManifestE
 	}
 	rec, err := linkRevSpec.Lookup(fileLog)
 	if err != nil {
-		return nil, nil, err
+		// HACK HACK. The above workaround for the Python standard library
+		// breaks go-vcs for the file "README" in
+		// https://code.google.com/p/go.tools rev
+		// 536b79981a09daabecc6bc20b8dd4438a55dc12b. So, if we get an error
+		// using the linkRevSpec with the FindPresent func, try again without
+		// FindPresent.
+		linkRevSpec.FindPresent = nil
+		rec, err = linkRevSpec.Lookup(fileLog)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	if rec.FileRev() == -1 {
 		return nil, nil, hg_revlog.ErrRevisionNotFound
