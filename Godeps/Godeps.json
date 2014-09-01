@@ -175,7 +175,7 @@
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/go-vcs/vcs",
-			"Rev": "de685dde3ea173ba8319e63f52c8209d10f4d471"
+			"Rev": "bc421b330f31b2a3602be37932007ff6daf7d4aa"
 		},
 		{
 			"ImportPath": "github.com/sqs/mux",
