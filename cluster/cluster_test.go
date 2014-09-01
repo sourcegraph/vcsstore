@@ -129,7 +129,7 @@ func TestIntegration(t *testing.T) {
 					if err != nil {
 						return fmt.Errorf("repo %v: resolve branch 'master' failed: %s", ri, err)
 					}
-					commits, err := repo.CommitLog(commitID)
+					commits, err := repo.Commits(vcs.CommitsOptions{Head: commitID})
 					if err != nil {
 						return fmt.Errorf("repo %v: commit log of 'master' failed: %s", ri, err)
 					}

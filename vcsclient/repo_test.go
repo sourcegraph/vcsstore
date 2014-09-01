@@ -169,7 +169,7 @@ func TestRepository_Tags(t *testing.T) {
 	}
 }
 
-func TestRepository_CommitLog(t *testing.T) {
+func TestRepository_Commits(t *testing.T) {
 	setup()
 	defer teardown()
 
@@ -181,16 +181,17 @@ func TestRepository_CommitLog(t *testing.T) {
 	normalizeTime(&want[0].Author.Date)
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoCommitLog, repo, map[string]string{"CommitID": "abcd"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoCommits, repo, nil), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
+		testFormValues(t, r, values{"Head": "abcd", "N": "2", "Skip": "3"})
 
 		writeJSON(w, want)
 	})
 
-	commits, err := repo.CommitLog("abcd")
+	commits, err := repo.Commits(vcs.CommitsOptions{Head: "abcd", N: 2, Skip: 3})
 	if err != nil {
-		t.Errorf("Repository.CommitLog returned error: %v", err)
+		t.Errorf("Repository.Commits returned error: %v", err)
 	}
 
 	if !called {
@@ -198,7 +199,7 @@ func TestRepository_CommitLog(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(commits, want) {
-		t.Errorf("Repository.CommitLog returned %+v, want %+v", commits, want)
+		t.Errorf("Repository.Commits returned %+v, want %+v", commits, want)
 	}
 }
 

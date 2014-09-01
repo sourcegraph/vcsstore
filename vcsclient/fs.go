@@ -98,7 +98,7 @@ func (fs *repositoryFS) url(path string) (*url.URL, error) {
 	return fs.repo.url(RouteRepoTreeEntry, map[string]string{
 		"CommitID": string(fs.at),
 		"Path":     path,
-	})
+	}, nil)
 }
 
 type nopCloser struct {

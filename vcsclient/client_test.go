@@ -43,7 +43,7 @@ func teardown() {
 }
 
 func urlPath(t *testing.T, routeName string, repo *repository, routeVars map[string]string) string {
-	url, err := repo.url(routeName, routeVars)
+	url, err := repo.url(routeName, routeVars, nil)
 	if err != nil {
 		t.Fatalf("Error constructing URL path for route %q with vars %+v: %s", routeName, routeVars, err)
 	}

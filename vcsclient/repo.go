@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 
+	"github.com/google/go-querystring/query"
 	"github.com/sourcegraph/go-vcs/vcs"
 	muxpkg "github.com/sqs/mux"
 )
@@ -40,7 +42,7 @@ type RepositoryRemoteCloner interface {
 }
 
 func (r *repository) CloneRemote() error {
-	url, err := r.url(RouteRepo, nil)
+	url, err := r.url(RouteRepo, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -62,7 +64,7 @@ func (r *repository) CloneRemote() error {
 }
 
 func (r *repository) ResolveBranch(name string) (vcs.CommitID, error) {
-	url, err := r.url(RouteRepoBranch, map[string]string{"Branch": name})
+	url, err := r.url(RouteRepoBranch, map[string]string{"Branch": name}, nil)
 	if err != nil {
 		return "", err
 	}
@@ -81,7 +83,7 @@ func (r *repository) ResolveBranch(name string) (vcs.CommitID, error) {
 }
 
 func (r *repository) ResolveRevision(spec string) (vcs.CommitID, error) {
-	url, err := r.url(RouteRepoRevision, map[string]string{"RevSpec": spec})
+	url, err := r.url(RouteRepoRevision, map[string]string{"RevSpec": spec}, nil)
 	if err != nil {
 		return "", err
 	}
@@ -100,7 +102,7 @@ func (r *repository) ResolveRevision(spec string) (vcs.CommitID, error) {
 }
 
 func (r *repository) ResolveTag(name string) (vcs.CommitID, error) {
-	url, err := r.url(RouteRepoTag, map[string]string{"Tag": name})
+	url, err := r.url(RouteRepoTag, map[string]string{"Tag": name}, nil)
 	if err != nil {
 		return "", err
 	}
@@ -134,7 +136,7 @@ func (r *repository) parseCommitIDInURL(urlStr string) (vcs.CommitID, error) {
 }
 
 func (r *repository) Branches() ([]*vcs.Branch, error) {
-	url, err := r.url(RouteRepoBranches, nil)
+	url, err := r.url(RouteRepoBranches, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +156,7 @@ func (r *repository) Branches() ([]*vcs.Branch, error) {
 }
 
 func (r *repository) Tags() ([]*vcs.Tag, error) {
-	url, err := r.url(RouteRepoTags, nil)
+	url, err := r.url(RouteRepoTags, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +176,7 @@ func (r *repository) Tags() ([]*vcs.Tag, error) {
 }
 
 func (r *repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
-	url, err := r.url(RouteRepoCommit, map[string]string{"CommitID": string(id)})
+	url, err := r.url(RouteRepoCommit, map[string]string{"CommitID": string(id)}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -193,8 +195,8 @@ func (r *repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
 	return commit, nil
 }
 
-func (r *repository) CommitLog(to vcs.CommitID) ([]*vcs.Commit, error) {
-	url, err := r.url(RouteRepoCommitLog, map[string]string{"CommitID": string(to)})
+func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, error) {
+	url, err := r.url(RouteRepoCommits, nil, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +231,7 @@ var router = NewRouter(nil)
 
 // url generates the URL to the named vcsstore API endpoint, using the
 // specified route variables and query options.
-func (r *repository) url(routeName string, routeVars map[string]string) (*url.URL, error) {
+func (r *repository) url(routeName string, routeVars map[string]string, opt interface{}) (*url.URL, error) {
 	route := (*muxpkg.Router)(router).Get(routeName)
 	if route == nil {
 		return nil, fmt.Errorf("no API route named %q", route)
@@ -251,5 +253,29 @@ func (r *repository) url(routeName string, routeVars map[string]string) (*url.UR
 	// make the route URL path relative to BaseURL by trimming the leading "/"
 	url.Path = strings.TrimPrefix(url.Path, "/")
 
+	if opt != nil {
+		err = addOptions(url, opt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return url, nil
+}
+
+// addOptions adds the parameters in opt as URL query parameters to u. opt
+// must be a struct whose fields may contain "url" tags.
+func addOptions(u *url.URL, opt interface{}) error {
+	v := reflect.ValueOf(opt)
+	if v.Kind() == reflect.Ptr && v.IsNil() {
+		return nil
+	}
+
+	qs, err := query.Values(opt)
+	if err != nil {
+		return err
+	}
+
+	u.RawQuery = qs.Encode()
+	return nil
 }

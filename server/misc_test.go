@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/sourcegraph/go-vcs/vcs"
 )
 
 func TestHandlers_NotImplemented(t *testing.T) {
@@ -16,7 +18,7 @@ func TestHandlers_NotImplemented(t *testing.T) {
 		testHandler.router.URLToRepoRevision("git", cloneURL, "myrevspec"),
 		testHandler.router.URLToRepoTag("git", cloneURL, "mytag"),
 		testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"),
-		testHandler.router.URLToRepoCommitLog("git", cloneURL, "abcd"),
+		testHandler.router.URLToRepoCommits("git", cloneURL, vcs.CommitsOptions{Head: "abcd"}),
 		testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", "myfile"),
 		testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", "."),
 	}

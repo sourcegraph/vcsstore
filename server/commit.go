@@ -47,12 +47,15 @@ func (h *Handler) serveRepoCommit(w http.ResponseWriter, r *http.Request) error 
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("GetCommit not yet implemented for %T", repo)}
 }
 
-// getCommitID retrieves the CommitID from the querystring and returns the
-// commit ID, whether it is canonical (i.e., the full 40-character commit ID),
-// and an error (if any).
+// getCommitID retrieves the CommitID from the route variables and
+// runs checkCommitID on it.
 func getCommitID(r *http.Request) (vcs.CommitID, bool, error) {
-	v := mux.Vars(r)
-	commitID := v["CommitID"]
+	return checkCommitID(mux.Vars(r)["CommitID"])
+}
+
+// checkCommitID returns whether the commit ID is canonical (i.e., the
+// full 40-character commit ID), and an error (if any).
+func checkCommitID(commitID string) (vcs.CommitID, bool, error) {
 	if commitID == "" {
 		return "", false, &httpError{http.StatusBadRequest, errors.New("CommitID is empty")}
 	}

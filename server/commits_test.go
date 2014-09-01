@@ -11,14 +11,16 @@ import (
 	"github.com/sourcegraph/go-vcs/vcs"
 )
 
-func TestServeRepoCommitLog(t *testing.T) {
+func TestServeRepoCommits(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
-	rm := &mockCommitLog{
+	opt := vcs.CommitsOptions{Head: "abcd", N: 2, Skip: 3}
+
+	rm := &mockCommits{
 		t:       t,
-		to:      "abcd",
+		opt:     opt,
 		commits: []*vcs.Commit{{ID: "abcd"}, {ID: "wxyz"}},
 	}
 	sm := &mockServiceForExistingRepo{
@@ -29,7 +31,7 @@ func TestServeRepoCommitLog(t *testing.T) {
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommitLog("git", cloneURL, "abcd").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommits("git", cloneURL, opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -55,11 +57,11 @@ func TestServeRepoCommitLog(t *testing.T) {
 	}
 }
 
-type mockCommitLog struct {
+type mockCommits struct {
 	t *testing.T
 
 	// expected args
-	to vcs.CommitID
+	opt vcs.CommitsOptions
 
 	// return values
 	commits []*vcs.Commit
@@ -68,9 +70,9 @@ type mockCommitLog struct {
 	called bool
 }
 
-func (m *mockCommitLog) CommitLog(to vcs.CommitID) ([]*vcs.Commit, error) {
-	if to != m.to {
-		m.t.Errorf("mock: got to arg %q, want %q", to, m.to)
+func (m *mockCommits) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, error) {
+	if opt != m.opt {
+		m.t.Errorf("mock: got opt %+v, want %+v", opt, m.opt)
 	}
 	m.called = true
 	return m.commits, m.err

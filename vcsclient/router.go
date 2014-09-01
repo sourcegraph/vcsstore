@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/go-querystring/query"
 	"github.com/sourcegraph/go-vcs/vcs"
 	"github.com/sourcegraph/vcsstore"
 	muxpkg "github.com/sqs/mux"
@@ -17,7 +18,7 @@ const (
 	RouteRepoBranch         = "vcs:repo.branch"
 	RouteRepoBranches       = "vcs:repo.branches"
 	RouteRepoCommit         = "vcs:repo.commit"
-	RouteRepoCommitLog      = "vcs:repo.commit.log"
+	RouteRepoCommits        = "vcs:repo.commits"
 	RouteRepoCreateOrUpdate = "vcs:repo.create-or-update"
 	RouteRepoRevision       = "vcs:repo.rev"
 	RouteRepoTag            = "vcs:repo.tag"
@@ -68,10 +69,10 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	repo.Path("/.revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
 	repo.Path("/.tags").Methods("GET").Name(RouteRepoTags)
 	repo.Path("/.tags/{Tag}").Methods("GET").Name(RouteRepoTag)
+	repo.Path("/.commits").Methods("GET").Name(RouteRepoCommits)
 	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
 	commit := repo.PathPrefix(commitPath).Subrouter()
-	commit.Path("/log").Methods("GET").Name(RouteRepoCommitLog)
 
 	// cleanTreeVars modifies the Path route var to be a clean filepath. If it
 	// is empty, it is changed to ".".
@@ -125,8 +126,14 @@ func (r *Router) URLToRepoCommit(vcsType string, cloneURL *url.URL, commitID vcs
 	return r.URLTo(RouteRepoCommit, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID))
 }
 
-func (r *Router) URLToRepoCommitLog(vcsType string, cloneURL *url.URL, commitID vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoCommitLog, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID))
+func (r *Router) URLToRepoCommits(vcsType string, cloneURL *url.URL, opt vcs.CommitsOptions) *url.URL {
+	u := r.URLTo(RouteRepoCommits, "VCS", vcsType, "CloneURL", cloneURL.String())
+	q, err := query.Values(opt)
+	if err != nil {
+		panic(err.Error())
+	}
+	u.RawQuery = q.Encode()
+	return u
 }
 
 func (r *Router) URLToRepoTreeEntry(vcsType string, cloneURL *url.URL, commitID vcs.CommitID, path string) *url.URL {

@@ -153,6 +153,10 @@
 			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
 		},
 		{
+			"ImportPath": "github.com/gorilla/schema",
+			"Rev": "5ecdd513d03e9ec5b8ad301e0ff8f66acdae59ff"
+		},
+		{
 			"ImportPath": "github.com/kr/pretty",
 			"Comment": "go.weekly.2011-12-22-18-gbc9499c",
 			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
@@ -171,7 +175,7 @@
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/go-vcs/vcs",
-			"Rev": "f9c48096bc201b869865f6a1afde0a0755b30d0d"
+			"Rev": "de685dde3ea173ba8319e63f52c8209d10f4d471"
 		},
 		{
 			"ImportPath": "github.com/sqs/mux",
