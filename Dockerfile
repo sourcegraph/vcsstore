@@ -1,7 +1,7 @@
 FROM ubuntu:14.04
 
 RUN apt-get update -q
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -qy build-essential curl git mercurial pkg-config
+RUN apt-get install -qy build-essential curl git mercurial pkg-config
 
 # Install Go
 RUN curl -s https://storage.googleapis.com/golang/go1.3beta1.linux-amd64.tar.gz | tar -C /usr/local -xz
@@ -10,7 +10,7 @@ ENV GOBIN /usr/local/bin
 ENV GOPATH /usr/local/lib/go
 
 # Install libgit2 (for git2go); use pinned version from 2014-05-11 (because it is known to work; there's nothing otherwise special about this commit).
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -qy cmake libssh2-1-dev
+RUN apt-get install -qy cmake libssh2-1-dev
 ADD https://github.com/libgit2/libgit2/tarball/e18d5e52e385c0cc2ad8d9d4fdd545517f170a11 /tmp/libgit2.tgz
 RUN cd /tmp && tar xzf /tmp/libgit2.tgz && cd /tmp/libgit2-libgit2-e18d5e5 && mkdir build && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_CLAR=OFF -DTHREADSAFE=ON && cmake --build . --target install
 
