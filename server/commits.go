@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/sourcegraph/go-vcs/vcs"
+	"github.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error {
@@ -28,10 +30,10 @@ func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error
 	opt.Head = head
 
 	type commits interface {
-		Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, error)
+		Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error)
 	}
 	if repo, ok := repo.(commits); ok {
-		commits, err := repo.Commits(opt)
+		commits, total, err := repo.Commits(opt)
 		if err != nil {
 			return err
 		}
@@ -39,6 +41,9 @@ func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error
 		if canon {
 			setLongCache(w)
 		}
+
+		w.Header().Set(vcsclient.TotalCommitsHeader, strconv.FormatUint(uint64(total), 10))
+
 		return writeJSON(w, commits)
 	}
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sourcegraph/go-vcs/vcs"
+	"github.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestServeRepoCommits(t *testing.T) {
@@ -22,6 +23,7 @@ func TestServeRepoCommits(t *testing.T) {
 		t:       t,
 		opt:     opt,
 		commits: []*vcs.Commit{{ID: "abcd"}, {ID: "wxyz"}},
+		total:   123,
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -42,6 +44,10 @@ func TestServeRepoCommits(t *testing.T) {
 	}
 	if !rm.called {
 		t.Errorf("!called")
+	}
+
+	if total, want := resp.Header.Get(vcsclient.TotalCommitsHeader), "123"; total != want {
+		t.Errorf("got total commits header %q, want %q", total, want)
 	}
 
 	var commits []*vcs.Commit
@@ -65,17 +71,18 @@ type mockCommits struct {
 
 	// return values
 	commits []*vcs.Commit
+	total   uint
 	err     error
 
 	called bool
 }
 
-func (m *mockCommits) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, error) {
+func (m *mockCommits) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error) {
 	if opt != m.opt {
 		m.t.Errorf("mock: got opt %+v, want %+v", opt, m.opt)
 	}
 	m.called = true
-	return m.commits, m.err
+	return m.commits, m.total, m.err
 }
 
 func normalizeCommit(c *vcs.Commit) {

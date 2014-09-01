@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/google/go-querystring/query"
@@ -195,24 +196,33 @@ func (r *repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
 	return commit, nil
 }
 
-func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, error) {
+// TotalCommitsHeader is the name of the HTTP header that contains the
+// total number of commits in a call to Commits.
+const TotalCommitsHeader = "x-vcsstore-total-commits"
+
+func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error) {
 	url, err := r.url(RouteRepoCommits, nil, opt)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	req, err := r.client.NewRequest("GET", url.String())
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var commits []*vcs.Commit
-	_, err = r.client.Do(req, &commits)
+	resp, err := r.client.Do(req, &commits)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return commits, nil
+	total, err := strconv.ParseUint(string(resp.Header.Get(TotalCommitsHeader)), 10, 64)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return commits, uint(total), nil
 }
 
 // FileSystem returns a vcs.FileSystem that accesses the repository tree. The

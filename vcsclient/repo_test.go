@@ -186,16 +186,21 @@ func TestRepository_Commits(t *testing.T) {
 		testMethod(t, r, "GET")
 		testFormValues(t, r, values{"Head": "abcd", "N": "2", "Skip": "3"})
 
+		w.Header().Set(TotalCommitsHeader, "123")
 		writeJSON(w, want)
 	})
 
-	commits, err := repo.Commits(vcs.CommitsOptions{Head: "abcd", N: 2, Skip: 3})
+	commits, total, err := repo.Commits(vcs.CommitsOptions{Head: "abcd", N: 2, Skip: 3})
 	if err != nil {
 		t.Errorf("Repository.Commits returned error: %v", err)
 	}
 
 	if !called {
 		t.Fatal("!called")
+	}
+
+	if want := uint(123); total != want {
+		t.Errorf("Repository.Commits: got total %d, want %d", total, want)
 	}
 
 	if !reflect.DeepEqual(commits, want) {
