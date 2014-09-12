@@ -75,6 +75,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c := errorHTTPStatusCode(err)
 		h.h.Log.Printf("HTTP %d error serving %q: %s.", c, r.URL.RequestURI(), err)
+		w.Header().Set("cache-control", "no-cache; max-age=0") // don't cache errors
 		http.Error(w, errorBody(h.h.Debug, err), c)
 	}
 }
