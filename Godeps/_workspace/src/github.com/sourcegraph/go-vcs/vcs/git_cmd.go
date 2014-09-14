@@ -206,6 +206,52 @@ func (r *GitRepositoryCmd) commitLog(opt CommitsOptions) ([]*Commit, uint, error
 	return commits, uint(total), nil
 }
 
+func (r *GitRepositoryCmd) Diff(base, head CommitID, opt *DiffOptions) (*Diff, error) {
+	if strings.HasPrefix(string(base), "-") || strings.HasPrefix(string(head), "-") {
+		// Protect against base or head that is interpreted as command-line option.
+		return nil, errors.New("diff revspecs must not start with '-'")
+	}
+
+	cmd := exec.Command("git", "diff", "--full-index", string(base), string(head), "--")
+	if opt != nil {
+		cmd.Args = append(cmd.Args, opt.Paths...)
+	}
+	cmd.Dir = r.Dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("exec `git diff` failed: %s. Output was:\n\n%s", err, out)
+	}
+	return &Diff{
+		Raw: string(out),
+	}, nil
+}
+
+func (r *GitRepositoryCmd) CrossRepoDiff(base CommitID, headRepo Repository, head CommitID, opt *DiffOptions) (*Diff, error) {
+	var headDir string // path to head repo on local filesystem
+	switch headRepo := headRepo.(type) {
+	case *gitRepository:
+		headDir = headRepo.dir
+	case *GitRepositoryCmd:
+		headDir = headRepo.Dir
+	default:
+		return nil, fmt.Errorf("git cross-repo diff not supported against head repo type %T", headRepo)
+	}
+
+	if headDir == r.Dir {
+		return r.Diff(base, head, opt)
+	}
+
+	// Add remote (if not exists).
+	cmd := exec.Command("git", "fetch", headDir, string(head))
+	cmd.Dir = r.Dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("exec `git fetch` failed: %s. Output was:\n\n%s", err, out)
+	}
+
+	return r.Diff(base, head, opt)
+}
+
 func (r *GitRepositoryCmd) FileSystem(at CommitID) (FileSystem, error) {
 	if err := checkSpecArgSafety(string(at)); err != nil {
 		return nil, err
