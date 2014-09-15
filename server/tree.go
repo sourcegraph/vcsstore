@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/sourcegraph/go-vcs/vcs"
+	"github.com/sourcegraph/vcsstore/fileutil"
 	"github.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
 )
@@ -44,6 +45,7 @@ func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) err
 		}
 
 		e := newTreeEntry(fi)
+		var respVal interface{} = e // the value written to the resp body as JSON
 
 		if fi.Mode().IsDir() {
 			entries, err := fs.ReadDir(path)
@@ -69,6 +71,25 @@ func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) err
 			}
 
 			e.Contents = contents
+
+			// Check for extended range options (GetFileOptions).
+			var fopt vcsclient.GetFileOptions
+			if err := schemaDecoder.Decode(&fopt, r.URL.Query()); err != nil {
+				return err
+			}
+			if empty := (vcsclient.GetFileOptions{}); fopt != empty {
+				fr, _, err := fileutil.ComputeFileRange(contents, fopt)
+				if err != nil {
+					return err
+				}
+
+				// Trim to only requested range.
+				e.Contents = e.Contents[fr.StartByte:fr.EndByte]
+				respVal = &vcsclient.FileWithRange{
+					TreeEntry: e,
+					FileRange: *fr,
+				}
+			}
 		}
 
 		if canon {
@@ -76,7 +97,7 @@ func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) err
 		} else {
 			setShortCache(w)
 		}
-		return writeJSON(w, e)
+		return writeJSON(w, respVal)
 	}
 
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("FileSystem not yet implemented for %T", repo)}

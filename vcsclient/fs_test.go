@@ -174,3 +174,89 @@ func TestRepository_FileSystem_ReadDir(t *testing.T) {
 		t.Errorf("FileSystem.ReadDir returned %+v, want %+v", fis, want)
 	}
 }
+
+func TestRepository_FileSystem_Get(t *testing.T) {
+	setup()
+	defer teardown()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
+	want := &TreeEntry{Name: "f", Contents: []byte("c")}
+	normalizeTime(&want.ModTime)
+
+	var called bool
+	mux.HandleFunc(urlPath(t, RouteRepoTreeEntry, repo, map[string]string{"CommitID": "abcd", "Path": "f"}), func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		testMethod(t, r, "GET")
+
+		writeJSON(w, want)
+	})
+
+	fs, err := repo.FileSystem("abcd")
+	if err != nil {
+		t.Errorf("Repository.FileSystem returned error: %v", err)
+		return
+	}
+
+	e, err := fs.(*repositoryFS).Get("f")
+	if err != nil {
+		t.Errorf("FileSystem.Stat returned error: %v", err)
+	}
+
+	if !called {
+		t.Fatal("!called")
+	}
+
+	if !reflect.DeepEqual(e, want) {
+		t.Errorf("FileSystem.Get returned %+v, want %+v", e, want)
+	}
+}
+
+func TestRepository_FileSystem_GetFileWithOptions(t *testing.T) {
+	setup()
+	defer teardown()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
+	want := &FileWithRange{
+		TreeEntry: &TreeEntry{Name: "f", Contents: []byte("c")},
+		FileRange: FileRange{
+			StartByte: 123, EndByte: 456,
+			StartLine: 2, EndLine: 4,
+		},
+	}
+	normalizeTime(&want.ModTime)
+
+	var called bool
+	mux.HandleFunc(urlPath(t, RouteRepoTreeEntry, repo, map[string]string{"CommitID": "abcd", "Path": "f"}), func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		testMethod(t, r, "GET")
+		testFormValues(t, r, values{
+			"StartByte": "123",
+			"EndByte":   "456",
+		})
+
+		writeJSON(w, want)
+	})
+
+	fs, err := repo.FileSystem("abcd")
+	if err != nil {
+		t.Errorf("Repository.FileSystem returned error: %v", err)
+		return
+	}
+
+	e, err := fs.(*repositoryFS).GetFileWithOptions("f", GetFileOptions{FileRange: FileRange{StartByte: 123, EndByte: 456}})
+	if err != nil {
+		t.Errorf("FileSystem.Stat returned error: %v", err)
+	}
+
+	if !called {
+		t.Fatal("!called")
+	}
+
+	if !reflect.DeepEqual(e, want) {
+		t.Errorf("FileSystem.Get returned %+v, want %+v", e, want)
+	}
+}

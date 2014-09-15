@@ -178,6 +178,10 @@
 			"Rev": "3a391486b8976699700f764c440980543cf13f28"
 		},
 		{
+			"ImportPath": "github.com/sqs/fileset",
+			"Rev": "4317e899aa9438ba7603a6e322389571cb3ffdff"
+		},
+		{
 			"ImportPath": "github.com/sqs/mux",
 			"Rev": "68e4a78b39826e7f0e4dabdc3f6b58ff5055c1e1"
 		}

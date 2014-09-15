@@ -139,6 +139,71 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	}
 }
 
+func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
+	setupHandlerTest()
+	defer teardownHandlerTest()
+
+	commitID := vcs.CommitID(strings.Repeat("a", 40))
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	rm := &mockFileSystem{
+		t:  t,
+		at: commitID,
+		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata"}),
+	}
+	sm := &mockServiceForExistingRepo{
+		t:        t,
+		vcs:      "git",
+		cloneURL: cloneURL,
+		repo:     rm,
+	}
+	testHandler.Service = sm
+
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry("git", cloneURL, commitID, "myfile").String() + "?StartByte=2&EndByte=4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if got, want := resp.StatusCode, http.StatusOK; got != want {
+		t.Errorf("got status code %d, want %d", got, want)
+	}
+
+	if !sm.opened {
+		t.Errorf("!opened")
+	}
+	if !rm.called {
+		t.Errorf("!called")
+	}
+
+	var f *vcsclient.FileWithRange
+	if err := json.NewDecoder(resp.Body).Decode(&f); err != nil {
+		t.Fatal(err)
+	}
+
+	want := &vcsclient.FileWithRange{
+		TreeEntry: &vcsclient.TreeEntry{
+			Name:     "myfile",
+			Type:     vcsclient.FileEntry,
+			Size:     6,
+			Contents: []byte("da"),
+		},
+		FileRange: vcsclient.FileRange{
+			StartByte: 2, EndByte: 4,
+			StartLine: 1, EndLine: 1,
+		},
+	}
+	normalizeTreeEntry(want.TreeEntry)
+
+	if !reflect.DeepEqual(f, want) {
+		t.Errorf("got file with range %+v, want %+v", f, want)
+	}
+
+	// used canonical commit ID, so should be long-cached
+	if cc := resp.Header.Get("cache-control"); cc != longCacheControl {
+		t.Errorf("got cache-control %q, want %q", cc, longCacheControl)
+	}
+}
+
 type mockFileSystem struct {
 	t *testing.T
 
