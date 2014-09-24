@@ -1,6 +1,10 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/sourcegraph/go-vcs/vcs"
+)
 
 type httpError struct {
 	statusCode int   // HTTP status code.
@@ -18,6 +22,10 @@ func (err httpError) httpStatusCode() int { return err.statusCode }
 
 // errorHTTPStatusCode returns the HTTP error code that most closely describes err.
 func errorHTTPStatusCode(err error) int {
+	if c, present := errStatuses[err]; present {
+		return c
+	}
+
 	type httpStatusCoder interface {
 		httpStatusCode() int
 	}
@@ -25,4 +33,10 @@ func errorHTTPStatusCode(err error) int {
 		return err.httpStatusCode()
 	}
 	return http.StatusInternalServerError
+}
+
+var errStatuses = map[error]int{
+	vcs.ErrBranchNotFound:   http.StatusNotFound,
+	vcs.ErrRevisionNotFound: http.StatusNotFound,
+	vcs.ErrTagNotFound:      http.StatusNotFound,
 }

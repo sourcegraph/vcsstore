@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,17 +23,28 @@ func (r *HgRepositoryCmd) ResolveRevision(spec string) (CommitID, error) {
 	cmd.Dir = r.Dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if bytes.HasPrefix(out, []byte("abort: unknown revision")) {
+			return "", ErrRevisionNotFound
+		}
 		return "", fmt.Errorf("exec `hg identify` failed: %s. Output was:\n\n%s", err, out)
 	}
 	return CommitID(bytes.TrimSpace(out)), nil
 }
 
 func (r *HgRepositoryCmd) ResolveTag(name string) (CommitID, error) {
-	return r.ResolveRevision(name)
+	commitID, err := r.ResolveRevision(name)
+	if err == ErrRevisionNotFound {
+		return "", ErrTagNotFound
+	}
+	return commitID, nil
 }
 
 func (r *HgRepositoryCmd) ResolveBranch(name string) (CommitID, error) {
-	return r.ResolveRevision(name)
+	commitID, err := r.ResolveRevision(name)
+	if err == ErrRevisionNotFound {
+		return "", ErrBranchNotFound
+	}
+	return commitID, nil
 }
 
 func (r *HgRepositoryCmd) Branches() ([]*Branch, error) {
@@ -151,7 +163,8 @@ func (r *HgRepositoryCmd) commitLog(revSpec string, n uint) ([]*Commit, uint, er
 
 		authorTime, err := time.Parse(time.RFC3339, string(parts[3]))
 		if err != nil {
-			return nil, 0, err
+			log.Println(err)
+			//return nil, 0, err
 		}
 
 		parents, err := r.getParents(id)
@@ -272,10 +285,11 @@ func (fs *hgFSCmd) Stat(path string) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	mtime, err = time.Parse("Mon Jan 02 15:04:05 2006 +0000",
+	mtime, err = time.Parse("Mon Jan 02 15:04:05 2006 -0700",
 		strings.Trim(string(out), "\n"))
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		//return nil, err
 	}
 
 	// this just determines if the file exists.
