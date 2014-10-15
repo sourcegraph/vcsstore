@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/google/go-querystring/query"
 	"github.com/sourcegraph/go-vcs/vcs"
 	muxpkg "github.com/sqs/mux"
@@ -225,11 +226,11 @@ func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 	return commits, uint(total), nil
 }
 
-// FileSystem returns a vcs.FileSystem that accesses the repository tree. The
+// FileSystem returns a vfs.FileSystem that accesses the repository tree. The
 // returned interface also satisfies vcsclient.FileSystem, which has an
 // additional Get method that is useful for fetching all information about an
 // entry in the tree.
-func (r *repository) FileSystem(at vcs.CommitID) (vcs.FileSystem, error) {
+func (r *repository) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
 	return &repositoryFS{
 		at:   at,
 		repo: r,

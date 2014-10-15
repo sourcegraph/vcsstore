@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"code.google.com/p/go.tools/godoc/vfs"
+	"code.google.com/p/go.tools/godoc/vfs/mapfs"
 	"github.com/sourcegraph/go-vcs/vcs"
-	vcs_testing "github.com/sourcegraph/go-vcs/vcs/testing"
 	"github.com/sourcegraph/vcsstore/vcsclient"
 )
 
@@ -24,7 +25,7 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
-		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata"}),
+		fs: mapfs.New(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -81,7 +82,7 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: "abcd",
-		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata", "mydir/f": ""}),
+		fs: mapfs.New(map[string]string{"myfile": "mydata", "mydir/f": ""}),
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -149,7 +150,7 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
-		fs: vcs_testing.MapFS(map[string]string{"myfile": "mydata"}),
+		fs: mapfs.New(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -211,13 +212,13 @@ type mockFileSystem struct {
 	at vcs.CommitID
 
 	// return values
-	fs  vcs.FileSystem
+	fs  vfs.FileSystem
 	err error
 
 	called bool
 }
 
-func (m *mockFileSystem) FileSystem(at vcs.CommitID) (vcs.FileSystem, error) {
+func (m *mockFileSystem) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
 	if at != m.at {
 		m.t.Errorf("mock: got at arg %q, want %q", at, m.at)
 	}
