@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -25,7 +26,7 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
-		fs: mapfs.New(map[string]string{"myfile": "mydata"}),
+		fs: mapFS(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -82,7 +83,7 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: "abcd",
-		fs: mapfs.New(map[string]string{"myfile": "mydata", "mydir/f": ""}),
+		fs: mapFS(map[string]string{"myfile": "mydata", "mydir/f": ""}),
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -150,7 +151,7 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
-		fs: mapfs.New(map[string]string{"myfile": "mydata"}),
+		fs: mapFS(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -231,4 +232,20 @@ func normalizeTreeEntry(e *vcsclient.TreeEntry) {
 	for _, e := range e.Entries {
 		normalizeTreeEntry(e)
 	}
+}
+
+// mapFS creates a compatible vfs.FileSystem from a map.
+func mapFS(m map[string]string) vfs.FileSystem { return prefixVFS{mapfs.New(m)} }
+
+// prefixVFS implements a vfs.FileSystem that prepends a forward slash to all paths.
+// This is needed for tests to access root folder of a mapfs via "." path.
+type prefixVFS struct{ vfs.FileSystem }
+
+func (fs prefixVFS) Open(name string) (vfs.ReadSeekCloser, error) {
+	return fs.FileSystem.Open("/" + name)
+}
+func (fs prefixVFS) Lstat(path string) (os.FileInfo, error) { return fs.FileSystem.Lstat("/" + path) }
+func (fs prefixVFS) Stat(path string) (os.FileInfo, error)  { return fs.FileSystem.Stat("/" + path) }
+func (fs prefixVFS) ReadDir(path string) ([]os.FileInfo, error) {
+	return fs.FileSystem.ReadDir("/" + path)
 }
