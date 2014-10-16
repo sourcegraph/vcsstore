@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 
+	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/sourcegraph/go-vcs/vcs"
 	"github.com/sourcegraph/vcsstore/fileutil"
 	"github.com/sourcegraph/vcsstore/vcsclient"
@@ -27,7 +28,7 @@ func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) err
 	}
 
 	type fileSystem interface {
-		FileSystem(vcs.CommitID) (vcs.FileSystem, error)
+		FileSystem(vcs.CommitID) (vfs.FileSystem, error)
 	}
 	if repo, ok := repo.(fileSystem); ok {
 		fs, err := repo.FileSystem(commitID)

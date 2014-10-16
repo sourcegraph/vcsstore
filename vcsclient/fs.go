@@ -7,11 +7,12 @@ import (
 	"net/url"
 	"os"
 
+	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/sourcegraph/go-vcs/vcs"
 )
 
 type FileSystem interface {
-	vcs.FileSystem
+	vfs.FileSystem
 	Get(path string) (*TreeEntry, error)
 }
 
@@ -22,7 +23,7 @@ type repositoryFS struct {
 
 var _ FileSystem = &repositoryFS{}
 
-func (fs *repositoryFS) Open(name string) (vcs.ReadSeekCloser, error) {
+func (fs *repositoryFS) Open(name string) (vfs.ReadSeekCloser, error) {
 	e, err := fs.Get(name)
 	if err != nil {
 		return nil, err

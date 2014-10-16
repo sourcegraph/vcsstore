@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"code.google.com/p/go.tools/godoc/vfs"
 )
 
 type HgRepositoryCmd struct {
@@ -163,8 +164,7 @@ func (r *HgRepositoryCmd) commitLog(revSpec string, n uint) ([]*Commit, uint, er
 
 		authorTime, err := time.Parse(time.RFC3339, string(parts[3]))
 		if err != nil {
-			log.Println(err)
-			//return nil, 0, err
+			return nil, 0, err
 		}
 
 		parents, err := r.getParents(id)
@@ -243,7 +243,7 @@ func (r *HgRepositoryCmd) Diff(base, head CommitID, opt *DiffOptions) (*Diff, er
 	}, nil
 }
 
-func (r *HgRepositoryCmd) FileSystem(at CommitID) (FileSystem, error) {
+func (r *HgRepositoryCmd) FileSystem(at CommitID) (vfs.FileSystem, error) {
 	return &hgFSCmd{
 		dir: r.Dir,
 		at:  at,
@@ -255,7 +255,7 @@ type hgFSCmd struct {
 	at  CommitID
 }
 
-func (fs *hgFSCmd) Open(name string) (ReadSeekCloser, error) {
+func (fs *hgFSCmd) Open(name string) (vfs.ReadSeekCloser, error) {
 	cmd := exec.Command("hg", "cat", "--rev="+string(fs.at), "--", name)
 	cmd.Dir = fs.dir
 	out, err := cmd.CombinedOutput()
@@ -285,11 +285,10 @@ func (fs *hgFSCmd) Stat(path string) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	mtime, err = time.Parse("Mon Jan 02 15:04:05 2006 -0700",
+	mtime, err = time.Parse("Mon Jan 02 15:04:05 2006 +0000",
 		strings.Trim(string(out), "\n"))
 	if err != nil {
-		log.Println(err)
-		//return nil, err
+		return nil, err
 	}
 
 	// this just determines if the file exists.

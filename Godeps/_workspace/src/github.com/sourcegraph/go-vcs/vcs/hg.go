@@ -28,10 +28,6 @@ func (r *hgRepository) MirrorUpdate() error {
 	return nil
 }
 
-func (r *hgRepository) FileSystem(at CommitID) (FileSystem, error) {
-	return r.cmd.FileSystem(at)
-}
-
 func OpenHgRepository(dir string) (HgRepository, error) {
 	native, err := OpenHgRepositoryNative(dir)
 	if err != nil {
