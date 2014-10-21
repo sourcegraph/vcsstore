@@ -2,9 +2,7 @@ package vcs_test
 
 import (
 	"bytes"
-	"flag"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"reflect"
@@ -13,7 +11,10 @@ import (
 
 	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/go-vcs/vcs/git_libgit2"
+	"github.com/sourcegraph/go-vcs/vcs/git"
+	"github.com/sourcegraph/go-vcs/vcs/gitcmd"
+	"github.com/sourcegraph/go-vcs/vcs/hg"
+	"github.com/sourcegraph/go-vcs/vcs/hgcmd"
 )
 
 var times = []string{
@@ -22,9 +23,9 @@ var times = []string{
 }
 
 func TestRepository_ResolveBranch(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
-	cmds := []string{
+	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
 	}
 	hgCommands := []string{
@@ -43,12 +44,12 @@ func TestRepository_ResolveBranch(t *testing.T) {
 		wantCommitID vcs.CommitID
 	}{
 		"git libgit2": {
-			repo:         makeGitRepositoryLibGit2(t, cmds...),
+			repo:         makeGitRepositoryLibGit2(t, gitCommands...),
 			branch:       "master",
 			wantCommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8",
 		},
 		"git cmd": {
-			repo:         &vcs.GitRepositoryCmd{initGitRepository(t, cmds...)},
+			repo:         makeGitRepositoryCmd(t, gitCommands...),
 			branch:       "master",
 			wantCommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8",
 		},
@@ -58,7 +59,7 @@ func TestRepository_ResolveBranch(t *testing.T) {
 			wantCommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf",
 		},
 		"hg cmd": {
-			repo:         &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:         makeHgRepositoryCmd(t, hgCommands...),
 			branch:       "default",
 			wantCommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf",
 		},
@@ -78,7 +79,7 @@ func TestRepository_ResolveBranch(t *testing.T) {
 }
 
 func TestRepository_ResolveBranch_error(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -101,7 +102,7 @@ func TestRepository_ResolveBranch_error(t *testing.T) {
 			wantErr: vcs.ErrBranchNotFound,
 		},
 		"git cmd": {
-			repo:    &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:    makeGitRepositoryCmd(t, gitCommands...),
 			branch:  "doesntexist",
 			wantErr: vcs.ErrBranchNotFound,
 		},
@@ -111,7 +112,7 @@ func TestRepository_ResolveBranch_error(t *testing.T) {
 			wantErr: vcs.ErrBranchNotFound,
 		},
 		"hg cmd": {
-			repo:    &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:    makeHgRepositoryCmd(t, hgCommands...),
 			branch:  "doesntexist",
 			wantErr: vcs.ErrBranchNotFound,
 		},
@@ -131,7 +132,7 @@ func TestRepository_ResolveBranch_error(t *testing.T) {
 }
 
 func TestRepository_ResolveRevision(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -154,7 +155,7 @@ func TestRepository_ResolveRevision(t *testing.T) {
 			wantCommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8",
 		},
 		"git cmd": {
-			repo:         &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:         makeGitRepositoryCmd(t, gitCommands...),
 			spec:         "master",
 			wantCommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8",
 		},
@@ -164,7 +165,7 @@ func TestRepository_ResolveRevision(t *testing.T) {
 			wantCommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf",
 		},
 		"hg cmd": {
-			repo:         &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:         makeHgRepositoryCmd(t, hgCommands...),
 			spec:         "tip",
 			wantCommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf",
 		},
@@ -184,7 +185,7 @@ func TestRepository_ResolveRevision(t *testing.T) {
 }
 
 func TestRepository_ResolveRevision_error(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -207,7 +208,7 @@ func TestRepository_ResolveRevision_error(t *testing.T) {
 			wantErr: vcs.ErrRevisionNotFound,
 		},
 		"git cmd": {
-			repo:    &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:    makeGitRepositoryCmd(t, gitCommands...),
 			spec:    "doesntexist",
 			wantErr: vcs.ErrRevisionNotFound,
 		},
@@ -217,7 +218,7 @@ func TestRepository_ResolveRevision_error(t *testing.T) {
 			wantErr: vcs.ErrRevisionNotFound,
 		},
 		"hg cmd": {
-			repo:    &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:    makeHgRepositoryCmd(t, hgCommands...),
 			spec:    "doesntexist",
 			wantErr: vcs.ErrRevisionNotFound,
 		},
@@ -237,7 +238,7 @@ func TestRepository_ResolveRevision_error(t *testing.T) {
 }
 
 func TestRepository_ResolveTag(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -262,7 +263,7 @@ func TestRepository_ResolveTag(t *testing.T) {
 			wantCommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8",
 		},
 		"git cmd": {
-			repo:         &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:         makeGitRepositoryCmd(t, gitCommands...),
 			tag:          "t",
 			wantCommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8",
 		},
@@ -272,7 +273,7 @@ func TestRepository_ResolveTag(t *testing.T) {
 			wantCommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf",
 		},
 		"hg cmd": {
-			repo:         &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:         makeHgRepositoryCmd(t, hgCommands...),
 			tag:          "t",
 			wantCommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf",
 		},
@@ -292,7 +293,7 @@ func TestRepository_ResolveTag(t *testing.T) {
 }
 
 func TestRepository_ResolveTag_error(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -315,7 +316,7 @@ func TestRepository_ResolveTag_error(t *testing.T) {
 			wantErr: vcs.ErrTagNotFound,
 		},
 		"git cmd": {
-			repo:    &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:    makeGitRepositoryCmd(t, gitCommands...),
 			tag:     "doesntexist",
 			wantErr: vcs.ErrTagNotFound,
 		},
@@ -325,7 +326,7 @@ func TestRepository_ResolveTag_error(t *testing.T) {
 			wantErr: vcs.ErrTagNotFound,
 		},
 		"hg cmd": {
-			repo:    &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:    makeHgRepositoryCmd(t, hgCommands...),
 			tag:     "doesntexist",
 			wantErr: vcs.ErrTagNotFound,
 		},
@@ -345,7 +346,7 @@ func TestRepository_ResolveTag_error(t *testing.T) {
 }
 
 func TestRepository_Branches(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -373,7 +374,7 @@ func TestRepository_Branches(t *testing.T) {
 			wantBranches: []*vcs.Branch{{Name: "b0", Head: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}, {Name: "b1", Head: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}, {Name: "master", Head: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}},
 		},
 		"git cmd": {
-			repo:         &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:         makeGitRepositoryCmd(t, gitCommands...),
 			wantBranches: []*vcs.Branch{{Name: "b0", Head: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}, {Name: "b1", Head: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}, {Name: "master", Head: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}},
 		},
 		"hg": {
@@ -381,7 +382,7 @@ func TestRepository_Branches(t *testing.T) {
 			wantBranches: []*vcs.Branch{{Name: "b0", Head: "4edb70f7b9dd1ce8e95242525377098f477a89c3"}, {Name: "b1", Head: "843c6421bd707b885cc3849b8eb0b5b2b9298e8b"}},
 		},
 		"hg cmd": {
-			repo:         &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:         makeHgRepositoryCmd(t, hgCommands...),
 			wantBranches: []*vcs.Branch{{Name: "b0", Head: "4edb70f7b9dd1ce8e95242525377098f477a89c3"}, {Name: "b1", Head: "843c6421bd707b885cc3849b8eb0b5b2b9298e8b"}},
 		},
 	}
@@ -394,13 +395,13 @@ func TestRepository_Branches(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(branches, test.wantBranches) {
-			t.Errorf("%s: got branches == %v, want %v", label, branches, test.wantBranches)
+			t.Errorf("%s: got branches == %v, want %v", label, asJSON(branches), asJSON(test.wantBranches))
 		}
 	}
 }
 
 func TestRepository_Tags(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -425,7 +426,7 @@ func TestRepository_Tags(t *testing.T) {
 			wantTags: []*vcs.Tag{{Name: "t0", CommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}, {Name: "t1", CommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}},
 		},
 		"git cmd": {
-			repo:     &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:     makeGitRepositoryCmd(t, gitCommands...),
 			wantTags: []*vcs.Tag{{Name: "t0", CommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}, {Name: "t1", CommitID: "ea167fe3d76b1e5fd3ed8ca44cbd2fe3897684f8"}},
 		},
 		"hg": {
@@ -433,7 +434,7 @@ func TestRepository_Tags(t *testing.T) {
 			wantTags: []*vcs.Tag{{Name: "t0", CommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf"}, {Name: "t1", CommitID: "6a6ae0da9d7c3bf48de61e5584d6eb5dcba0750c"}, {Name: "tip", CommitID: "217f213c2dbe4ce6573ec0b0dbd3e7abafaf8fba"}},
 		},
 		"hg cmd": {
-			repo:     &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:     makeHgRepositoryCmd(t, hgCommands...),
 			wantTags: []*vcs.Tag{{Name: "t0", CommitID: "e8e11ff1be92a7be71b9b5cdb4cc674b7dc9facf"}, {Name: "t1", CommitID: "6a6ae0da9d7c3bf48de61e5584d6eb5dcba0750c"}, {Name: "tip", CommitID: "217f213c2dbe4ce6573ec0b0dbd3e7abafaf8fba"}},
 		},
 	}
@@ -452,7 +453,7 @@ func TestRepository_Tags(t *testing.T) {
 }
 
 func TestRepository_GetCommit(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -492,7 +493,7 @@ func TestRepository_GetCommit(t *testing.T) {
 			wantCommit: wantGitCommit,
 		},
 		"git cmd": {
-			repo:       &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:       makeGitRepositoryCmd(t, gitCommands...),
 			id:         "b266c7e3ca00b1a17ad0b1449825d0854225c007",
 			wantCommit: wantGitCommit,
 		},
@@ -502,7 +503,7 @@ func TestRepository_GetCommit(t *testing.T) {
 			wantCommit: wantHgCommit,
 		},
 		"hg cmd": {
-			repo:       &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:       makeHgRepositoryCmd(t, hgCommands...),
 			id:         "c6320cdba5ebc6933bd7c94751dcd633d6aa0759",
 			wantCommit: wantHgCommit,
 		},
@@ -522,7 +523,7 @@ func TestRepository_GetCommit(t *testing.T) {
 }
 
 func TestRepository_Commits(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -581,7 +582,7 @@ func TestRepository_Commits(t *testing.T) {
 			wantTotal:   2,
 		},
 		"git cmd": {
-			repo:        &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:        makeGitRepositoryCmd(t, gitCommands...),
 			id:          "b266c7e3ca00b1a17ad0b1449825d0854225c007",
 			wantCommits: wantGitCommits,
 			wantTotal:   2,
@@ -593,7 +594,7 @@ func TestRepository_Commits(t *testing.T) {
 			wantTotal:   2,
 		},
 		"hg cmd": {
-			repo:        &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:        makeHgRepositoryCmd(t, hgCommands...),
 			id:          "c6320cdba5ebc6933bd7c94751dcd633d6aa0759",
 			wantCommits: wantHgCommits,
 			wantTotal:   2,
@@ -631,7 +632,7 @@ func TestRepository_Commits(t *testing.T) {
 }
 
 func TestRepository_Commits_options(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
@@ -681,7 +682,7 @@ func TestRepository_Commits_options(t *testing.T) {
 			wantTotal:   3,
 		},
 		"git cmd": {
-			repo:        &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:        makeGitRepositoryCmd(t, gitCommands...),
 			id:          "ade564eba4cf904492fb56dcd287ac633e6e082c",
 			wantCommits: wantGitCommits,
 			wantTotal:   3,
@@ -693,7 +694,7 @@ func TestRepository_Commits_options(t *testing.T) {
 			wantTotal:   3,
 		},
 		"hg cmd": {
-			repo:        &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:        makeHgRepositoryCmd(t, hgCommands...),
 			id:          "443def46748a0c02c312bb4fdc6231d6ede45f49",
 			wantCommits: wantHgCommits,
 			wantTotal:   3,
@@ -731,7 +732,7 @@ func TestRepository_Commits_options(t *testing.T) {
 }
 
 func TestRepository_FileSystem_Symlinks(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	gitCommands := []string{
 		"touch file1",
@@ -762,7 +763,7 @@ func TestRepository_FileSystem_Symlinks(t *testing.T) {
 			commitID: "85d3a39020cf28af4b887552fcab9e31a49f2ced",
 		},
 		// "git cmd": {
-		// 	repo:     &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+		// 	repo:     makeGitRepositoryCmd(t, gitCommands...),
 		// 	commitID: "85d3a39020cf28af4b887552fcab9e31a49f2ced",
 		// },
 		"hg native": {
@@ -833,7 +834,7 @@ func TestRepository_FileSystem_Symlinks(t *testing.T) {
 }
 
 func TestRepository_FileSystem(t *testing.T) {
-	defer removeTmpDirs()
+	t.Parallel()
 
 	file1MTime, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
 	if err != nil {
@@ -882,7 +883,7 @@ func TestRepository_FileSystem(t *testing.T) {
 			second: "ace35f1597e087fe2d302ed6cb2763174e6b9660",
 		},
 		"git cmd": {
-			repo:   &vcs.GitRepositoryCmd{initGitRepository(t, gitCommands...)},
+			repo:   makeGitRepositoryCmd(t, gitCommands...),
 			first:  "b6602ca96bdc0ab647278577a3c6edcb8fe18fb0",
 			second: "ace35f1597e087fe2d302ed6cb2763174e6b9660",
 		},
@@ -892,7 +893,7 @@ func TestRepository_FileSystem(t *testing.T) {
 			second: "810c55b76823441dabb1249837e7ebceab50ce1a",
 		},
 		"hg cmd": {
-			repo:   &vcs.HgRepositoryCmd{initHgRepository(t, hgCommands...)},
+			repo:   makeHgRepositoryCmd(t, hgCommands...),
 			first:  "0b3260387c55ff0834b520fd7f5d4f4a15c22827",
 			second: "810c55b76823441dabb1249837e7ebceab50ce1a",
 		},
@@ -902,6 +903,12 @@ func TestRepository_FileSystem(t *testing.T) {
 		fs1, err := test.repo.FileSystem(test.first)
 		if err != nil {
 			t.Errorf("%s: FileSystem: %s", label, err)
+			continue
+		}
+
+		// notafile should not exist.
+		if _, err = fs1.Stat("notafile"); !os.IsNotExist(err) {
+			t.Errorf("%s: fs1.Stat(notafile): got err %v, want os.IsNotExist", label, err)
 			continue
 		}
 
@@ -1037,6 +1044,7 @@ func TestRepository_FileSystem(t *testing.T) {
 }
 
 func TestOpen(t *testing.T) {
+	t.Parallel()
 	tests := []struct{ vcs, dir string }{
 		{"git", initGitRepository(t)},
 		{"hg", initHgRepository(t, "touch x", "hg add x", "hg commit -m foo")},
@@ -1052,13 +1060,14 @@ func TestOpen(t *testing.T) {
 }
 
 func TestClone(t *testing.T) {
+	t.Parallel()
 	tests := []struct{ vcs, url, dir string }{
 		{"git", initGitRepository(t, "git commit --allow-empty -m foo"), makeTmpDir(t, "git-clone")},
 		{"hg", initHgRepository(t, "touch x", "hg add x", "hg commit -m foo"), makeTmpDir(t, "hg-clone")},
 	}
 
 	for _, test := range tests {
-		_, err := vcs.Clone(test.vcs, test.url, test.dir)
+		_, err := vcs.Clone(test.vcs, test.url, test.dir, vcs.CloneOpt{})
 		if err != nil {
 			t.Errorf("Clone(%q, %q, %q): %s", test.vcs, test.url, test.dir, err)
 			continue
@@ -1066,29 +1075,42 @@ func TestClone(t *testing.T) {
 	}
 }
 
-func TestMirrorRepository_MirrorUpdate(t *testing.T) {
-	tests := []struct {
-		vcs, url, dir string
+func TestRepository_UpdateEverything(t *testing.T) {
+	t.Parallel()
 
-		// newCmds should commit a file "newfile" in the repository root and tag
-		// the commit with "second". This is used to test that MirrorUpdate
-		// picks up the new file from the mirror's origin.
+	tests := []struct {
+		vcs, baseDir, headDir string
+
+		opener func(dir string) (vcs.Repository, error)
+
+		// newCmds should commit a file "newfile" in the repository
+		// root and tag the commit with "second". This is used to test
+		// that UpdateEverything picks up the new file from the
+		// mirror's origin.
 		newCmds []string
 	}{
 		{
 			"git", initGitRepository(t, "git commit --allow-empty -m foo", "git tag initial"), makeTmpDir(t, "git-clone"),
+			func(dir string) (vcs.Repository, error) { return gitcmd.Open(dir) },
 			[]string{"touch newfile", "git add newfile", "git commit -m newfile", "git tag second"},
 		},
 		{
 			"hg", initHgRepository(t, "touch x", "hg add x", "hg commit -m foo", "hg tag initial"), makeTmpDir(t, "hg-clone"),
+			func(dir string) (vcs.Repository, error) { return hgcmd.Open(dir) },
 			[]string{"touch newfile", "hg add newfile", "hg commit -m newfile", "hg tag second"},
 		},
 	}
 
 	for _, test := range tests {
-		r, err := vcs.CloneMirror(test.vcs, test.url, test.dir)
+		_, err := vcs.Clone(test.vcs, test.baseDir, test.headDir, vcs.CloneOpt{Bare: true, Mirror: true})
 		if err != nil {
-			t.Errorf("CloneMirror(%q, %q, %q): %s", test.vcs, test.url, test.dir, err)
+			t.Errorf("Clone(%q, %q, %q): %s", test.vcs, test.baseDir, test.headDir, err)
+			continue
+		}
+
+		r, err := test.opener(test.headDir)
+		if err != nil {
+			t.Errorf("opener[->%s](%q): %s", reflect.TypeOf(test.opener).Out(0), test.headDir, err)
 			continue
 		}
 
@@ -1111,11 +1133,11 @@ func TestMirrorRepository_MirrorUpdate(t *testing.T) {
 		}
 
 		// run the newCmds to create the new file in the origin repository (NOT
-		// the mirror repository; we want to test that MirrorUpdate updates the
+		// the mirror repository; we want to test that UpdateEverything updates the
 		// mirror repository).
 		for _, cmd := range test.newCmds {
 			c := exec.Command("bash", "-c", cmd)
-			c.Dir = test.url
+			c.Dir = test.baseDir
 			out, err := c.CombinedOutput()
 			if err != nil {
 				t.Fatalf("%s: exec `%s` failed: %s. Output was:\n\n%s", test.vcs, cmd, err, out)
@@ -1123,18 +1145,18 @@ func TestMirrorRepository_MirrorUpdate(t *testing.T) {
 		}
 
 		// update the mirror.
-		err = r.MirrorUpdate()
+		err = r.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
 		if err != nil {
-			t.Errorf("%s: MirrorUpdate: %s", test.vcs, err)
+			t.Errorf("%s: UpdateEverything: %s", test.vcs, err)
 			continue
 		}
 
 		// reopen the mirror because the tags/commits changed (after
-		// MirrorUpdate) and we currently have no way to reload the existing
+		// UpdateEverything) and we currently have no way to reload the existing
 		// repository.
-		r, err = vcs.OpenMirror(test.vcs, test.dir)
+		r, err = test.opener(test.headDir)
 		if err != nil {
-			t.Errorf("OpenMirror(%q, %q): %s", test.vcs, test.dir, err)
+			t.Errorf("opener[->%s](%q): %s", reflect.TypeOf(test.opener).Out(0), test.headDir, err)
 			continue
 		}
 
@@ -1157,46 +1179,6 @@ func TestMirrorRepository_MirrorUpdate(t *testing.T) {
 	}
 }
 
-var (
-	keepTmpDirs = flag.Bool("test.keeptmp", false, "don't remove temporary dirs after use")
-
-	// tmpDirs is used by makeTmpDir and removeTmpDirs to record and clean up
-	// temporary directories used during testing.
-	tmpDirs []string
-)
-
-// removeTmpDirs removes all temporary directories created by makeTmpDir (unless
-// the -test.keeptmp flag is true, in which case they are retained).
-func removeTmpDirs() {
-	if *keepTmpDirs {
-		return
-	}
-	for _, dir := range tmpDirs {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			log.Fatalf("tearDown: RemoveAll(%q) failed: %s", dir, err)
-		}
-	}
-	tmpDirs = nil
-}
-
-// makeTmpDir creates a temporary directory and returns its path. The directory
-// is added to the list of directories to be removed when the currently running
-// test ends (assuming the test calls removeTmpDirs() after execution).
-func makeTmpDir(t testing.TB, suffix string) string {
-	dir, err := ioutil.TempDir("", "go-vcs-"+suffix)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if *keepTmpDirs {
-		t.Logf("Using temp dir %s.", dir)
-	}
-
-	tmpDirs = append(tmpDirs, dir)
-	return dir
-}
-
 // initGitRepository initializes a new Git repository and runs cmds in a new
 // temporary directory (returned as dir).
 func initGitRepository(t testing.TB, cmds ...string) (dir string) {
@@ -1213,14 +1195,26 @@ func initGitRepository(t testing.TB, cmds ...string) (dir string) {
 	return dir
 }
 
+// makeGitRepositoryCmd calls initGitRepository to create a new Git
+// (cmd implementation) repository and run cmds in it, and then
+// returns the repository.
+func makeGitRepositoryCmd(t testing.TB, cmds ...string) *gitcmd.Repository {
+	dir := initGitRepository(t, cmds...)
+	r, err := gitcmd.Open(dir)
+	if err != nil {
+		t.Fatal("gitcmd.Open(%q) failed: %s", dir, err)
+	}
+	return r
+}
+
 // makeGitRepositoryLibGit2 calls initGitRepository to create a new Git
 // repository and run cmds in it, and then returns the libgit2-backed
 // repository.
-func makeGitRepositoryLibGit2(t testing.TB, cmds ...string) *git_libgit2.GitRepositoryLibGit2 {
+func makeGitRepositoryLibGit2(t testing.TB, cmds ...string) *git.Repository {
 	dir := initGitRepository(t, cmds...)
-	r, err := git_libgit2.OpenGitRepositoryLibGit2(dir)
+	r, err := git.Open(dir)
 	if err != nil {
-		t.Fatal("git_libgit2.OpenGitRepositoryLibGit2(%q) failed: %s", dir, err)
+		t.Fatal("git.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
@@ -1241,13 +1235,25 @@ func initHgRepository(t testing.TB, cmds ...string) (dir string) {
 	return dir
 }
 
-// makeHgRepository calls initHgRepository to create a new Hg repository and run
-// cmds in it, and then returns the native repository.
-func makeHgRepositoryNative(t testing.TB, cmds ...string) *vcs.HgRepositoryNative {
+// makeHgRepositoryCmd calls initHgRepository to create a new Hg (cmd
+// implementation) repository and run cmds in it, and then returns the
+// repository.
+func makeHgRepositoryCmd(t testing.TB, cmds ...string) *hgcmd.Repository {
 	dir := initHgRepository(t, cmds...)
-	r, err := vcs.OpenHgRepositoryNative(dir)
+	r, err := hgcmd.Open(dir)
 	if err != nil {
-		t.Fatal("OpenHgRepositoryNative(%q) failed: %s", dir, err)
+		t.Fatal("hgcmd.Open(%q) failed: %s", dir, err)
+	}
+	return r
+}
+
+// makeHgRepositoryNative calls initHgRepository to create a new Hg repository and run
+// cmds in it, and then returns the native repository.
+func makeHgRepositoryNative(t testing.TB, cmds ...string) *hg.Repository {
+	dir := initHgRepository(t, cmds...)
+	r, err := hg.Open(dir)
+	if err != nil {
+		t.Fatal("hg.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }

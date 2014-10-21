@@ -39,7 +39,14 @@ func (dest *BranchHeads) copy(src *BranchHeads) {
 func (r *Repository) BranchHeads() (*BranchHeads, error) {
 	bh := newBranchHeads()
 
-	names := []string{"branchheads-served", "branchheads-base", "branchheads"}
+	names := []string{
+		// Original Mercurial branchheads
+		"branchheads-served", "branchheads-base", "branchheads",
+
+		// branchheads -> branch2 as of
+		// http://selenic.com/pipermail/mercurial-devel/2013-November/054749.html
+		"branch2-served", "branch2-base", "branch2",
+	}
 	for _, name := range names {
 		f, err := r.open(".hg/cache/" + name)
 		if os.IsNotExist(err) {
@@ -73,11 +80,11 @@ func (bh *BranchHeads) parseFile(r io.Reader) error {
 			// first line is current numbered, don't include
 			continue
 		}
-		branch := strings.SplitN(strings.TrimSpace(line), " ", 2)
-		if len(branch) != 2 {
+		branch := strings.SplitN(strings.TrimSpace(line), " ", 3)
+		if len(branch) != 2 && len(branch) != 3 {
 			continue
 		}
-		m[branch[1]] = branch[0]
+		m[branch[len(branch)-1]] = branch[0]
 	}
 	// unify
 	for name, id := range m {

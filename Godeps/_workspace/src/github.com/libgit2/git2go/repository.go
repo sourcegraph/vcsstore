@@ -33,6 +33,24 @@ func OpenRepository(path string) (*Repository, error) {
 	return repo, nil
 }
 
+func OpenRepositoryExtended(path string) (*Repository, error) {
+	repo := new(Repository)
+
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ret := C.git_repository_open_ext(&repo.ptr, cpath, 0, nil)
+	if ret < 0 {
+		return nil, MakeGitError(ret)
+	}
+
+	runtime.SetFinalizer(repo, (*Repository).Free)
+	return repo, nil
+}
+
 func InitRepository(path string, isbare bool) (*Repository, error) {
 	repo := new(Repository)
 
@@ -112,7 +130,7 @@ func (v *Repository) lookupType(id *Oid, t ObjectType) (Object, error) {
 		return nil, MakeGitError(ret)
 	}
 
-	return allocObject(ptr), nil
+	return allocObject(ptr, v), nil
 }
 
 func (v *Repository) Lookup(id *Oid) (Object, error) {
@@ -146,6 +164,15 @@ func (v *Repository) LookupBlob(id *Oid) (*Blob, error) {
 	return obj.(*Blob), nil
 }
 
+func (v *Repository) LookupTag(id *Oid) (*Tag, error) {
+	obj, err := v.lookupType(id, ObjectTag)
+	if err != nil {
+		return nil, err
+	}
+
+	return obj.(*Tag), nil
+}
+
 func (v *Repository) LookupReference(name string) (*Reference, error) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
@@ -159,7 +186,7 @@ func (v *Repository) LookupReference(name string) (*Reference, error) {
 		return nil, MakeGitError(ecode)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v), nil
 }
 
 func (v *Repository) Head() (*Reference, error) {
@@ -173,7 +200,7 @@ func (v *Repository) Head() (*Reference, error) {
 		return nil, MakeGitError(ecode)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v), nil
 }
 
 func (v *Repository) SetHead(refname string, sig *Signature, msg string) error {
@@ -244,7 +271,7 @@ func (v *Repository) CreateReference(name string, id *Oid, force bool, sig *Sign
 		return nil, MakeGitError(ecode)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v), nil
 }
 
 func (v *Repository) CreateSymbolicReference(name, target string, force bool, sig *Signature, msg string) (*Reference, error) {
@@ -275,7 +302,7 @@ func (v *Repository) CreateSymbolicReference(name, target string, force bool, si
 		return nil, MakeGitError(ecode)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v), nil
 }
 
 func (v *Repository) Walk() (*RevWalk, error) {
@@ -299,8 +326,13 @@ func (v *Repository) CreateCommit(
 
 	oid := new(Oid)
 
-	cref := C.CString(refname)
-	defer C.free(unsafe.Pointer(cref))
+	var cref *C.char
+	if refname == "" {
+		cref = nil
+	} else {
+		cref = C.CString(refname)
+		defer C.free(unsafe.Pointer(cref))
+	}
 
 	cmsg := C.CString(message)
 	defer C.free(unsafe.Pointer(cmsg))
@@ -331,6 +363,30 @@ func (v *Repository) CreateCommit(
 		authorSig, committerSig,
 		nil, cmsg, tree.cast_ptr, C.size_t(nparents), parentsarg)
 
+	if ret < 0 {
+		return nil, MakeGitError(ret)
+	}
+
+	return oid, nil
+}
+
+func (v *Repository) CreateTag(
+	name string, commit *Commit, tagger *Signature, message string) (*Oid, error) {
+
+	oid := new(Oid)
+
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	cmessage := C.CString(message)
+	defer C.free(unsafe.Pointer(cmessage))
+
+	taggerSig := tagger.toC()
+	defer C.git_signature_free(taggerSig)
+
+	ctarget := commit.gitObject.ptr
+
+	ret := C.git_tag_create(oid.toC(), v.ptr, cname, ctarget, taggerSig, cmessage, 0)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
@@ -418,23 +474,6 @@ func (v *Repository) TreeBuilderFromTree(tree *Tree) (*TreeBuilder, error) {
 	return bld, nil
 }
 
-func (v *Repository) RevparseSingle(spec string) (Object, error) {
-	cspec := C.CString(spec)
-	defer C.free(unsafe.Pointer(cspec))
-
-	var ptr *C.git_object
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ecode := C.git_revparse_single(&ptr, v.ptr, cspec)
-	if ecode < 0 {
-		return nil, MakeGitError(ecode)
-	}
-
-	return allocObject(ptr), nil
-}
-
 // EnsureLog ensures that there is a reflog for the given reference
 // name and creates an empty one if necessary.
 func (v *Repository) EnsureLog(name string) error {
@@ -483,5 +522,5 @@ func (v *Repository) DwimReference(name string) (*Reference, error) {
 		return nil, MakeGitError(ret)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v), nil
 }

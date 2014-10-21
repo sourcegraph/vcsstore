@@ -95,7 +95,7 @@ func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
 	} else if !fi.Mode().IsDir() {
 		return nil, fmt.Errorf("clone path %q is not a directory", cloneDir)
 	}
-	return vcs.OpenMirror(vcsType, cloneDir)
+	return vcs.Open(vcsType, cloneDir)
 }
 
 func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) {
@@ -156,7 +156,7 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) 
 	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", vcsType, cloneURL, cloneTmpDir)
 	defer os.RemoveAll(cloneTmpDir)
 
-	_, err = vcs.CloneMirror(vcsType, cloneURL.String(), cloneTmpDir)
+	_, err = vcs.Clone(vcsType, cloneURL.String(), cloneTmpDir, vcs.CloneOpt{Bare: true, Mirror: true})
 	if err != nil {
 		return nil, err
 	}

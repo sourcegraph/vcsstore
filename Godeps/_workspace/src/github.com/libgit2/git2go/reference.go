@@ -18,11 +18,12 @@ const (
 )
 
 type Reference struct {
-	ptr *C.git_reference
+	ptr  *C.git_reference
+	repo *Repository
 }
 
-func newReferenceFromC(ptr *C.git_reference) *Reference {
-	ref := &Reference{ptr: ptr}
+func newReferenceFromC(ptr *C.git_reference, repo *Repository) *Reference {
+	ref := &Reference{ptr: ptr, repo: repo}
 	runtime.SetFinalizer(ref, (*Reference).Free)
 	return ref
 }
@@ -52,7 +53,7 @@ func (v *Reference) SetSymbolicTarget(target string, sig *Signature, msg string)
 		return nil, MakeGitError(ret)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v.repo), nil
 }
 
 func (v *Reference) SetTarget(target *Oid, sig *Signature, msg string) (*Reference, error) {
@@ -77,7 +78,7 @@ func (v *Reference) SetTarget(target *Oid, sig *Signature, msg string) (*Referen
 		return nil, MakeGitError(ret)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v.repo), nil
 }
 
 func (v *Reference) Resolve() (*Reference, error) {
@@ -91,7 +92,7 @@ func (v *Reference) Resolve() (*Reference, error) {
 		return nil, MakeGitError(ret)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v.repo), nil
 }
 
 func (v *Reference) Rename(name string, force bool, sig *Signature, msg string) (*Reference, error) {
@@ -119,7 +120,7 @@ func (v *Reference) Rename(name string, force bool, sig *Signature, msg string) 
 		return nil, MakeGitError(ret)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v.repo), nil
 }
 
 func (v *Reference) Target() *Oid {
@@ -146,6 +147,27 @@ func (v *Reference) Delete() error {
 	}
 
 	return nil
+}
+
+func (v *Reference) Peel(t ObjectType) (Object, error) {
+	var cobj *C.git_object
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if err := C.git_reference_peel(&cobj, v.ptr, C.git_otype(t)); err < 0 {
+		return nil, MakeGitError(err)
+	}
+
+	return allocObject(cobj, v.repo), nil
+}
+
+// Owner returns a weak reference to the repository which owns this
+// reference.
+func (v *Reference) Owner() *Repository {
+	return &Repository{
+		ptr: C.git_reference_owner(v.ptr),
+	}
 }
 
 // Cmp compares both references, retursn 0 on equality, otherwise a
@@ -277,7 +299,7 @@ func (v *ReferenceIterator) Next() (*Reference, error) {
 		return nil, MakeGitError(ret)
 	}
 
-	return newReferenceFromC(ptr), nil
+	return newReferenceFromC(ptr, v.repo), nil
 }
 
 // Free the reference iterator

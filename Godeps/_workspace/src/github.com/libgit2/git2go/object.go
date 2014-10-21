@@ -22,10 +22,12 @@ type Object interface {
 	Free()
 	Id() *Oid
 	Type() ObjectType
+	Owner() *Repository
 }
 
 type gitObject struct {
 	ptr *C.git_object
+	repo *Repository
 }
 
 func (t ObjectType) String() (string) {
@@ -55,17 +57,29 @@ func (o gitObject) Type() ObjectType {
 	return ObjectType(C.git_object_type(o.ptr))
 }
 
+// Owner returns a weak reference to the repository which owns this
+// object
+func (o gitObject) Owner() *Repository {
+	return &Repository{
+		ptr: C.git_object_owner(o.ptr),
+	}
+}
+
 func (o *gitObject) Free() {
 	runtime.SetFinalizer(o, nil)
 	C.git_object_free(o.ptr)
 }
 
-func allocObject(cobj *C.git_object) Object {
+func allocObject(cobj *C.git_object, repo *Repository) Object {
+	obj := gitObject{
+		ptr: cobj,
+		repo: repo,
+	}
 
 	switch ObjectType(C.git_object_type(cobj)) {
 	case ObjectCommit:
 		commit := &Commit{
-			gitObject: gitObject{cobj},
+			gitObject: obj,
 			cast_ptr:  (*C.git_commit)(cobj),
 		}
 		runtime.SetFinalizer(commit, (*Commit).Free)
@@ -73,7 +87,7 @@ func allocObject(cobj *C.git_object) Object {
 
 	case ObjectTree:
 		tree := &Tree{
-			gitObject: gitObject{cobj},
+			gitObject: obj,
 			cast_ptr:  (*C.git_tree)(cobj),
 		}
 		runtime.SetFinalizer(tree, (*Tree).Free)
@@ -81,11 +95,18 @@ func allocObject(cobj *C.git_object) Object {
 
 	case ObjectBlob:
 		blob := &Blob{
-			gitObject: gitObject{cobj},
+			gitObject: obj,
 			cast_ptr:  (*C.git_blob)(cobj),
 		}
 		runtime.SetFinalizer(blob, (*Blob).Free)
 		return blob
+	case ObjectTag:
+		tag := &Tag{
+			gitObject: obj,
+			cast_ptr:  (*C.git_tag)(cobj),
+		}
+		runtime.SetFinalizer(tag, (*Tag).Free)
+		return tag
 	}
 
 	return nil
