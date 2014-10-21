@@ -1,6 +1,7 @@
 package vcsclient
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -8,6 +9,35 @@ import (
 
 	"github.com/sourcegraph/go-vcs/vcs"
 )
+
+func TestRepository_CloneOrUpdate(t *testing.T) {
+	setup()
+	defer teardown()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repo := repo_.(*repository)
+
+	opt := vcs.RemoteOpts{SSH: &vcs.SSHConfig{PrivateKey: []byte("abc")}}
+
+	var called bool
+	mux.HandleFunc(urlPath(t, RouteRepo, repo, nil), func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		testMethod(t, r, "POST")
+
+		body, _ := json.Marshal(opt)
+		testBody(t, r, string(body)+"\n")
+	})
+
+	err := repo.CloneOrUpdate(opt)
+	if err != nil {
+		t.Errorf("Repository.CloneOrUpdate returned error: %v", err)
+	}
+
+	if !called {
+		t.Fatal("!called")
+	}
+}
 
 func TestRepository_ResolveBranch(t *testing.T) {
 	setup()

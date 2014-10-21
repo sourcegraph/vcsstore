@@ -79,7 +79,7 @@ func (fs *repositoryFS) Get(path string) (*TreeEntry, error) {
 		return nil, err
 	}
 
-	req, err := fs.repo.client.NewRequest("GET", url.String())
+	req, err := fs.repo.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (fs *repositoryFS) GetFileWithOptions(path string, opt GetFileOptions) (*Fi
 		return nil, err
 	}
 
-	req, err := fs.repo.client.NewRequest("GET", url.String())
+	req, err := fs.repo.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, err
 	}

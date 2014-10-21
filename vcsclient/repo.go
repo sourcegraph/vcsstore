@@ -36,20 +36,21 @@ type repository struct {
 	cloneURL *url.URL
 }
 
-type RepositoryRemoteCloner interface {
-	// CloneRemote instructs the server to clone the repository so it is
-	// available to the client via the API. The call blocks until cloning
-	// finishes or fails.
-	CloneRemote() error
+type RepositoryCloneUpdater interface {
+	// CloneOrUpdate instructs the server to clone the repository so
+	// it is available to the client via the API if it doesn't yet
+	// exist, or update it from its default remote. The call blocks
+	// until cloning finishes or fails.
+	CloneOrUpdate(vcs.RemoteOpts) error
 }
 
-func (r *repository) CloneRemote() error {
+func (r *repository) CloneOrUpdate(opt vcs.RemoteOpts) error {
 	url, err := r.url(RouteRepo, nil, nil)
 	if err != nil {
 		return err
 	}
 
-	req, err := r.client.NewRequest("POST", url.String())
+	req, err := r.client.NewRequest("POST", url.String(), opt)
 	if err != nil {
 		return err
 	}
@@ -59,7 +60,7 @@ func (r *repository) CloneRemote() error {
 		return err
 	}
 	if c := resp.StatusCode; c != http.StatusOK && c != http.StatusCreated {
-		return fmt.Errorf("CloneRemote: HTTP error %d", c)
+		return fmt.Errorf("CloneOrUpdate: HTTP error %d", c)
 	}
 
 	return nil
@@ -71,7 +72,7 @@ func (r *repository) ResolveBranch(name string) (vcs.CommitID, error) {
 		return "", err
 	}
 
-	req, err := r.client.NewRequest("GET", url.String())
+	req, err := r.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", err
 	}
@@ -90,7 +91,7 @@ func (r *repository) ResolveRevision(spec string) (vcs.CommitID, error) {
 		return "", err
 	}
 
-	req, err := r.client.NewRequest("GET", url.String())
+	req, err := r.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +110,7 @@ func (r *repository) ResolveTag(name string) (vcs.CommitID, error) {
 		return "", err
 	}
 
-	req, err := r.client.NewRequest("GET", url.String())
+	req, err := r.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", err
 	}
@@ -143,7 +144,7 @@ func (r *repository) Branches() ([]*vcs.Branch, error) {
 		return nil, err
 	}
 
-	req, err := r.client.NewRequest("GET", url.String())
+	req, err := r.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +164,7 @@ func (r *repository) Tags() ([]*vcs.Tag, error) {
 		return nil, err
 	}
 
-	req, err := r.client.NewRequest("GET", url.String())
+	req, err := r.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +184,7 @@ func (r *repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
 		return nil, err
 	}
 
-	req, err := r.client.NewRequest("GET", url.String())
+	req, err := r.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +208,7 @@ func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 		return nil, 0, err
 	}
 
-	req, err := r.client.NewRequest("GET", url.String())
+	req, err := r.client.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -11,7 +11,7 @@ import (
 func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, _, err := h.getRepo(r, 0)
+	repo, cloneURL, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error 
 func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, _, err := h.getRepo(r, 0)
+	repo, cloneURL, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) erro
 func (h *Handler) serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, _, err := h.getRepo(r, 0)
+	repo, cloneURL, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}

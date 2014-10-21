@@ -17,7 +17,7 @@ import (
 func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, _, _, err := h.getRepo(r, 0)
+	repo, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}

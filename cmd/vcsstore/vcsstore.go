@@ -190,6 +190,7 @@ func cloneCmd(args []string) {
 	fs := flag.NewFlagSet("clone", flag.ExitOnError)
 	urlStr := fs.String("url", "http://localhost:"+defaultPort, "base URL to a running vcsstore API server")
 	datadClient := fs.Bool("datad", false, "use datad cluster client")
+	sshKeyFile := fs.String("i", "", "ssh private key file for clone remote")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore clone [options] vcs-type clone-url
 
@@ -233,8 +234,17 @@ The options are:
 		}
 	}
 
-	if repo, ok := repo.(vcsclient.RepositoryRemoteCloner); ok {
-		err := repo.CloneRemote()
+	var opt vcs.RemoteOpts
+	if *sshKeyFile != "" {
+		key, err := ioutil.ReadFile(*sshKeyFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		opt.SSH = &vcs.SSHConfig{PrivateKey: key}
+	}
+
+	if repo, ok := repo.(vcsclient.RepositoryCloneUpdater); ok {
+		err := repo.CloneOrUpdate(opt)
 		if err != nil {
 			log.Fatal("Clone: ", err)
 		}

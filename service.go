@@ -24,7 +24,7 @@ type Service interface {
 	// Clone clones the repository if a clone doesn't yet exist locally.
 	// Otherwise, it opens the repository. If no errors occur, the repository is
 	// returned.
-	Clone(vcs string, cloneURL *url.URL) (interface{}, error)
+	Clone(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error)
 }
 
 type Config struct {
@@ -98,7 +98,7 @@ func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
 	return vcs.Open(vcsType, cloneDir)
 }
 
-func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) {
+func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
 	cloneDir, err := s.CloneDir(vcsType, cloneURL)
 	if err != nil {
 		return nil, err
@@ -156,7 +156,8 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) 
 	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", vcsType, cloneURL, cloneTmpDir)
 	defer os.RemoveAll(cloneTmpDir)
 
-	_, err = vcs.Clone(vcsType, cloneURL.String(), cloneTmpDir, vcs.CloneOpt{Bare: true, Mirror: true})
+	cloneOpt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: opt}
+	_, err = vcs.Clone(vcsType, cloneURL.String(), cloneTmpDir, cloneOpt)
 	if err != nil {
 		return nil, err
 	}
