@@ -2,6 +2,8 @@
 
 vcsstore stores VCS repositories and makes them accessible via HTTP.
 
+[![Build Status](https://travis-ci.org/sourcegraph/vcsstore.png?branch=master)](https://travis-ci.org/sourcegraph/vcsstore)
+
 ## Install
 
 * [Install libgit2](https://github.com/libgit2/libgit2). The latest version vcsstore has been tested with is
