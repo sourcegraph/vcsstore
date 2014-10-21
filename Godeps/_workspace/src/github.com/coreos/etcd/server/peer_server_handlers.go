@@ -188,7 +188,6 @@ func (ps *PeerServer) RemoveHttpHandler(w http.ResponseWriter, req *http.Request
 
 // Returns a JSON-encoded cluster configuration.
 func (ps *PeerServer) getClusterConfigHttpHandler(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ps.ClusterConfig())
 }
 
@@ -218,7 +217,6 @@ func (ps *PeerServer) setClusterConfigHttpHandler(w http.ResponseWriter, req *ht
 	log.Debugf("[recv] Update Cluster Config Request")
 	ps.server.Dispatch(c, w, req)
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ps.ClusterConfig())
 }
 
@@ -232,7 +230,6 @@ func (ps *PeerServer) getMachinesHttpHandler(w http.ResponseWriter, req *http.Re
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(&machines)
 }
 
@@ -240,7 +237,6 @@ func (ps *PeerServer) getMachinesHttpHandler(w http.ResponseWriter, req *http.Re
 func (ps *PeerServer) getMachineHttpHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	m := ps.getMachineMessage(vars["name"], ps.raftServer.Leader())
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(m)
 }
 

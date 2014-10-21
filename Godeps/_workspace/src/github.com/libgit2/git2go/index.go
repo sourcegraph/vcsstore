@@ -66,6 +66,39 @@ func newIndexFromC(ptr *C.git_index) *Index {
 	return idx
 }
 
+// NewIndex allocates a new index. It won't be associated with any
+// file on the filesystem or repository
+func NewIndex() (*Index, error) {
+	var ptr *C.git_index
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if err := C.git_index_new(&ptr); err < 0 {
+		return nil, MakeGitError(err)
+	}
+
+	return &Index{ptr: ptr}, nil
+}
+
+// Add adds or replaces the given entry to the index, making a copy of
+// the data
+func (v *Index) Add(entry *IndexEntry) error {
+	var centry C.git_index_entry
+
+	populateCIndexEntry(entry, &centry)
+	defer freeCIndexEntry(&centry)
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if err := C.git_index_add(v.ptr, &centry); err < 0 {
+		return MakeGitError(err)
+	}
+
+	return nil
+}
+
 func (v *Index) AddByPath(path string) error {
 	cstr := C.CString(path)
 	defer C.free(unsafe.Pointer(cstr))
@@ -74,6 +107,21 @@ func (v *Index) AddByPath(path string) error {
 	defer runtime.UnlockOSThread()
 
 	ret := C.git_index_add_bypath(v.ptr, cstr)
+	if ret < 0 {
+		return MakeGitError(ret)
+	}
+
+	return nil
+}
+
+func (v *Index) RemoveByPath(path string) error {
+	cstr := C.CString(path)
+	defer C.free(unsafe.Pointer(cstr))
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ret := C.git_index_remove_bypath(v.ptr, cstr)
 	if ret < 0 {
 		return MakeGitError(ret)
 	}

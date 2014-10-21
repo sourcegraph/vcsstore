@@ -45,3 +45,33 @@ func TestListRemotes(t *testing.T) {
 
 	compareStringList(t, expected, actual)
 }
+
+
+func assertHostname(cert *Certificate, valid bool, hostname string, t *testing.T) int {
+	if hostname != "github.com" {
+		t.Fatal("Hostname does not match")
+		return ErrUser
+	}
+
+	return 0
+}
+
+func TestCertificateCheck(t *testing.T) {
+	repo := createTestRepo(t)
+	defer os.RemoveAll(repo.Workdir())
+	defer repo.Free()
+
+	remote, err := repo.CreateRemote("origin", "https://github.com/libgit2/TestGitRepository")
+	checkFatal(t, err)
+
+	callbacks := RemoteCallbacks{
+		CertificateCheckCallback: func (cert *Certificate, valid bool, hostname string) int {
+			return assertHostname(cert, valid, hostname, t)
+		},
+	}
+
+	err = remote.SetCallbacks(&callbacks)
+	checkFatal(t, err)
+	err = remote.Fetch([]string{}, nil, "")
+	checkFatal(t, err)
+}

@@ -2,14 +2,17 @@ package git
 
 /*
 #include <git2.h>
-#include <git2/errors.h>
+#include <string.h>
 
 extern void _go_git_setup_callbacks(git_remote_callbacks *callbacks);
 
 */
 import "C"
-import "unsafe"
-import "runtime"
+import (
+	"unsafe"
+	"runtime"
+	"crypto/x509"
+)
 
 type TransferProgress struct {
 	TotalObjects    uint
@@ -43,6 +46,7 @@ type CompletionCallback func(RemoteCompletion) int
 type CredentialsCallback func(url string, username_from_url string, allowed_types CredType) (int, *Cred)
 type TransferProgressCallback func(stats TransferProgress) int
 type UpdateTipsCallback func(refname string, a *Oid, b *Oid) int
+type CertificateCheckCallback func(cert *Certificate, valid bool, hostname string) int
 
 type RemoteCallbacks struct {
 	SidebandProgressCallback TransportMessageCallback
@@ -50,10 +54,45 @@ type RemoteCallbacks struct {
 	CredentialsCallback
 	TransferProgressCallback
 	UpdateTipsCallback
+	CertificateCheckCallback
 }
 
 type Remote struct {
 	ptr *C.git_remote
+	callbacks RemoteCallbacks
+}
+
+type CertificateKind uint
+
+const (
+	CertificateX509    CertificateKind = C.GIT_CERT_X509
+	CertificateHostkey                 = C.GIT_CERT_HOSTKEY_LIBSSH2
+)
+
+// Certificate represents the two possible certificates which libgit2
+// knows it might find. If Kind is CertficateX509 then the X509 field
+// will be filled. If Kind is CertificateHostkey then the Hostkey
+// field will be fille.d
+type Certificate struct {
+	Kind    CertificateKind
+	X509    *x509.Certificate
+	Hostkey HostkeyCertificate
+}
+
+type HostkeyKind uint
+
+const (
+	HostkeyMD5  HostkeyKind = C.GIT_CERT_SSH_MD5
+	HostkeySHA1             = C.GIT_CERT_SSH_SHA1
+)
+
+// Server host key information. If Kind is HostkeyMD5 the MD5 field
+// will be filled. If Kind is HostkeySHA1, then HashSHA1 will be
+// filled.
+type HostkeyCertificate struct {
+	Kind     HostkeyKind
+	HashMD5  [16]byte
+	HashSHA1 [20]byte
 }
 
 func populateRemoteCallbacks(ptr *C.git_remote_callbacks, callbacks *RemoteCallbacks) {
@@ -118,6 +157,48 @@ func updateTipsCallback(_refname *C.char, _a *C.git_oid, _b *C.git_oid, data uns
 	return callbacks.UpdateTipsCallback(refname, a, b)
 }
 
+//export certificateCheckCallback
+func certificateCheckCallback(_cert *C.git_cert, _valid C.int, _host *C.char, data unsafe.Pointer) int {
+	callbacks := (*RemoteCallbacks)(data)
+	// if there's no callback set, we need to make sure we fail if the library didn't consider this cert valid
+	if callbacks.CertificateCheckCallback == nil {
+		if _valid == 1 {
+			return 0
+		} else {
+			return C.GIT_ECERTIFICATE
+		}
+	}
+	host := C.GoString(_host)
+	valid := _valid != 0
+
+	var cert Certificate
+	if _cert.cert_type == C.GIT_CERT_X509 {
+		cert.Kind = CertificateX509
+		ccert := (*C.git_cert_x509)(unsafe.Pointer(_cert))
+		x509_certs, err := x509.ParseCertificates(C.GoBytes(ccert.data, C.int(ccert.len)))
+		if err != nil {
+			return C.GIT_EUSER
+		}
+
+		// we assume there's only one, which should hold true for any web server we want to talk to
+		cert.X509 = x509_certs[0]
+	} else if _cert.cert_type == C.GIT_CERT_HOSTKEY_LIBSSH2 {
+		cert.Kind = CertificateHostkey
+		ccert := (*C.git_cert_hostkey)(unsafe.Pointer(_cert))
+		cert.Hostkey.Kind = HostkeyKind(ccert._type)
+		C.memcpy(unsafe.Pointer(&cert.Hostkey.HashMD5[0]), unsafe.Pointer(&ccert.hash_md5[0]), C.size_t(len(cert.Hostkey.HashMD5)))
+		C.memcpy(unsafe.Pointer(&cert.Hostkey.HashSHA1[0]), unsafe.Pointer(&ccert.hash_sha1[0]), C.size_t(len(cert.Hostkey.HashSHA1)))
+	} else {
+		cstr := C.CString("Unsupported certificate type")
+		C.giterr_set_str(C.GITERR_NET, cstr)
+		C.free(unsafe.Pointer(cstr))
+		return -1 // we don't support anything else atm
+	}
+
+
+	return callbacks.CertificateCheckCallback(&cert, valid, host)
+}
+
 func RemoteIsValidName(name string) bool {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
@@ -127,14 +208,11 @@ func RemoteIsValidName(name string) bool {
 	return false
 }
 
-func (r *Remote) SetCheckCert(check bool) {
-	C.git_remote_check_cert(r.ptr, cbool(check))
-}
-
 func (r *Remote) SetCallbacks(callbacks *RemoteCallbacks) error {
-	var ccallbacks C.git_remote_callbacks
+	r.callbacks = *callbacks
 
-	populateRemoteCallbacks(&ccallbacks, callbacks)
+	var ccallbacks C.git_remote_callbacks
+	populateRemoteCallbacks(&ccallbacks, &r.callbacks)
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -433,7 +511,19 @@ func (o *Remote) RefspecCount() uint {
 	return uint(C.git_remote_refspec_count(o.ptr))
 }
 
-func (o *Remote) Fetch(sig *Signature, msg string) error {
+func (o *Remote) SetUpdateFetchHead(val bool) {
+	C.git_remote_set_update_fetchhead(o.ptr, cbool(val))
+}
+
+func (o *Remote) UpdateFetchHead() bool {
+	return C.git_remote_update_fetchhead(o.ptr) > 0
+}
+
+// Fetch performs a fetch operation. refspecs specifies which refspecs
+// to use for this fetch, use an empty list to use the refspecs from
+// the configuration; sig and msg specify what to use for the reflog
+// entries. Leave nil and "" to use defaults.
+func (o *Remote) Fetch(refspecs []string, sig *Signature, msg string) error {
 
 	var csig *C.git_signature = nil
 	if sig != nil {
@@ -441,14 +531,18 @@ func (o *Remote) Fetch(sig *Signature, msg string) error {
 		defer C.free(unsafe.Pointer(csig))
 	}
 
-	var cmsg *C.char
-	if msg == "" {
-		cmsg = nil
-	} else {
+	var cmsg *C.char = nil
+	if msg != "" {
 		cmsg = C.CString(msg)
 		defer C.free(unsafe.Pointer(cmsg))
 	}
-	ret := C.git_remote_fetch(o.ptr, csig, cmsg)
+
+	crefspecs := C.git_strarray{}
+	crefspecs.count = C.size_t(len(refspecs))
+	crefspecs.strings = makeCStringsFromStrings(refspecs)
+	defer freeStrarray(&crefspecs)
+
+	ret := C.git_remote_fetch(o.ptr, &crefspecs, csig, cmsg)
 	if ret < 0 {
 		return MakeGitError(ret)
 	}
