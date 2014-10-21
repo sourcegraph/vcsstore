@@ -105,7 +105,7 @@ func TestIntegration(t *testing.T) {
 					t.Errorf("clone %v failed: %s", ri, err)
 					return
 				}
-				err = repo.(vcsclient.RepositoryRemoteCloner).CloneRemote()
+				err = repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate()
 				if err != nil {
 					t.Errorf("remote clone %v failed: %s", ri, err)
 					return

@@ -1,6 +1,7 @@
 package vcsclient
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,7 +67,7 @@ func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, 
 // in which case it is resolved relative to the BaseURL of the Client. Relative
 // URLs should always be specified without a preceding slash. If specified, the
 // value pointed to by body is JSON encoded and included as the request body.
-func (c *Client) NewRequest(method, urlStr string) (*http.Request, error) {
+func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
@@ -78,9 +79,23 @@ func (c *Client) NewRequest(method, urlStr string) (*http.Request, error) {
 		u.Path = "/" + u.Path
 	}
 
-	req, err := http.NewRequest(method, u.String(), nil)
+	var buf bytes.Buffer
+	var hasJSONBody bool
+	if body != nil {
+		err := json.NewEncoder(&buf).Encode(body)
+		if err != nil {
+			return nil, err
+		}
+		hasJSONBody = true
+	}
+
+	req, err := http.NewRequest(method, u.String(), &buf)
 	if err != nil {
 		return nil, err
+	}
+
+	if hasJSONBody {
+		req.Header.Set("content-type", "application/json; charset=utf-8")
 	}
 
 	req.Header.Add("User-Agent", c.UserAgent)

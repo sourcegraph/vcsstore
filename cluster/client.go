@@ -67,7 +67,7 @@ func (c *Client) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
 }
 
 // Clone implements vcsstore.Service and clones a repository.
-func (c *Client) Clone(vcsType string, cloneURL *url.URL) (interface{}, error) {
+func (c *Client) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
 	key := vcsstore.EncodeRepositoryPath(vcsType, cloneURL)
 
 	_, err := c.datad.Update(key)
@@ -86,7 +86,7 @@ var (
 	_ vcsstore.Service           = &Client{}
 )
 
-// repository wraps a vcsclient.repository to make CloneRemote also add the
+// repository wraps a vcsclient.repository to make CloneOrUpdate also add the
 // repository key to the datad registry.
 type repository struct {
 	datad    *datad.Client
@@ -95,7 +95,7 @@ type repository struct {
 	keyTransport *datad.KeyTransport
 }
 
-func (r *repository) CloneRemote() error {
+func (r *repository) CloneOrUpdate(opt vcs.RemoteOpts) error {
 	_, err := r.datad.Update(r.datadKey)
 	if err != nil {
 		return nil
@@ -110,10 +110,10 @@ func (r *repository) CloneRemote() error {
 		return err
 	}
 
-	// TODO(sqs): doing double work here? Update triggers a clone, and we call CloneRemote.
+	// TODO(sqs): doing double work here? Update triggers a clone, and we call CloneOrUpdate.
 
-	if rrc, ok := r.Repository.(vcsclient.RepositoryRemoteCloner); ok {
-		return rrc.CloneRemote()
+	if rrc, ok := r.Repository.(vcsclient.RepositoryCloneUpdater); ok {
+		return rrc.CloneOrUpdate(opt)
 	}
 
 	return nil

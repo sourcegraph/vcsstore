@@ -96,7 +96,9 @@ func (p *VCSDataProvider) Update(key string) error {
 	repo, err := p.svc.Open(vcsType, cloneURL)
 	if os.IsNotExist(err) {
 		cloned = true
-		repo, err = p.svc.Clone(vcsType, cloneURL)
+		// TODO(sqs): add support for setting RemoteOpts (requires
+		// persistence?).
+		repo, err = p.svc.Clone(vcsType, cloneURL, vcs.RemoteOpts{})
 	}
 	if err != nil {
 		return err
