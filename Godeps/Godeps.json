@@ -150,6 +150,10 @@
 			"Rev": "7745cfd7f8e619cc9e6be450238e6253a57a227f"
 		},
 		{
+			"ImportPath": "github.com/flynn/go-shlex",
+			"Rev": "362b626337a53744d1f571d5d70d66294c82d429"
+		},
+		{
 			"ImportPath": "github.com/google/go-querystring/query",
 			"Rev": "ec0a78e0f4db229b7897be36596a8944230b857a"
 		},
