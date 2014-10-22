@@ -99,6 +99,8 @@ func serveCmd(args []string) {
 	bindAddr := fs.String("http", ":"+defaultPort, "HTTP listen address")
 	datadNode := fs.Bool("datad", false, "participate as a node in a datad cluster")
 	datadNodeName := fs.String("datad-node-name", "127.0.0.1:"+defaultPort, "datad node name (must be accessible to datad clients & other nodes)")
+	tlsCert := fs.String("tls.cert", "", "TLS certificate file (if set, server uses TLS)")
+	tlsKey := fs.String("tls.key", "", "TLS key file (if set, server uses TLS)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore serve [options]
 
@@ -151,10 +153,12 @@ The options are:
 
 	http.Handle("/", h)
 
-	fmt.Fprintf(os.Stderr, "Starting server on %s\n", *bindAddr)
-	err = http.ListenAndServe(*bindAddr, nil)
-	if err != nil {
-		log.Fatalf("HTTP server failed to start: %s.", err)
+	if *tlsCert != "" || *tlsKey != "" {
+		fmt.Fprintf(os.Stderr, "Starting HTTPS server on %s (cert %s, key %s)\n", *bindAddr, *tlsCert, *tlsKey)
+		log.Fatal(http.ListenAndServeTLS(*bindAddr, *tlsCert, *tlsKey, nil))
+	} else {
+		fmt.Fprintf(os.Stderr, "Starting HTTP server on %s\n", *bindAddr)
+		log.Fatal(http.ListenAndServe(*bindAddr, nil))
 	}
 }
 
