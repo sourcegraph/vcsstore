@@ -29,4 +29,4 @@ install:
 
 script:
   - godep go build ./...
-  - go list ./... | grep -v cluster | xargs godep go test
+  - go list ./... | grep -v cluster | xargs godep go test -tags lgtest
