@@ -133,9 +133,6 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (
 	start := time.Now()
 	msg := fmt.Sprintf("%s %s to %s", vcsType, cloneURL.String(), cloneDir)
 	s.Log.Print("Cloning ", msg, "...")
-	defer func() {
-		s.Log.Print("Finished cloning ", msg, " in ", time.Since(start))
-	}()
 
 	// "Atomically" clone the repository. First, clone it to a temporary sibling
 	// directory. Once the clone is complete, "atomically"
@@ -167,6 +164,10 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (
 		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
 		return nil, err
 	}
+
+	defer func() {
+		s.Log.Print("Finished cloning ", msg, " in ", time.Since(start))
+	}()
 
 	return s.open(vcsType, cloneDir)
 }
