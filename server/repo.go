@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/libgit2/git2go"
 	"github.com/sourcegraph/go-vcs/vcs"
 	"github.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
@@ -40,7 +41,7 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 		repo, err = h.Service.Clone(mux.Vars(r)["VCS"], cloneURL, opt)
 	}
 	if err != nil {
-		return err
+		return cloneOrUpdateError(err)
 	}
 
 	if cloned {
@@ -54,12 +55,32 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 	if repo, ok := repo.(updateEverythinger); ok {
 		err := repo.UpdateEverything(opt)
 		if err != nil {
-			return err
+			return cloneOrUpdateError(err)
 		}
 
 		return nil
 	}
 	return &httpError{http.StatusNotImplemented, fmt.Errorf("Remote updates not yet implemented for %T", repo)}
+}
+
+func cloneOrUpdateError(err error) error {
+	if gitErr, ok := err.(*git.GitError); ok {
+		if gitErr.Class == git.ErrClassSsh {
+			var c int
+			switch gitErr.Message {
+			case "authentication required but no callback set":
+				c = http.StatusUnauthorized
+			case "callback returned unsupported credentials type":
+				c = http.StatusUnauthorized
+			case "Failed to authenticate SSH session: Waiting for USERAUTH response":
+				c = http.StatusForbidden
+			}
+			if c != 0 {
+				return &httpError{err: gitErr, statusCode: c}
+			}
+		}
+	}
+	return err
 }
 
 type getRepoMode int
