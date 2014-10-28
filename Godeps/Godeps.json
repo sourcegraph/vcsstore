@@ -184,7 +184,7 @@
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/go-vcs/vcs",
-			"Rev": "3ee76c257474e7c361f06a533e7ed69476a69ae6"
+			"Rev": "70f0933ed69603cf3c16be750026c8aec9f67477"
 		},
 		{
 			"ImportPath": "github.com/sqs/fileset",
