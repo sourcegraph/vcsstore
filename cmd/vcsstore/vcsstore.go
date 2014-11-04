@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/subtle"
+	"encoding/base64"
 	_ "expvar"
 	"flag"
 	"fmt"
@@ -101,6 +103,7 @@ func serveCmd(args []string) {
 	datadNodeName := fs.String("datad-node-name", "127.0.0.1:"+defaultPort, "datad node name (must be accessible to datad clients & other nodes)")
 	tlsCert := fs.String("tls.cert", "", "TLS certificate file (if set, server uses TLS)")
 	tlsKey := fs.String("tls.key", "", "TLS key file (if set, server uses TLS)")
+	basicAuth := fs.String("http.basicauth", "", "if set to 'user:passwd', require HTTP Basic Auth")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore serve [options]
 
@@ -137,12 +140,12 @@ The options are:
 		conf.DebugLog = log.New(logw, "vcsstore DEBUG: ", log.LstdFlags)
 	}
 
-	h := server.NewHandler(vcsstore.NewService(conf), nil, nil)
-	h.Log = log.New(logw, "server: ", log.LstdFlags)
-	h.Debug = *debug
+	vh := server.NewHandler(vcsstore.NewService(conf), nil, nil)
+	vh.Log = log.New(logw, "server: ", log.LstdFlags)
+	vh.Debug = *debug
 
 	if *datadNode {
-		node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, h.Service))
+		node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, vh.Service))
 		node.Updaters = runtime.GOMAXPROCS(0)
 		err := node.Start()
 		if err != nil {
@@ -151,6 +154,21 @@ The options are:
 		log.Printf("Started datad node %s.", *datadNodeName)
 	}
 
+	var h http.Handler
+	if *basicAuth != "" {
+		parts := strings.SplitN(*basicAuth, ":", 2)
+		if len(parts) != 2 {
+			log.Fatalf("Basic auth must be specified as 'user:passwd'.")
+		}
+		user, passwd := parts[0], parts[1]
+		if user == "" || passwd == "" {
+			log.Fatalf("Basic auth user and passwd must both be nonempty.")
+		}
+		log.Printf("Requiring HTTP Basic auth")
+		h = newBasicAuthHandler(user, passwd, vh)
+	} else {
+		h = vh
+	}
 	http.Handle("/", h)
 
 	if *tlsCert != "" || *tlsKey != "" {
@@ -160,6 +178,26 @@ The options are:
 		fmt.Fprintf(os.Stderr, "Starting HTTP server on %s\n", *bindAddr)
 		log.Fatal(http.ListenAndServe(*bindAddr, nil))
 	}
+}
+
+func newBasicAuthHandler(user, passwd string, h http.Handler) http.Handler {
+	want := "Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", user, passwd)))
+	return &basicAuthHandler{h, []byte(want)}
+}
+
+type basicAuthHandler struct {
+	http.Handler
+	want []byte // = "Basic " base64(user ":" passwd) [precomputed]
+}
+
+func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Constant time comparison to avoid timing attack.
+	authHdr := r.Header.Get("authorization")
+	if len(h.want) == len(authHdr) && subtle.ConstantTimeCompare(h.want, []byte(authHdr)) == 1 {
+		h.Handler.ServeHTTP(w, r)
+		return
+	}
+	http.Error(w, "unauthorized", http.StatusUnauthorized)
 }
 
 func repoCmd(args []string) {
