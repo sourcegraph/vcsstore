@@ -14,8 +14,6 @@ vcsstore stores VCS repositories and makes them accessible via HTTP.
 * `godep go install ./...`
 * `vcsstore`
 
-The included Dockerfile will build and run the vcsstore command in a container with the appropriate prequisites.
-
 vcsstore can also be called as a library.
 
 ## Related reading
