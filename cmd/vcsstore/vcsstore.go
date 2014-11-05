@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/gorilla/handlers"
 	"github.com/sourcegraph/datad"
 	"github.com/sourcegraph/go-vcs/vcs"
 	_ "github.com/sourcegraph/go-vcs/vcs/git"
@@ -169,7 +170,7 @@ The options are:
 	} else {
 		h = vh
 	}
-	http.Handle("/", h)
+	http.Handle("/", handlers.CombinedLoggingHandler(os.Stderr, h))
 
 	if *tlsCert != "" || *tlsKey != "" {
 		fmt.Fprintf(os.Stderr, "Starting HTTPS server on %s (cert %s, key %s)\n", *bindAddr, *tlsCert, *tlsKey)

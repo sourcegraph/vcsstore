@@ -162,6 +162,10 @@
 			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
 		},
 		{
+			"ImportPath": "github.com/gorilla/handlers",
+			"Rev": "0e84b7d810c16aed432217e330206be156bafae0"
+		},
+		{
 			"ImportPath": "github.com/gorilla/schema",
 			"Rev": "5ecdd513d03e9ec5b8ad301e0ff8f66acdae59ff"
 		},
