@@ -18,6 +18,11 @@ WORKDIR /opt/src/github.com/sourcegraph/vcsstore
 RUN make build-libgit2
 RUN godep go install -v ./cmd/vcsstore
 
+# Trust GitHub's SSH host key (for ssh cloning of GitHub repos)
+RUN mkdir -m 700 -p /root/.ssh
+RUN cp etc/github_known_hosts /root/.ssh/known_hosts
+RUN chmod 600 /root/.ssh/known_hosts
+
 EXPOSE 80
 VOLUME ["/mnt/vcsstore"]
 CMD ["-v", "-s=/mnt/vcsstore", "serve", "-http=:80"]
