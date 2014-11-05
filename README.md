@@ -6,15 +6,21 @@ vcsstore stores VCS repositories and makes them accessible via HTTP.
 
 ## Install
 
-* Install libssh2. (`apt-get install libssh2-1-dev`) The latest version vcsstore has been tested with is 1.0.1.
-* [Install libgit2](https://github.com/libgit2/libgit2). The latest version vcsstore has been tested with is
-  7851e595ad832b532e6edc6ac5fb0e43db24fc6a
-* `go get github.com/sourcegraph/vcsstore`
-* `cd $GOPATH/src/github.com/sourcegraph/vcsstore`
-* `godep go install ./...`
-* `vcsstore`
+* Install libssh2 and libssl-dev: `apt-get install libssh2-1-dev libssl-dev`
+* Run `make build-libgit2`
+* `godep go install ./cmd/vcsstore`
+* `vcsstore serve`
 
-vcsstore can also be called as a library.
+The included Dockerfile exposes vcsstore on container port 80. To
+expose it on host port 9090 and have it store VCS data in
+/tmp/vcsstore on the host, run:
+
+```
+docker build -t vcsstore .
+docker run -p 9090:80 -v /tmp/vcsstore vcsstore
+```
+
+vcsstore (and vcsclient in particular) can also be used as a library.
 
 ## Related reading
 
