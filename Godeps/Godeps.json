@@ -6,16 +6,6 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/go.crypto/ssh",
-			"Comment": "null-209",
-			"Rev": "23b39e4e860172e1983ded00a9d2f7e42b7683d0"
-		},
-		{
-			"ImportPath": "code.google.com/p/go.tools/godoc/vfs",
-			"Comment": "null-905",
-			"Rev": "b6a3b105fbb031da111368b2077a1a4f26e48220"
-		},
-		{
 			"ImportPath": "code.google.com/p/rog-go/parallel",
 			"Comment": "null-250",
 			"Rev": "e7ca3a2567b8ad482fef7b1aa1a258aa00c82772"
@@ -188,7 +178,7 @@
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/go-vcs/vcs",
-			"Rev": "23f83288697270ce8ed5a5786e314849eec79fd1"
+			"Rev": "9392d76d4281f62a773c9a9e3dd0b70abe49eaa1"
 		},
 		{
 			"ImportPath": "github.com/sqs/fileset",
@@ -197,6 +187,16 @@
 		{
 			"ImportPath": "github.com/sqs/mux",
 			"Rev": "68e4a78b39826e7f0e4dabdc3f6b58ff5055c1e1"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Comment": "null-233",
+			"Rev": "8fec09c61d5d66f460d227fd1df3473d7e015bc6"
+		},
+		{
+			"ImportPath": "golang.org/x/tools/godoc/vfs",
+			"Comment": "null-1217",
+			"Rev": "7ff397840258469cc590e818fa09ccc1819cf5f1"
 		}
 	]
 }

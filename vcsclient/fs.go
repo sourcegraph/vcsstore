@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"os"
 
-	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/sourcegraph/go-vcs/vcs"
+	"golang.org/x/tools/godoc/vfs"
 )
 
 type FileSystem interface {

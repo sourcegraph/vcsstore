@@ -7,11 +7,11 @@ import (
 	"os"
 	"sort"
 
-	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/sourcegraph/go-vcs/vcs"
 	"github.com/sourcegraph/vcsstore/fileutil"
 	"github.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
+	"golang.org/x/tools/godoc/vfs"
 )
 
 func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
