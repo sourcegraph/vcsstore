@@ -17,7 +17,7 @@ expose it on host port 9090 and have it store VCS data in
 
 ```
 docker build -t vcsstore .
-docker run -p 9090:80 -v /tmp/vcsstore vcsstore
+docker run -e GOMAXPROCS=8 -p 9090:80 -v /tmp/vcsstore vcsstore
 ```
 
 vcsstore (and vcsclient in particular) can also be used as a library.
