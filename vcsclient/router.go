@@ -65,10 +65,10 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepoCreateOrUpdate)
 	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
 	repo.Path("/.branches").Methods("GET").Name(RouteRepoBranches)
-	repo.Path("/.branches/{Branch}").Methods("GET").Name(RouteRepoBranch)
-	repo.Path("/.revs/{RevSpec}").Methods("GET").Name(RouteRepoRevision)
+	repo.Path("/.branches/{Branch:.+}").Methods("GET").Name(RouteRepoBranch)
+	repo.Path("/.revs/{RevSpec:.+}").Methods("GET").Name(RouteRepoRevision)
 	repo.Path("/.tags").Methods("GET").Name(RouteRepoTags)
-	repo.Path("/.tags/{Tag}").Methods("GET").Name(RouteRepoTag)
+	repo.Path("/.tags/{Tag:.+}").Methods("GET").Name(RouteRepoTag)
 	repo.Path("/.commits").Methods("GET").Name(RouteRepoCommits)
 	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)

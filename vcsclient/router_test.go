@@ -46,14 +46,29 @@ func TestMatch(t *testing.T) {
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Branch": "mybranch"},
 		},
 		{
+			path:          "/" + encodedRepoPath + "/.branches/mybranch/subbranch",
+			wantRouteName: RouteRepoBranch,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Branch": "mybranch/subbranch"},
+		},
+		{
 			path:          "/" + encodedRepoPath + "/.tags/mytag",
 			wantRouteName: RouteRepoTag,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Tag": "mytag"},
 		},
 		{
+			path:          "/" + encodedRepoPath + "/.tags/mytag/subtag",
+			wantRouteName: RouteRepoTag,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Tag": "mytag/subtag"},
+		},
+		{
 			path:          "/" + encodedRepoPath + "/.revs/myrevspec",
 			wantRouteName: RouteRepoRevision,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "RevSpec": "myrevspec"},
+		},
+		{
+			path:          "/" + encodedRepoPath + "/.revs/myrevspec1/mysubdir2",
+			wantRouteName: RouteRepoRevision,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "RevSpec": "myrevspec1/mysubdir2"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid",
