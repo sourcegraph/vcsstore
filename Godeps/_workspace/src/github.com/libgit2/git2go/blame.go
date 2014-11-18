@@ -2,10 +2,12 @@ package git
 
 /*
 #include <git2.h>
-#include <git2/blame.h>
 */
 import "C"
-import "runtime"
+import (
+	"runtime"
+	"unsafe"
+)
 
 type BlameOptions struct {
 	Flags              BlameOptionsFlag
@@ -17,6 +19,9 @@ type BlameOptions struct {
 }
 
 func DefaultBlameOptions() (BlameOptions, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	opts := C.git_blame_options{}
 	ecode := C.git_blame_init_options(&opts, C.GIT_BLAME_OPTIONS_VERSION)
 	if ecode < 0 {
@@ -64,7 +69,13 @@ func (v *Repository) BlameFile(path string, opts *BlameOptions) (*Blame, error) 
 		}
 	}
 
-	ecode := C.git_blame_file(&blamePtr, v.ptr, C.CString(path), copts)
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ecode := C.git_blame_file(&blamePtr, v.ptr, cpath, copts)
 	if ecode < 0 {
 		return nil, MakeGitError(ecode)
 	}
@@ -82,6 +93,14 @@ func (blame *Blame) HunkCount() int {
 
 func (blame *Blame) HunkByIndex(index int) (BlameHunk, error) {
 	ptr := C.git_blame_get_hunk_byindex(blame.ptr, C.uint32_t(index))
+	if ptr == nil {
+		return BlameHunk{}, ErrInvalid
+	}
+	return blameHunkFromC(ptr), nil
+}
+
+func (blame *Blame) HunkByLine(lineno int) (BlameHunk, error) {
+	ptr := C.git_blame_get_hunk_byline(blame.ptr, C.uint32_t(lineno))
 	if ptr == nil {
 		return BlameHunk{}, ErrInvalid
 	}

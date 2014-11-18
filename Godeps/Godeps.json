@@ -170,7 +170,7 @@
 		},
 		{
 			"ImportPath": "github.com/libgit2/git2go",
-			"Rev": "65ff78deadeeea5e801ccbaa428f9721c1f3177b"
+			"Rev": "3268bdbeb2314d696ea608b439c3c98927a9db1a"
 		},
 		{
 			"ImportPath": "github.com/sqs/fileset",
