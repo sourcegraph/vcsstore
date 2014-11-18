@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,9 +16,11 @@ func TestServeRepoBlameFile(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
+	commitID := vcs.CommitID(strings.Repeat("a", 40))
+
 	cloneURL, _ := url.Parse("git://a.b/c")
 	path := "f"
-	opt := vcs.BlameOptions{NewestCommit: "nc", OldestCommit: "oc", StartLine: 1, EndLine: 2}
+	opt := vcs.BlameOptions{NewestCommit: commitID, OldestCommit: "oc", StartLine: 1, EndLine: 2}
 
 	rm := &mockBlameFile{
 		t:     t,

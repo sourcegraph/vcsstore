@@ -32,6 +32,18 @@ func (h *Handler) serveRepoBlameFile(w http.ResponseWriter, r *http.Request) err
 			return err
 		}
 
+		if opt.NewestCommit != "" {
+			_, canon, err := checkCommitID(string(opt.NewestCommit))
+			if err != nil {
+				return err
+			}
+			if canon {
+				setLongCache(w)
+			} else {
+				setShortCache(w)
+			}
+		}
+
 		return writeJSON(w, hunks)
 	}
 
