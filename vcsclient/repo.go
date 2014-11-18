@@ -227,6 +227,25 @@ func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 	return commits, uint(total), nil
 }
 
+func (r *repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk, error) {
+	url, err := r.url(RouteRepoBlameFile, map[string]string{"Path": path}, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := r.client.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var hunks []*vcs.Hunk
+	if _, err := r.client.Do(req, &hunks); err != nil {
+		return nil, err
+	}
+
+	return hunks, nil
+}
+
 // FileSystem returns a vfs.FileSystem that accesses the repository tree. The
 // returned interface also satisfies vcsclient.FileSystem, which has an
 // additional Get method that is useful for fetching all information about an

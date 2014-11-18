@@ -25,6 +25,9 @@ install:
   - sudo apt-get update
   - sudo apt-get install mercurial
 
+  # install hglib for hg blame
+  - sudo apt-get install python-hglib
+
   # install libgit2
   - sudo apt-get install cmake
   - sudo apt-get install libssh2-1-dev
