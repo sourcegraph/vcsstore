@@ -96,7 +96,7 @@ func cloner() {
 			continue
 		}
 		c := exec.Command("git", "clone", "--mirror", "--bare", urlStr, dir)
-		if err := cmdRunWithTimeout(30*time.Second, c); err != nil {
+		if err := cmdRunWithTimeout(2*time.Minute, c); err != nil {
 			log.Printf("%s: clone failed: %s", urlStr, err)
 			done <- res{urlStr, err}
 			continue
