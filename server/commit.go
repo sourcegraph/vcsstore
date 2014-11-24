@@ -64,7 +64,11 @@ func checkCommitID(commitID string) (vcs.CommitID, bool, error) {
 		return "", false, &httpError{http.StatusBadRequest, errors.New("CommitID must be lowercase hex")}
 	}
 
-	return vcs.CommitID(commitID), len(commitID) == 40, nil
+	return vcs.CommitID(commitID), commitIDIsCanon(commitID), nil
+}
+
+func commitIDIsCanon(commitID string) bool {
+	return len(commitID) == 40
 }
 
 func isLowercaseHex(s string) bool {
