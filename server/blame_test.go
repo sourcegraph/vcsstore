@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 func TestServeRepoBlameFile(t *testing.T) {

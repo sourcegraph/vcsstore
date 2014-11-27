@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/sourcegraph/go-vcs/vcs"
 	"github.com/sqs/mux"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 func (h *Handler) serveRepoBlameFile(w http.ResponseWriter, r *http.Request) error {

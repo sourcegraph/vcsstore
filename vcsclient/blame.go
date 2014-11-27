@@ -1,6 +1,6 @@
 package vcsclient
 
-import "github.com/sourcegraph/go-vcs/vcs"
+import "sourcegraph.com/sourcegraph/go-vcs/vcs"
 
 func (r *repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk, error) {
 	url, err := r.url(RouteRepoBlameFile, map[string]string{"Path": path}, opt)
