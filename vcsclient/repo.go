@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/google/go-querystring/query"
-	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	muxpkg "github.com/sqs/mux"
 	"golang.org/x/tools/godoc/vfs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 var ErrRepoNotExist = errors.New("repository does not exist on remote server")

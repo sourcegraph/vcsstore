@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/google/go-querystring/query"
+	muxpkg "github.com/sqs/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
-	muxpkg "github.com/sqs/mux"
 )
 
 const (

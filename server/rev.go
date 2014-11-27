@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"github.com/sqs/mux"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error {

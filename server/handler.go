@@ -8,10 +8,10 @@ import (
 	"reflect"
 
 	"github.com/gorilla/schema"
+	"github.com/sqs/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
-	"github.com/sqs/mux"
 )
 
 type Handler struct {
