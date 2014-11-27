@@ -8,9 +8,9 @@ import (
 	"reflect"
 
 	"github.com/gorilla/schema"
-	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore"
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
 )
 

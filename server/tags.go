@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 func (h *Handler) serveRepoTags(w http.ResponseWriter, r *http.Request) error {

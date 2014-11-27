@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 func TestServeRepoBranch(t *testing.T) {

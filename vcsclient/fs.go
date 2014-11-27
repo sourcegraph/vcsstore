@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"golang.org/x/tools/godoc/vfs"
 )
 

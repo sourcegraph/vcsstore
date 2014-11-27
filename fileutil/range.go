@@ -3,7 +3,7 @@ package fileutil
 import (
 	"fmt"
 
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/fileset"
 )
 

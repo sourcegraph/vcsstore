@@ -13,17 +13,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sourcegraph/go-vcs/vcs"
-	_ "github.com/sourcegraph/go-vcs/vcs/git"
-	_ "github.com/sourcegraph/go-vcs/vcs/hg"
-	_ "github.com/sourcegraph/go-vcs/vcs/hgcmd"
-	"github.com/sourcegraph/vcsstore"
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/git"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hgcmd"
+	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 var (
 	sshKeyFile  = flag.String("sshkey", "", "ssh private key file for clone remote")
-	privateRepo = flag.String("privrepo", "ssh://git@github.com/sourcegraph/private-repo.git", "a private, SSH-accessible repo to test cloning")
+	privateRepo = flag.String("privrepo", "ssh://git@sourcegraph.com/sourcegraph/private-repo.git", "a private, SSH-accessible repo to test cloning")
 )
 
 func TestCloneGitHTTPS_lg(t *testing.T) {

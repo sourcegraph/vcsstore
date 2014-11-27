@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestHandler_serveRoot(t *testing.T) {

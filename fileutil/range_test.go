@@ -3,7 +3,7 @@ package fileutil
 import (
 	"testing"
 
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestComputeFileRange(t *testing.T) {

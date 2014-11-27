@@ -18,14 +18,14 @@ import (
 
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/gorilla/handlers"
-	"github.com/sourcegraph/datad"
-	"github.com/sourcegraph/go-vcs/vcs"
-	_ "github.com/sourcegraph/go-vcs/vcs/git"
-	_ "github.com/sourcegraph/go-vcs/vcs/hg"
-	"github.com/sourcegraph/vcsstore"
-	"github.com/sourcegraph/vcsstore/cluster"
-	"github.com/sourcegraph/vcsstore/server"
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/datad"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/git"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
+	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/cluster"
+	"sourcegraph.com/sourcegraph/vcsstore/server"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 var (

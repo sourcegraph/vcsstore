@@ -1,6 +1,6 @@
 {
-	"ImportPath": "github.com/sourcegraph/vcsstore",
-	"GoVersion": "go1.3.1",
+	"ImportPath": "sourcegraph.com/sourcegraph/vcsstore",
+	"GoVersion": "go1.3.3",
 	"Packages": [
 		"./..."
 	],
@@ -173,14 +173,6 @@
 			"Rev": "3b7cc1e97e62cf240f93a08983a0dc18bd31c54c"
 		},
 		{
-			"ImportPath": "github.com/sourcegraph/datad",
-			"Rev": "2098c346f0483d038c890a7927954df6762c2818"
-		},
-		{
-			"ImportPath": "github.com/sourcegraph/go-vcs/vcs",
-			"Rev": "9392d76d4281f62a773c9a9e3dd0b70abe49eaa1"
-		},
-		{
 			"ImportPath": "github.com/sqs/fileset",
 			"Rev": "4317e899aa9438ba7603a6e322389571cb3ffdff"
 		},
@@ -197,6 +189,14 @@
 			"ImportPath": "golang.org/x/tools/godoc/vfs",
 			"Comment": "null-1217",
 			"Rev": "7ff397840258469cc590e818fa09ccc1819cf5f1"
+		},
+		{
+			"ImportPath": "sourcegraph.com/sourcegraph/datad",
+			"Rev": "d23f83d0a7b8395f74e5e2f56b44ed4d4d90639c"
+		},
+		{
+			"ImportPath": "sourcegraph.com/sourcegraph/go-vcs/vcs",
+			"Rev": "679df0b4a69491f278682f8e073a4d62eb711224"
 		}
 	]
 }

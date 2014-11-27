@@ -7,9 +7,9 @@ import (
 	"os"
 	"sort"
 
-	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore/fileutil"
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/fileutil"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
 	"golang.org/x/tools/godoc/vfs"
 )

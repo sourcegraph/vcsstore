@@ -15,9 +15,9 @@ import (
 
 	"github.com/coreos/etcd/config"
 	etcd_client "github.com/coreos/go-etcd/etcd"
-	"github.com/sourcegraph/datad"
-	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/datad"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 var (
@@ -58,7 +58,7 @@ func TestIntegration(t *testing.T) {
 		b := datad.NewEtcdBackend("/datad/vcs", ec)
 		cc := NewClient(datad.NewClient(b), nil)
 
-		if err := exec.Command("go", "install", "github.com/sourcegraph/vcsstore/cmd/vcsstore").Run(); err != nil {
+		if err := exec.Command("go", "install", "sourcegraph.com/sourcegraph/vcsstore/cmd/vcsstore").Run(); err != nil {
 			t.Fatal(err)
 		}
 

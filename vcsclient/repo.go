@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/go-querystring/query"
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	muxpkg "github.com/sqs/mux"
 	"golang.org/x/tools/godoc/vfs"
 )

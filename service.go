@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 type Service interface {

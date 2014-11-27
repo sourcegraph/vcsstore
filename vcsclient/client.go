@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 const (

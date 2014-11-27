@@ -1,4 +1,4 @@
-package datad
+package datad // import "sourcegraph.com/sourcegraph/datad"
 
 import (
 	"log"

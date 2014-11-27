@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestServeRepoCommits(t *testing.T) {

@@ -24,7 +24,7 @@ of git and hg repository data (files, commits, branches, etc.).
 
 Run `go test`.
 
-There are also good tests in [github.com/sourcegraph/vcsstore](https://github.com/sourcegraph/vcsstore) in the `cluster` package.
+There are also good tests in [sourcegraph.com/sourcegraph/vcsstore](https://sourcegraph.com/sourcegraph/vcsstore) in the `cluster` package.
 
 ## TODO
 

@@ -9,8 +9,8 @@ import (
 	"os"
 
 	"github.com/libgit2/git2go"
-	"github.com/sourcegraph/go-vcs/vcs"
-	"github.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/mux"
 )
 

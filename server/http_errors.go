@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 type httpError struct {

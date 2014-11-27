@@ -13,8 +13,8 @@ RUN apt-get install -qy cmake libssh2-1-dev libssl-dev
 
 ENV GOPATH /opt
 RUN go get github.com/tools/godep
-ADD . /opt/src/github.com/sourcegraph/vcsstore
-WORKDIR /opt/src/github.com/sourcegraph/vcsstore
+ADD . /opt/src/sourcegraph.com/sourcegraph/vcsstore
+WORKDIR /opt/src/sourcegraph.com/sourcegraph/vcsstore
 RUN make build-libgit2
 RUN godep go install -v ./cmd/vcsstore
 
