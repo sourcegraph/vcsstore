@@ -23,7 +23,7 @@ import (
 
 var (
 	sshKeyFile  = flag.String("sshkey", "", "ssh private key file for clone remote")
-	privateRepo = flag.String("privrepo", "ssh://git@sourcegraph.com/sourcegraph/private-repo.git", "a private, SSH-accessible repo to test cloning")
+	privateRepo = flag.String("privrepo", "ssh://git@github.com/sourcegraph/private-repo.git", "a private, SSH-accessible repo to test cloning")
 )
 
 func TestCloneGitHTTPS_lg(t *testing.T) {
