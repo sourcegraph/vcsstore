@@ -122,9 +122,9 @@ type MergeFileFavor int
 
 const (
 	MergeFileFavorNormal MergeFileFavor = C.GIT_MERGE_FILE_FAVOR_NORMAL
-	MergeFileFavorOurs                  = C.GIT_MERGE_FILE_FAVOR_OURS
-	MergeFileFavorTheirs                = C.GIT_MERGE_FILE_FAVOR_THEIRS
-	MergeFileFavorUnion                 = C.GIT_MERGE_FILE_FAVOR_UNION
+	MergeFileFavorOurs   MergeFileFavor = C.GIT_MERGE_FILE_FAVOR_OURS
+	MergeFileFavorTheirs MergeFileFavor = C.GIT_MERGE_FILE_FAVOR_THEIRS
+	MergeFileFavorUnion  MergeFileFavor = C.GIT_MERGE_FILE_FAVOR_UNION
 )
 
 func (r *Repository) Merge(theirHeads []*MergeHead, mergeOptions *MergeOptions, checkoutOptions *CheckoutOpts) error {
@@ -150,18 +150,18 @@ type MergeAnalysis int
 
 const (
 	MergeAnalysisNone        MergeAnalysis = C.GIT_MERGE_ANALYSIS_NONE
-	MergeAnalysisNormal                    = C.GIT_MERGE_ANALYSIS_NORMAL
-	MergeAnalysisUpToDate                  = C.GIT_MERGE_ANALYSIS_UP_TO_DATE
-	MergeAnalysisFastForward               = C.GIT_MERGE_ANALYSIS_FASTFORWARD
-	MergeAnalysisUnborn                    = C.GIT_MERGE_ANALYSIS_UNBORN
+	MergeAnalysisNormal      MergeAnalysis = C.GIT_MERGE_ANALYSIS_NORMAL
+	MergeAnalysisUpToDate    MergeAnalysis = C.GIT_MERGE_ANALYSIS_UP_TO_DATE
+	MergeAnalysisFastForward MergeAnalysis = C.GIT_MERGE_ANALYSIS_FASTFORWARD
+	MergeAnalysisUnborn      MergeAnalysis = C.GIT_MERGE_ANALYSIS_UNBORN
 )
 
 type MergePreference int
 
 const (
-	MergePreferenceNone MergePreference = C.GIT_MERGE_PREFERENCE_NONE
-	MergePreferenceNoFastForward         = C.GIT_MERGE_PREFERENCE_NO_FASTFORWARD
-	MergePreferenceFastForwardOnly      =  C.GIT_MERGE_PREFERENCE_FASTFORWARD_ONLY
+	MergePreferenceNone            MergePreference = C.GIT_MERGE_PREFERENCE_NONE
+	MergePreferenceNoFastForward   MergePreference = C.GIT_MERGE_PREFERENCE_NO_FASTFORWARD
+	MergePreferenceFastForwardOnly MergePreference = C.GIT_MERGE_PREFERENCE_FASTFORWARD_ONLY
 )
 
 func (r *Repository) MergeAnalysis(theirHeads []*MergeHead) (MergeAnalysis, MergePreference, error) {
@@ -206,8 +206,11 @@ func (r *Repository) MergeTrees(ancestor *Tree, ours *Tree, theirs *Tree, option
 	copts := options.toC()
 
 	idx := &Index{}
-
-	ret := C.git_merge_trees(&idx.ptr, r.ptr, ancestor.cast_ptr, ours.cast_ptr, theirs.cast_ptr, copts)
+	var ancestor_ptr *C.git_tree
+	if ancestor != nil {
+		ancestor_ptr = ancestor.cast_ptr
+	}
+	ret := C.git_merge_trees(&idx.ptr, r.ptr, ancestor_ptr, ours.cast_ptr, theirs.cast_ptr, copts)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
@@ -273,8 +276,10 @@ type MergeFileInput struct {
 // populate a C struct with merge file input, make sure to use freeMergeFileInput to clean up allocs
 func populateCMergeFileInput(c *C.git_merge_file_input, input MergeFileInput) {
 	c.path = C.CString(input.Path)
-	c.ptr = (*C.char)(unsafe.Pointer(&input.Contents[0]))
-	c.size = C.size_t(len(input.Contents))
+	if input.Contents != nil {
+		c.ptr = (*C.char)(unsafe.Pointer(&input.Contents[0]))
+		c.size = C.size_t(len(input.Contents))
+	}
 	c.mode = C.uint(input.Mode)
 }
 
@@ -287,9 +292,9 @@ type MergeFileFlags int
 const (
 	MergeFileDefault MergeFileFlags = C.GIT_MERGE_FILE_DEFAULT
 
-	MergeFileStyleMerge         = C.GIT_MERGE_FILE_STYLE_MERGE
-	MergeFileStyleDiff          = C.GIT_MERGE_FILE_STYLE_DIFF3
-	MergeFileStyleSimplifyAlnum = C.GIT_MERGE_FILE_SIMPLIFY_ALNUM
+	MergeFileStyleMerge         MergeFileFlags = C.GIT_MERGE_FILE_STYLE_MERGE
+	MergeFileStyleDiff          MergeFileFlags = C.GIT_MERGE_FILE_STYLE_DIFF3
+	MergeFileStyleSimplifyAlnum MergeFileFlags = C.GIT_MERGE_FILE_SIMPLIFY_ALNUM
 )
 
 type MergeFileOptions struct {

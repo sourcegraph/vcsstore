@@ -43,8 +43,16 @@ v0.21 + 1
   path of the programs to execute for receive-pack and upload-pack on
   the server, git_transport_ssh_with_paths.
 
+* git_remote_rename() now takes the repository and the remote's
+  current name. Accepting a remote indicates we want to change it,
+  which we only did partially. It is much clearer if we accept a name
+  and no loaded objects are changed.
+
 * git_remote_delete() now accepts the repository and the remote's name
   instead of a loaded remote.
+
+* git_remote_supported_url() has been removed as it has become
+  essentially useless with rsync-style ssh paths.
 
 * The git_clone_options struct no longer provides the ignore_cert_errors or
   remote_name members for remote customization.
