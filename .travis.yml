@@ -8,6 +8,11 @@ matrix:
   allow_failures:
     - go: tip
 
+before_install:
+  - mkdir -p $HOME/gopath/src/sourcegraph.com/sourcegraph
+  - mv $TRAVIS_BUILD_DIR $HOME/gopath/src/sourcegraph.com/sourcegraph/vcsstore
+  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/sourcegraph.com/sourcegraph/vcsstore
+
 install:
   - git config --global user.email "a@a.com"
   - git config --global user.name "a"
