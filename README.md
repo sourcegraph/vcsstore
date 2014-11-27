@@ -7,6 +7,7 @@ vcsstore stores VCS repositories and makes them accessible via HTTP.
 ## Install
 
 * Install libssh2 and libssl-dev: `apt-get install libssh2-1-dev libssl-dev`
+* Run `go get -d -u sourcegraph.com/sourcegraph/vcsstore` and cd into the folder
 * Run `make build-libgit2`
 * `godep go install ./cmd/vcsstore`
 * `vcsstore serve`
