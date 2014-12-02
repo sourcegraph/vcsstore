@@ -26,6 +26,7 @@ vcsstore (and vcsclient in particular) can also be used as a library.
 ## Related reading
 
 * [How We Made GitHub Fast (GitHub blog post)](https://github.com/blog/530-how-we-made-github-fast)
+* http://blog.justinsb.com/blog/2013/12/14/cloudata-day-8/
 
 ## Authors
 
