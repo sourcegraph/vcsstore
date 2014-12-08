@@ -26,7 +26,7 @@ static int git_style_unc_path(git_buf *buf, const char *host, const char *path)
 	if (path[0] == '/')
 		path++;
 
-	if (isalpha(path[0]) && path[1] == ':' && path[2] == '/') {
+	if (git__isalpha(path[0]) && path[1] == ':' && path[2] == '/') {
 		git_buf_printf(buf, "%c$/", path[0]);
 		path += 3;
 	}
@@ -171,7 +171,7 @@ void test_clone_local__standard_unc_paths_are_written_git_style(void)
 	cl_git_pass(git_style_unc_path(&git_unc, "localhost", path));
 
 	cl_git_pass(git_clone(&repo, unc.ptr, "./clone.git", &opts));
-	cl_git_pass(git_remote_load(&remote, repo, "origin"));
+	cl_git_pass(git_remote_lookup(&remote, repo, "origin"));
 
 	cl_assert_equal_s(git_unc.ptr, git_remote_url(remote));
 
@@ -198,7 +198,7 @@ void test_clone_local__git_style_unc_paths(void)
 	cl_git_pass(git_style_unc_path(&git_unc, "localhost", path));
 
 	cl_git_pass(git_clone(&repo, git_unc.ptr, "./clone.git", &opts));
-	cl_git_pass(git_remote_load(&remote, repo, "origin"));
+	cl_git_pass(git_remote_lookup(&remote, repo, "origin"));
 
 	cl_assert_equal_s(git_unc.ptr, git_remote_url(remote));
 

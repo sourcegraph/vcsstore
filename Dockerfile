@@ -11,6 +11,9 @@ ENV GOBIN /usr/local/bin
 # Install libgit2 (for git2go); use pinned version from 2014-05-11 (because it is known to work; there's nothing otherwise special about this commit).
 RUN apt-get install -qy cmake libssh2-1-dev libssl-dev
 
+# Install hglib (for hg blame)
+RUN apt-get install -qy python-hglib
+
 ENV GOPATH /opt
 RUN go get github.com/tools/godep
 ADD . /opt/src/sourcegraph.com/sourcegraph/vcsstore

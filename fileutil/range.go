@@ -3,8 +3,8 @@ package fileutil
 import (
 	"fmt"
 
-	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 	"github.com/sqs/fileset"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 // ComputeFileRange determines the actual file range according to the

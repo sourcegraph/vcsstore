@@ -408,11 +408,14 @@ static int packfile_unpack_header1(
 	size = c & 15;
 	shift = 4;
 	while (c & 0x80) {
-		if (len <= used)
+		if (len <= used) {
+			giterr_set(GITERR_ODB, "buffer too small");
 			return GIT_EBUFS;
+		}
 
 		if (bitsizeof(long) <= shift) {
 			*usedp = 0;
+			giterr_set(GITERR_ODB, "packfile corrupted");
 			return -1;
 		}
 
@@ -1105,7 +1108,6 @@ int git_packfile_alloc(struct git_pack_file **pack_out, const char *path)
 			p->pack_keep = 1;
 
 		memcpy(p->pack_name + root_len, ".pack", sizeof(".pack"));
-		path_len = path_len - strlen(".idx") + strlen(".pack");
 	}
 
 	if (p_stat(p->pack_name, &st) < 0 || !S_ISREG(st.st_mode)) {

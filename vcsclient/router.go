@@ -7,14 +7,15 @@ import (
 	"strings"
 
 	"github.com/google/go-querystring/query"
+	muxpkg "github.com/sqs/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
-	muxpkg "github.com/sqs/mux"
 )
 
 const (
 	// Route names
 	RouteRepo               = "vcs:repo"
+	RouteRepoBlameFile      = "vcs:repo.blame-file"
 	RouteRepoBranch         = "vcs:repo.branch"
 	RouteRepoBranches       = "vcs:repo.branches"
 	RouteRepoCommit         = "vcs:repo.commit"
@@ -64,6 +65,7 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepo)
 	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Name(RouteRepoCreateOrUpdate)
 	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars).BuildVarsFunc(escapeRepoVars).Subrouter()
+	repo.Path("/.blame/{Path:.+}").Methods("GET").Name(RouteRepoBlameFile)
 	repo.Path("/.branches").Methods("GET").Name(RouteRepoBranches)
 	repo.Path("/.branches/{Branch:.+}").Methods("GET").Name(RouteRepoBranch)
 	repo.Path("/.revs/{RevSpec:.+}").Methods("GET").Name(RouteRepoRevision)
@@ -100,6 +102,18 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 func (r *Router) URLToRepo(vcsType string, cloneURL *url.URL) *url.URL {
 	return r.URLTo(RouteRepo, "VCS", vcsType, "CloneURL", cloneURL.String())
+}
+
+func (r *Router) URLToRepoBlameFile(vcsType string, cloneURL *url.URL, path string, opt *vcs.BlameOptions) *url.URL {
+	u := r.URLTo(RouteRepoBlameFile, "VCS", vcsType, "CloneURL", cloneURL.String(), "Path", path)
+	if opt != nil {
+		q, err := query.Values(opt)
+		if err != nil {
+			panic(err.Error())
+		}
+		u.RawQuery = q.Encode()
+	}
+	return u
 }
 
 func (r *Router) URLToRepoBranch(vcsType string, cloneURL *url.URL, branch string) *url.URL {

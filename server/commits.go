@@ -17,7 +17,6 @@ func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error
 	}
 
 	var opt vcs.CommitsOptions
-	// TODO(sqs): failing because Head is not a string but a typedef, make a RegisterConverter to handle vcs.CommitID type
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
 		log.Println(err)
 		return err
@@ -40,6 +39,8 @@ func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error
 
 		if canon {
 			setLongCache(w)
+		} else {
+			setShortCache(w)
 		}
 
 		w.Header().Set(vcsclient.TotalCommitsHeader, strconv.FormatUint(uint64(total), 10))

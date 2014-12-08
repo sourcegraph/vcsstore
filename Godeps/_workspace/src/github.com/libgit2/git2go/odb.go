@@ -25,6 +25,9 @@ type OdbBackend struct {
 func NewOdb() (odb *Odb, err error) {
 	odb = new(Odb)
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_odb_new(&odb.ptr)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
@@ -40,6 +43,10 @@ func NewOdbBackendFromC(ptr *C.git_odb_backend) (backend *OdbBackend) {
 }
 
 func (v *Odb) AddBackend(backend *OdbBackend, priority int) (err error) {
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_odb_add_backend(v.ptr, backend.ptr, C.int(priority))
 	if ret < 0 {
 		backend.Free()
@@ -110,6 +117,9 @@ func (v *Odb) ForEach(callback OdbForEachCallback) error {
 		err: nil,
 	}
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C._go_git_odb_foreach(v.ptr, unsafe.Pointer(&data))
 	if ret == C.GIT_EUSER {
 		return data.err
@@ -140,6 +150,10 @@ func (v *Odb) Hash(data []byte, otype ObjectType) (oid *Oid, err error) {
 // contents of the object.
 func (v *Odb) NewReadStream(id *Oid) (*OdbReadStream, error) {
 	stream := new(OdbReadStream)
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_odb_open_rstream(&stream.ptr, v.ptr, id.toC())
 	if ret < 0 {
 		return nil, MakeGitError(ret)
@@ -154,6 +168,10 @@ func (v *Odb) NewReadStream(id *Oid) (*OdbReadStream, error) {
 // known in advance
 func (v *Odb) NewWriteStream(size int, otype ObjectType) (*OdbWriteStream, error) {
 	stream := new(OdbWriteStream)
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_odb_open_wstream(&stream.ptr, v.ptr, C.size_t(size), C.git_otype(otype))
 	if ret < 0 {
 		return nil, MakeGitError(ret)
@@ -207,6 +225,10 @@ func (stream *OdbReadStream) Read(data []byte) (int, error) {
 	header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
 	ptr := (*C.char)(unsafe.Pointer(header.Data))
 	size := C.size_t(header.Cap)
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_odb_stream_read(stream.ptr, ptr, size)
 	if ret < 0 {
 		return 0, MakeGitError(ret)
@@ -239,6 +261,9 @@ func (stream *OdbWriteStream) Write(data []byte) (int, error) {
 	ptr := (*C.char)(unsafe.Pointer(header.Data))
 	size := C.size_t(header.Len)
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_odb_stream_write(stream.ptr, ptr, size)
 	if ret < 0 {
 		return 0, MakeGitError(ret)
@@ -250,6 +275,9 @@ func (stream *OdbWriteStream) Write(data []byte) (int, error) {
 // Close signals that all the data has been written and stores the
 // resulting object id in the stream's Id field.
 func (stream *OdbWriteStream) Close() error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_odb_stream_finalize_write(stream.Id.toC(), stream.ptr)
 	if ret < 0 {
 		return MakeGitError(ret)

@@ -198,6 +198,7 @@ func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.Handler.ServeHTTP(w, r)
 		return
 	}
+	w.Header().Set("WWW-Authenticate", `Basic realm="vcsstore"`)
 	http.Error(w, "unauthorized", http.StatusUnauthorized)
 }
 

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"sourcegraph.com/sourcegraph/go-vcs/vcs"
-	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestServeRepoTreeEntry_File(t *testing.T) {

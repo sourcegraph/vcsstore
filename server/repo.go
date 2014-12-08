@@ -9,9 +9,9 @@ import (
 	"os"
 
 	"github.com/libgit2/git2go"
+	"github.com/sqs/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
-	"github.com/sqs/mux"
 )
 
 func (h *Handler) serveRepo(w http.ResponseWriter, r *http.Request) error {

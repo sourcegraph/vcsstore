@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +22,8 @@ var times = []string{
 	appleTime("2006-01-02T15:04:05Z"),
 	appleTime("2014-05-06T19:20:21Z"),
 }
+
+var nonexistentCommitID = vcs.CommitID(strings.Repeat("a", 40))
 
 func TestRepository_ResolveBranch(t *testing.T) {
 	t.Parallel()
@@ -519,6 +522,11 @@ func TestRepository_GetCommit(t *testing.T) {
 		if !commitsEqual(commit, test.wantCommit) {
 			t.Errorf("%s: got commit == %+v, want %+v", label, commit, test.wantCommit)
 		}
+
+		// Test that trying to get a nonexistent commit returns ErrCommitNotFound.
+		if _, err := test.repo.GetCommit(nonexistentCommitID); err != vcs.ErrCommitNotFound {
+			t.Errorf("%s: for nonexistent commit: got err %v, want %v", label, err, vcs.ErrCommitNotFound)
+		}
 	}
 }
 
@@ -627,6 +635,11 @@ func TestRepository_Commits(t *testing.T) {
 			if !commitsEqual(gotC, wantC) {
 				t.Errorf("%s: got commit %d == %+v, want %+v", label, i, gotC, wantC)
 			}
+		}
+
+		// Test that trying to get a nonexistent commit returns ErrCommitNotFound.
+		if _, _, err := test.repo.Commits(vcs.CommitsOptions{Head: nonexistentCommitID}); err != vcs.ErrCommitNotFound {
+			t.Errorf("%s: for nonexistent commit: got err %v, want %v", label, err, vcs.ErrCommitNotFound)
 		}
 	}
 }
@@ -1202,7 +1215,7 @@ func makeGitRepositoryCmd(t testing.TB, cmds ...string) *gitcmd.Repository {
 	dir := initGitRepository(t, cmds...)
 	r, err := gitcmd.Open(dir)
 	if err != nil {
-		t.Fatal("gitcmd.Open(%q) failed: %s", dir, err)
+		t.Fatalf("gitcmd.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
@@ -1214,7 +1227,7 @@ func makeGitRepositoryLibGit2(t testing.TB, cmds ...string) *git.Repository {
 	dir := initGitRepository(t, cmds...)
 	r, err := git.Open(dir)
 	if err != nil {
-		t.Fatal("git.Open(%q) failed: %s", dir, err)
+		t.Fatalf("git.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
@@ -1242,7 +1255,7 @@ func makeHgRepositoryCmd(t testing.TB, cmds ...string) *hgcmd.Repository {
 	dir := initHgRepository(t, cmds...)
 	r, err := hgcmd.Open(dir)
 	if err != nil {
-		t.Fatal("hgcmd.Open(%q) failed: %s", dir, err)
+		t.Fatalf("hgcmd.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
@@ -1253,7 +1266,7 @@ func makeHgRepositoryNative(t testing.TB, cmds ...string) *hg.Repository {
 	dir := initHgRepository(t, cmds...)
 	r, err := hg.Open(dir)
 	if err != nil {
-		t.Fatal("hg.Open(%q) failed: %s", dir, err)
+		t.Fatalf("hg.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }

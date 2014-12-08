@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"github.com/sqs/mux"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
 func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
@@ -50,8 +50,15 @@ func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) erro
 			return err
 		}
 
-		setShortCache(w)
-		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
+		var statusCode int
+		if commitIDIsCanon(string(commitID)) {
+			setLongCache(w)
+			statusCode = http.StatusMovedPermanently
+		} else {
+			setShortCache(w)
+			statusCode = http.StatusFound
+		}
+		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), statusCode)
 		return nil
 	}
 
