@@ -120,7 +120,7 @@ void test_online_fetch__doesnt_retrieve_a_pack_when_the_repository_is_up_to_date
 
 	cl_git_pass(git_repository_open(&_repository, "./fetch/lg2"));
 
-	cl_git_pass(git_remote_load(&remote, _repository, "origin"));
+	cl_git_pass(git_remote_lookup(&remote, _repository, "origin"));
 	cl_git_pass(git_remote_connect(remote, GIT_DIRECTION_FETCH));
 
 	cl_assert_equal_i(false, invoked);
@@ -199,6 +199,17 @@ void test_online_fetch__remote_symrefs(void)
 
 	cl_assert_equal_s("HEAD", refs[0]->name);
 	cl_assert_equal_s("refs/heads/master", refs[0]->symref_target);
+
+	git_remote_free(remote);
+}
+
+void test_online_fetch__twice(void)
+{
+	git_remote *remote;
+
+	cl_git_pass(git_remote_create(&remote, _repo, "test", "http://github.com/libgit2/TestGitRepository.git"));
+	cl_git_pass(git_remote_fetch(remote, NULL, NULL, NULL));
+	cl_git_pass(git_remote_fetch(remote, NULL, NULL, NULL));
 
 	git_remote_free(remote);
 }

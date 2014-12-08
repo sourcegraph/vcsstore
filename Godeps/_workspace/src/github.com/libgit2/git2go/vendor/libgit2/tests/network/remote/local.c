@@ -167,16 +167,18 @@ void test_network_remote_local__tagopt(void)
 {
 	git_reference *ref;
 
-	connect_to_local_repository(cl_fixture("testrepo.git"));
+	cl_git_pass(git_remote_create(&remote, repo, "tagopt", cl_git_path_url(cl_fixture("testrepo.git"))));
 	git_remote_set_autotag(remote, GIT_REMOTE_DOWNLOAD_TAGS_ALL);
+	cl_git_pass(git_remote_fetch(remote, NULL, NULL, NULL));
 
-	cl_git_pass(git_remote_download(remote, NULL));
-	cl_git_pass(git_remote_update_tips(remote, NULL, NULL));
-
-
-	cl_git_fail(git_reference_lookup(&ref, repo, "refs/remotes/master"));
-
+	cl_git_pass(git_reference_lookup(&ref, repo, "refs/remotes/tagopt/master"));
+	git_reference_free(ref);
 	cl_git_pass(git_reference_lookup(&ref, repo, "refs/tags/hard_tag"));
+	git_reference_free(ref);
+
+	git_remote_set_autotag(remote, GIT_REMOTE_DOWNLOAD_TAGS_AUTO);
+	cl_git_pass(git_remote_fetch(remote, NULL, NULL, NULL));
+	cl_git_pass(git_reference_lookup(&ref, repo, "refs/remotes/tagopt/master"));
 	git_reference_free(ref);
 }
 
@@ -212,7 +214,7 @@ void test_network_remote_local__push_to_bare_remote(void)
 
 	/* Try to push */
 	cl_git_pass(git_push_new(&push, localremote));
-	cl_git_pass(git_push_add_refspec(push, "refs/heads/master:"));
+	cl_git_pass(git_push_add_refspec(push, "refs/heads/master"));
 	cl_git_pass(git_push_finish(push));
 	cl_assert(git_push_unpack_ok(push));
 
@@ -258,7 +260,7 @@ void test_network_remote_local__push_to_bare_remote_with_file_url(void)
 
 	/* Try to push */
 	cl_git_pass(git_push_new(&push, localremote));
-	cl_git_pass(git_push_add_refspec(push, "refs/heads/master:"));
+	cl_git_pass(git_push_add_refspec(push, "refs/heads/master"));
 	cl_git_pass(git_push_finish(push));
 	cl_assert(git_push_unpack_ok(push));
 
@@ -301,7 +303,7 @@ void test_network_remote_local__push_to_non_bare_remote(void)
 
 	/* Try to push */
 	cl_git_pass(git_push_new(&push, localremote));
-	cl_git_pass(git_push_add_refspec(push, "refs/heads/master:"));
+	cl_git_pass(git_push_add_refspec(push, "refs/heads/master"));
 	cl_git_fail_with(git_push_finish(push), GIT_EBAREREPO);
 	cl_assert_equal_i(0, git_push_unpack_ok(push));
 
@@ -428,4 +430,39 @@ void test_network_remote_local__opportunistic_update(void)
 	/* and we expect that to update our copy of origin's master */
 	cl_git_pass(git_reference_lookup(&ref, repo, "refs/remotes/origin/master"));
 	git_reference_free(ref);
+}
+
+void test_network_remote_local__update_tips_for_new_remote(void) {
+	git_repository *src_repo;
+	git_repository *dst_repo;
+	git_remote *new_remote;
+	git_push *push;
+	git_reference* branch;
+
+	/* Copy test repo */
+	cl_fixture_sandbox("testrepo.git");
+	cl_git_pass(git_repository_open(&src_repo, "testrepo.git"));
+
+	/* Set up an empty bare repo to push into */
+	cl_git_pass(git_repository_init(&dst_repo, "./localbare.git", 1));
+
+	/* Push to bare repo */
+	cl_git_pass(git_remote_create(&new_remote, src_repo, "bare", "./localbare.git"));
+	cl_git_pass(git_remote_connect(new_remote, GIT_DIRECTION_PUSH));
+	cl_git_pass(git_push_new(&push, new_remote));
+	cl_git_pass(git_push_add_refspec(push, "refs/heads/master"));
+	cl_git_pass(git_push_finish(push));
+	cl_assert(git_push_unpack_ok(push));
+
+	/* Update tips and make sure remote branch has been created */
+	cl_git_pass(git_push_update_tips(push, NULL, NULL));
+	cl_git_pass(git_branch_lookup(&branch, src_repo, "bare/master", GIT_BRANCH_REMOTE));
+
+	git_reference_free(branch);
+	git_push_free(push);
+	git_remote_free(new_remote);
+	git_repository_free(dst_repo);
+	cl_fixture_cleanup("localbare.git");
+	git_repository_free(src_repo);
+	cl_fixture_cleanup("testrepo.git");
 }

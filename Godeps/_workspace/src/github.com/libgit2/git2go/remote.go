@@ -249,6 +249,10 @@ func (r *Remote) Free() {
 
 func (repo *Repository) ListRemotes() ([]string, error) {
 	var r C.git_strarray
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ecode := C.git_remote_list(&r, repo.ptr)
 	if ecode < 0 {
 		return nil, MakeGitError(ecode)
@@ -276,6 +280,20 @@ func (repo *Repository) CreateRemote(name string, url string) (*Remote, error) {
 	}
 	runtime.SetFinalizer(remote, (*Remote).Free)
 	return remote, nil
+}
+
+func (repo *Repository) DeleteRemote(name string) error {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+	
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ret := C.git_remote_delete(repo.ptr, cname)
+	if ret < 0 {
+		return MakeGitError(ret)
+	}
+	return nil
 }
 
 func (repo *Repository) CreateRemoteWithFetchspec(name string, url string, fetch string) (*Remote, error) {
@@ -318,7 +336,7 @@ func (repo *Repository) CreateAnonymousRemote(url, fetch string) (*Remote, error
 	return remote, nil
 }
 
-func (repo *Repository) LoadRemote(name string) (*Remote, error) {
+func (repo *Repository) LookupRemote(name string) (*Remote, error) {
 	remote := &Remote{}
 
 	cname := C.CString(name)
@@ -327,7 +345,7 @@ func (repo *Repository) LoadRemote(name string) (*Remote, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ret := C.git_remote_load(&remote.ptr, repo.ptr, cname)
+	ret := C.git_remote_lookup(&remote.ptr, repo.ptr, cname)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
@@ -559,6 +577,9 @@ func (o *Remote) Fetch(refspecs []string, sig *Signature, msg string) error {
 	crefspecs.strings = makeCStringsFromStrings(refspecs)
 	defer freeStrarray(&crefspecs)
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ret := C.git_remote_fetch(o.ptr, &crefspecs, csig, cmsg)
 	if ret < 0 {
 		return MakeGitError(ret)
@@ -588,6 +609,9 @@ func (o *Remote) Ls(filterRefs ...string) ([]RemoteHead, error) {
 
 	var refs **C.git_remote_head
 	var length C.size_t
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
 	if ret := C.git_remote_ls(&refs, &length, o.ptr); ret != 0 {
 		return nil, MakeGitError(ret)

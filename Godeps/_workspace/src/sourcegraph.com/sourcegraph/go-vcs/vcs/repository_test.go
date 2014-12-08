@@ -1215,7 +1215,7 @@ func makeGitRepositoryCmd(t testing.TB, cmds ...string) *gitcmd.Repository {
 	dir := initGitRepository(t, cmds...)
 	r, err := gitcmd.Open(dir)
 	if err != nil {
-		t.Fatal("gitcmd.Open(%q) failed: %s", dir, err)
+		t.Fatalf("gitcmd.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
@@ -1227,7 +1227,7 @@ func makeGitRepositoryLibGit2(t testing.TB, cmds ...string) *git.Repository {
 	dir := initGitRepository(t, cmds...)
 	r, err := git.Open(dir)
 	if err != nil {
-		t.Fatal("git.Open(%q) failed: %s", dir, err)
+		t.Fatalf("git.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
@@ -1255,7 +1255,7 @@ func makeHgRepositoryCmd(t testing.TB, cmds ...string) *hgcmd.Repository {
 	dir := initHgRepository(t, cmds...)
 	r, err := hgcmd.Open(dir)
 	if err != nil {
-		t.Fatal("hgcmd.Open(%q) failed: %s", dir, err)
+		t.Fatalf("hgcmd.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
@@ -1266,7 +1266,7 @@ func makeHgRepositoryNative(t testing.TB, cmds ...string) *hg.Repository {
 	dir := initHgRepository(t, cmds...)
 	r, err := hg.Open(dir)
 	if err != nil {
-		t.Fatal("hg.Open(%q) failed: %s", dir, err)
+		t.Fatalf("hg.Open(%q) failed: %s", dir, err)
 	}
 	return r
 }
