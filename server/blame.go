@@ -12,10 +12,11 @@ import (
 func (h *Handler) serveRepoBlameFile(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, _, err := h.getRepo(r)
+	repo, _, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	var opt vcs.BlameOptions
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {

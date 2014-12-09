@@ -81,6 +81,10 @@ func (c *Client) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (i
 	return c.Open(vcsType, cloneURL)
 }
 
+func (c *Client) Close(vcsType string, cloneURL *url.URL) {
+	// TODO(sqs): can this be used to make the cluster faster?
+}
+
 var (
 	_ vcsclient.RepositoryOpener = &Client{}
 	_ vcsstore.Service           = &Client{}

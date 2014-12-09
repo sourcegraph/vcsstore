@@ -17,10 +17,11 @@ import (
 func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, _, err := h.getRepo(r)
+	repo, _, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	commitID, canon, err := getCommitID(r)
 	if err != nil {

@@ -8,10 +8,11 @@ import (
 )
 
 func (h *Handler) serveRepoTags(w http.ResponseWriter, r *http.Request) error {
-	repo, _, err := h.getRepo(r)
+	repo, _, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	type tags interface {
 		Tags() ([]*vcs.Tag, error)
