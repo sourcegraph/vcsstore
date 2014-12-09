@@ -53,10 +53,10 @@ func TestCrossRepoDiff_git_git_lg(t *testing.T) {
 		baseCommit = "e7b2d6b444232fb1174fdd7561c25e94b0f62b60"
 		headCommit = "843e1b8483f1542eeab08990b528608f5b318960"
 	)
-	want := &vcs.Diff{Raw: `diff --git a/f b/f
+	want := &vcs.Diff{Raw: `diff --git f f
 index 78981922613b2afb6025042ff6bd878ac1994e85..422c2b7ab3b3c668038da977e4e93a5fc623169c 100644
---- a/f
-+++ b/f
+--- f
++++ f
 @@ -1 +1,2 @@
  a
 +b

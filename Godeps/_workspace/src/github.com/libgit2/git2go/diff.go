@@ -371,6 +371,8 @@ func DefaultDiffOptions() (DiffOptions, error) {
 		InterhunkLines:   uint32(opts.interhunk_lines),
 		IdAbbrev:         uint16(opts.id_abbrev),
 		MaxSize:          int(opts.max_size),
+		OldPrefix:        "a",
+		NewPrefix:        "b",
 	}, nil
 }
 
@@ -459,6 +461,51 @@ func diffNotifyCb(_diff_so_far unsafe.Pointer, delta_to_add *C.git_diff_delta, m
 	return 0
 }
 
+func makeCDiffOptions(opts *DiffOptions) (copts *C.git_diff_options, notifyData *diffNotifyData, free func()) {
+	if opts == nil {
+		return nil, nil, nil
+	}
+
+	notifyData = &diffNotifyData{
+		Callback: opts.NotifyCallback,
+	}
+
+	cpathspec := C.git_strarray{}
+	if opts.Pathspec != nil {
+		cpathspec.count = C.size_t(len(opts.Pathspec))
+		cpathspec.strings = makeCStringsFromStrings(opts.Pathspec)
+	}
+
+	oldPrefix := C.CString(opts.OldPrefix)
+	newPrefix := C.CString(opts.NewPrefix)
+
+	copts = &C.git_diff_options{
+		version:           C.GIT_DIFF_OPTIONS_VERSION,
+		flags:             C.uint32_t(opts.Flags),
+		ignore_submodules: C.git_submodule_ignore_t(opts.IgnoreSubmodules),
+		pathspec:          cpathspec,
+		context_lines:     C.uint32_t(opts.ContextLines),
+		interhunk_lines:   C.uint32_t(opts.InterhunkLines),
+		id_abbrev:         C.uint16_t(opts.IdAbbrev),
+		max_size:          C.git_off_t(opts.MaxSize),
+		old_prefix:        oldPrefix,
+		new_prefix:        newPrefix,
+	}
+
+	if opts.NotifyCallback != nil {
+		C._go_git_setup_diff_notify_callbacks(copts)
+		copts.notify_payload = unsafe.Pointer(notifyData)
+	}
+
+	return copts, notifyData, func() {
+		if opts.Pathspec != nil {
+			freeStrarray(&cpathspec)
+		}
+		C.free(unsafe.Pointer(oldPrefix))
+		C.free(unsafe.Pointer(newPrefix))
+	}
+}
+
 func (v *Repository) DiffTreeToTree(oldTree, newTree *Tree, opts *DiffOptions) (*Diff, error) {
 	var diffPtr *C.git_diff
 	var oldPtr, newPtr *C.git_tree
@@ -471,34 +518,9 @@ func (v *Repository) DiffTreeToTree(oldTree, newTree *Tree, opts *DiffOptions) (
 		newPtr = newTree.cast_ptr
 	}
 
-	cpathspec := C.git_strarray{}
-	var copts *C.git_diff_options
-	var notifyData *diffNotifyData
-	if opts != nil {
-		notifyData = &diffNotifyData{
-			Callback: opts.NotifyCallback,
-		}
-		if opts.Pathspec != nil {
-			cpathspec.count = C.size_t(len(opts.Pathspec))
-			cpathspec.strings = makeCStringsFromStrings(opts.Pathspec)
-			defer freeStrarray(&cpathspec)
-		}
-
-		copts = &C.git_diff_options{
-			version:           C.GIT_DIFF_OPTIONS_VERSION,
-			flags:             C.uint32_t(opts.Flags),
-			ignore_submodules: C.git_submodule_ignore_t(opts.IgnoreSubmodules),
-			pathspec:          cpathspec,
-			context_lines:     C.uint32_t(opts.ContextLines),
-			interhunk_lines:   C.uint32_t(opts.InterhunkLines),
-			id_abbrev:         C.uint16_t(opts.IdAbbrev),
-			max_size:          C.git_off_t(opts.MaxSize),
-		}
-
-		if opts.NotifyCallback != nil {
-			C._go_git_setup_diff_notify_callbacks(copts)
-			copts.notify_payload = unsafe.Pointer(notifyData)
-		}
+	copts, notifyData, free := makeCDiffOptions(opts)
+	if free != nil {
+		defer free()
 	}
 
 	runtime.LockOSThread()
@@ -523,34 +545,9 @@ func (v *Repository) DiffTreeToWorkdir(oldTree *Tree, opts *DiffOptions) (*Diff,
 		oldPtr = oldTree.cast_ptr
 	}
 
-	cpathspec := C.git_strarray{}
-	var copts *C.git_diff_options
-	var notifyData *diffNotifyData
-	if opts != nil {
-		notifyData = &diffNotifyData{
-			Callback: opts.NotifyCallback,
-		}
-		if opts.Pathspec != nil {
-			cpathspec.count = C.size_t(len(opts.Pathspec))
-			cpathspec.strings = makeCStringsFromStrings(opts.Pathspec)
-			defer freeStrarray(&cpathspec)
-		}
-
-		copts = &C.git_diff_options{
-			version:           C.GIT_DIFF_OPTIONS_VERSION,
-			flags:             C.uint32_t(opts.Flags),
-			ignore_submodules: C.git_submodule_ignore_t(opts.IgnoreSubmodules),
-			pathspec:          cpathspec,
-			context_lines:     C.uint32_t(opts.ContextLines),
-			interhunk_lines:   C.uint32_t(opts.InterhunkLines),
-			id_abbrev:         C.uint16_t(opts.IdAbbrev),
-			max_size:          C.git_off_t(opts.MaxSize),
-		}
-
-		if opts.NotifyCallback != nil {
-			C._go_git_setup_diff_notify_callbacks(copts)
-			copts.notify_payload = unsafe.Pointer(notifyData)
-		}
+	copts, notifyData, free := makeCDiffOptions(opts)
+	if free != nil {
+		defer free()
 	}
 
 	runtime.LockOSThread()

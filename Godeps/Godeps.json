@@ -170,7 +170,7 @@
 		},
 		{
 			"ImportPath": "github.com/libgit2/git2go",
-			"Rev": "520a0425c736c7d584d21d073b08a8735dd2464f"
+			"Rev": "7443b062c662753b27e36e3435f966421a475273"
 		},
 		{
 			"ImportPath": "github.com/sqs/fileset",
@@ -195,8 +195,12 @@
 			"Rev": "d23f83d0a7b8395f74e5e2f56b44ed4d4d90639c"
 		},
 		{
+			"ImportPath": "sourcegraph.com/sourcegraph/go-diff/diff",
+			"Rev": "8e2678f07218b81b59eb61f31c9646c79ad20250"
+		},
+		{
 			"ImportPath": "sourcegraph.com/sourcegraph/go-vcs/vcs",
-			"Rev": "fc029154cad409648aa88c32ab1d81a069843151"
+			"Rev": "23f36703756feb6d49fad4772f9ead50b4cbd62d"
 		}
 	]
 }
