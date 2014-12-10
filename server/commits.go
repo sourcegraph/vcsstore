@@ -11,10 +11,11 @@ import (
 )
 
 func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error {
-	repo, _, err := h.getRepo(r)
+	repo, _, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	var opt vcs.CommitsOptions
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {

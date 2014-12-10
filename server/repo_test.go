@@ -297,6 +297,8 @@ func (m *mockServiceForExistingRepo) Clone(vcs string, cloneURL *url.URL, opt vc
 	return m.repo, m.err
 }
 
+func (m *mockServiceForExistingRepo) Close(vcs string, cloneURL *url.URL) {}
+
 type mockService struct {
 	t *testing.T
 
@@ -311,10 +313,10 @@ type mockService struct {
 }
 
 func (m *mockService) Open(vcs string, cloneURL *url.URL) (interface{}, error) {
-	if vcs != m.vcs {
+	if m.vcs != "" && vcs != m.vcs {
 		m.t.Errorf("mock: got vcs arg %q, want %q", vcs, m.vcs)
 	}
-	if cloneURL.String() != m.cloneURL.String() {
+	if m.cloneURL != nil && cloneURL.String() != m.cloneURL.String() {
 		m.t.Errorf("mock: got cloneURL arg %q, want %q", cloneURL, m.cloneURL)
 	}
 	return m.open(vcs, cloneURL)
@@ -332,6 +334,8 @@ func (m *mockService) Clone(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (
 	}
 	return m.clone(vcs, cloneURL, opt)
 }
+
+func (m *mockService) Close(vcs string, cloneURL *url.URL) {}
 
 func asJSON(v interface{}) string {
 	b, _ := json.Marshal(v)

@@ -106,6 +106,20 @@ func TestMatch(t *testing.T) {
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "a/b"},
 			wantPath:      "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
 		},
+
+		// Diff
+		{
+			path:          "/" + encodedRepoPath + "/.diff/a..b",
+			wantRouteName: RouteRepoDiff,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Base": "a", "Head": "b"},
+		},
+
+		// Cross-repo diff
+		{
+			path:          "/" + encodedRepoPath + "/.cross-repo-diff/a..git/https/x.com/y/z.git:b",
+			wantRouteName: RouteRepoCrossRepoDiff,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Base": "a", "HeadVCS": "git", "HeadCloneURL": "https://x.com/y/z.git", "Head": "b"},
+		},
 	}
 
 	for _, test := range tests {

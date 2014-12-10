@@ -11,10 +11,11 @@ import (
 func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, err := h.getRepo(r)
+	repo, cloneURL, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	type resolveBranch interface {
 		ResolveBranch(string) (vcs.CommitID, error)
@@ -36,10 +37,11 @@ func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error 
 func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, err := h.getRepo(r)
+	repo, cloneURL, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	type resolveRevision interface {
 		ResolveRevision(string) (vcs.CommitID, error)
@@ -68,10 +70,11 @@ func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) erro
 func (h *Handler) serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, err := h.getRepo(r)
+	repo, cloneURL, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	type resolveTag interface {
 		ResolveTag(string) (vcs.CommitID, error)

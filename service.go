@@ -21,6 +21,9 @@ type Service interface {
 	// repository is returned.
 	Open(vcs string, cloneURL *url.URL) (interface{}, error)
 
+	// Close closes the repository.
+	Close(vcs string, cloneURL *url.URL)
+
 	// Clone clones the repository if a clone doesn't yet exist locally.
 	// Otherwise, it opens the repository. If no errors occur, the repository is
 	// returned.
@@ -60,25 +63,33 @@ func NewService(c *Config) Service {
 		}
 	}
 	return &service{
-		Config: *c,
-		repoMu: make(map[repoKey]*sync.Mutex),
+		Config:    *c,
+		repoMu:    make(map[repoKey]*sync.RWMutex),
+		repos:     map[repoKey]interface{}{},
+		repoUsers: map[repoKey]int{},
 	}
 }
 
 type service struct {
 	Config
 
-	// repoMu prevents more than one goroutine from simultaneously cloning the
-	// same repository.
-	repoMu map[repoKey]*sync.Mutex
+	// repoMu prevents more than one goroutine from simultaneously
+	// cloning the same repository.
+	repoMu map[repoKey]*sync.RWMutex
 
-	// repoMuMu synchronizes access to repoMu.
-	repoMuMu sync.Mutex
+	// repo and repoUsers holds all repos that have been opened and not yet
+	// closed. When the count goes to 0, the repo can be freed. It is
+	// protected by repoMuMu.
+	repos     map[repoKey]interface{}
+	repoUsers map[repoKey]int
+
+	// repoMuMu synchronizes access to repoMu, repo, and repoUsers.
+	repoMuMu sync.RWMutex
 }
 
 type repoKey struct {
 	vcsType  string
-	cloneURL string
+	cloneDir string
 }
 
 func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
@@ -90,12 +101,55 @@ func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
 }
 
 func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
+	key := repoKey{vcsType, cloneDir}
+
+	// Quick check if another goroutine has already opened (and not
+	// yet closed) the repo. Use that instance if so.
+	s.repoMuMu.Lock()
+	if repo := s.repos[key]; repo != nil {
+		s.repoMuMu.Unlock()
+		return repo, nil
+	}
+	s.repoMuMu.Unlock()
+
 	if fi, err := os.Stat(cloneDir); err != nil {
 		return nil, err
 	} else if !fi.Mode().IsDir() {
 		return nil, fmt.Errorf("clone path %q is not a directory", cloneDir)
 	}
-	return vcs.Open(vcsType, cloneDir)
+	repo, err := vcs.Open(vcsType, cloneDir)
+	if err != nil {
+		return nil, err
+	}
+
+	s.repoMuMu.Lock()
+	defer s.repoMuMu.Unlock()
+	s.repoUsers[key]++
+	if repo := s.repos[key]; repo != nil {
+		// Another goroutine raced us to open this repo. Use ours, not
+		// theirs, so that there is only 1 instance of this repo in
+		// use at a time.
+		return repo, nil
+	}
+	// Otherwise, tell other goroutines to use the repo we just opened.
+	s.repos[key] = repo
+
+	return repo, nil
+}
+
+func (s *service) Close(vcsType string, cloneURL *url.URL) {
+	cloneDir, err := s.CloneDir(vcsType, cloneURL)
+	if err != nil {
+		panic(err)
+	}
+	s.repoMuMu.Lock()
+	defer s.repoMuMu.Unlock()
+	key := repoKey{vcsType, cloneDir}
+	s.repoUsers[key]--
+	if s.repoUsers[key] == 0 {
+		delete(s.repoUsers, key)
+		delete(s.repos, key)
+	}
 }
 
 func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
@@ -116,7 +170,7 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (
 	}
 
 	// The local clone directory doesn't exist, so we need to clone the repository.
-	mu := s.Mutex(vcsType, cloneURL)
+	mu := s.Mutex(repoKey{vcsType, cloneDir})
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -172,16 +226,15 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (
 	return s.open(vcsType, cloneDir)
 }
 
-func (s *service) Mutex(vcsType string, cloneURL *url.URL) *sync.Mutex {
+func (s *service) Mutex(key repoKey) *sync.RWMutex {
 	s.repoMuMu.Lock()
 	defer s.repoMuMu.Unlock()
 
-	k := repoKey{vcsType, cloneURL.String()}
-	if mu, ok := s.repoMu[k]; ok {
+	if mu, ok := s.repoMu[key]; ok {
 		return mu
 	}
-	s.repoMu[k] = &sync.Mutex{}
-	return s.repoMu[k]
+	s.repoMu[key] = &sync.RWMutex{}
+	return s.repoMu[key]
 }
 
 func isLowercaseLetter(s string) bool {
