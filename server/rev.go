@@ -53,7 +53,7 @@ func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) erro
 		}
 
 		var statusCode int
-		if commitIDIsCanon(string(commitID)) {
+		if commitIDIsCanon(v["RevSpec"]) {
 			setLongCache(w)
 			statusCode = http.StatusMovedPermanently
 		} else {
