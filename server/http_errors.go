@@ -36,6 +36,7 @@ func errorHTTPStatusCode(err error) int {
 }
 
 var errStatuses = map[error]int{
+	vcs.ErrCommitNotFound:   http.StatusNotFound,
 	vcs.ErrBranchNotFound:   http.StatusNotFound,
 	vcs.ErrRevisionNotFound: http.StatusNotFound,
 	vcs.ErrTagNotFound:      http.StatusNotFound,
