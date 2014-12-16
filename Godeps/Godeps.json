@@ -196,7 +196,7 @@
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/go-diff/diff",
-			"Rev": "8e2678f07218b81b59eb61f31c9646c79ad20250"
+			"Rev": "99814f67d48554a625e7f175acb64cf82ef4f788"
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/go-vcs/vcs",
