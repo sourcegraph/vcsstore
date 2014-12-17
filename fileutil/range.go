@@ -34,6 +34,10 @@ func ComputeFileRange(data []byte, opt vcsclient.GetFileOptions) (*vcsclient.Fil
 		if fr.StartLine == 0 {
 			fr.StartLine = 1 // 1-indexed
 		}
+		if fr.StartLine == 1 && fr.EndLine == 1 && f.LineCount() == 0 {
+			// Empty file.
+			return &fr, f, nil
+		}
 		if fr.StartLine < 0 || fr.StartLine > f.LineCount() {
 			return nil, nil, fmt.Errorf("start line %d out of bounds (%d lines total)", fr.StartLine, f.LineCount())
 		}
