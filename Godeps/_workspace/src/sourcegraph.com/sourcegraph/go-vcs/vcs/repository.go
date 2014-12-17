@@ -120,6 +120,7 @@ type Signature struct {
 // (Repository).Commits.
 type CommitsOptions struct {
 	Head CommitID // include all commits reachable from this commit (required)
+	Base CommitID // exlude all commits reachable from this commit (optional, like `git log Base..Head`)
 
 	N    uint // limit the number of returned commits to this many (0 means no limit)
 	Skip uint // skip this many commits at the beginning
@@ -130,6 +131,8 @@ type DiffOptions struct {
 	Paths                 []string // constrain diff to these pathspecs
 	DetectRenames         bool
 	OrigPrefix, NewPrefix string // prefixes for orig and new filenames (e.g., "a/", "b/")
+
+	ExcludeReachableFromBoth bool // like "<rev1>...<rev2>" (see `git rev-parse --help`)
 }
 
 // A Diff represents changes between two commits.

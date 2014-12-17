@@ -207,6 +207,19 @@ func (r *Repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 		return nil, 0, err
 	}
 
+	if opt.Base != "" {
+		baseOID, err := git2go.NewOid(string(opt.Base))
+		if err != nil {
+			return nil, 0, err
+		}
+		if err := walk.Hide(baseOID); err != nil {
+			if git2go.IsErrorCode(err, git2go.ErrNotFound) {
+				return nil, 0, vcs.ErrCommitNotFound
+			}
+			return nil, 0, err
+		}
+	}
+
 	var commits []*vcs.Commit
 	total := uint(0)
 	err = walk.Iterate(func(c *git2go.Commit) bool {
@@ -294,10 +307,16 @@ func (r *Repository) Diff(base, head vcs.CommitID, opt *vcs.DiffOptions) (*vcs.D
 // diffHoldingLock performs a diff. It must be called while holding
 // r.editLock (either as a reader or writer).
 func (r *Repository) diffHoldingEditLock(base, head vcs.CommitID, opt *vcs.DiffOptions) (*vcs.Diff, error) {
-	gopt := defaultDiffOptions
 	if opt == nil {
 		opt = &vcs.DiffOptions{}
 	}
+
+	if opt.ExcludeReachableFromBoth {
+		// Not implemented in libgit2 yet, so call gitcmd.
+		return r.Repository.Diff(base, head, opt)
+	}
+
+	gopt := defaultDiffOptions
 	gopt.OldPrefix = opt.OrigPrefix
 	gopt.NewPrefix = opt.NewPrefix
 
