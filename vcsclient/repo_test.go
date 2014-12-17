@@ -214,13 +214,13 @@ func TestRepository_Commits(t *testing.T) {
 	mux.HandleFunc(urlPath(t, RouteRepoCommits, repo, nil), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
-		testFormValues(t, r, values{"Head": "abcd", "N": "2", "Skip": "3"})
+		testFormValues(t, r, values{"Head": "abcd", "Base": "wxyz", "N": "2", "Skip": "3"})
 
 		w.Header().Set(TotalCommitsHeader, "123")
 		writeJSON(w, want)
 	})
 
-	commits, total, err := repo.Commits(vcs.CommitsOptions{Head: "abcd", N: 2, Skip: 3})
+	commits, total, err := repo.Commits(vcs.CommitsOptions{Head: "abcd", Base: "wxyz", N: 2, Skip: 3})
 	if err != nil {
 		t.Errorf("Repository.Commits returned error: %v", err)
 	}
