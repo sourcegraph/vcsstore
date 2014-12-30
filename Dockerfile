@@ -19,7 +19,7 @@ RUN go get github.com/tools/godep
 ADD . /opt/src/sourcegraph.com/sourcegraph/vcsstore
 WORKDIR /opt/src/sourcegraph.com/sourcegraph/vcsstore
 RUN make build-libgit2
-RUN godep go install -v ./cmd/vcsstore
+RUN make install
 
 # Trust GitHub's SSH host key (for ssh cloning of GitHub repos)
 RUN mkdir -m 700 -p /root/.ssh
