@@ -2,7 +2,6 @@ package git
 
 /*
 #include <git2.h>
-#include <git2/errors.h>
 
 extern int _go_git_treewalk(git_tree *tree, git_treewalk_mode mode, void *ptr);
 */
@@ -162,7 +161,7 @@ func (v *TreeBuilder) Write() (*Oid, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	err := C.git_treebuilder_write(oid.toC(), v.repo.ptr, v.ptr)
+	err := C.git_treebuilder_write(oid.toC(), v.ptr)
 
 	if err < 0 {
 		return nil, MakeGitError(err)

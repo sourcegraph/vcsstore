@@ -15,3 +15,6 @@ vendor-libgit2:
 build-libgit2:
 	chmod +x $(git2godir)/script/*.sh
 	GOPATH=$(shell godep path) $(MAKE) -C $(git2godir) install
+
+install: build-libgit2
+	godep go install -ldflags '-extldflags=-LGodeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build' ./cmd/vcsstore

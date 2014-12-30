@@ -461,48 +461,44 @@ func diffNotifyCb(_diff_so_far unsafe.Pointer, delta_to_add *C.git_diff_delta, m
 	return 0
 }
 
-func makeCDiffOptions(opts *DiffOptions) (copts *C.git_diff_options, notifyData *diffNotifyData, free func()) {
-	if opts == nil {
-		return nil, nil, nil
-	}
-
-	notifyData = &diffNotifyData{
-		Callback: opts.NotifyCallback,
-	}
-
+func diffOptionsToC(opts *DiffOptions) (copts *C.git_diff_options, notifyData *diffNotifyData) {
 	cpathspec := C.git_strarray{}
-	if opts.Pathspec != nil {
-		cpathspec.count = C.size_t(len(opts.Pathspec))
-		cpathspec.strings = makeCStringsFromStrings(opts.Pathspec)
-	}
-
-	oldPrefix := C.CString(opts.OldPrefix)
-	newPrefix := C.CString(opts.NewPrefix)
-
-	copts = &C.git_diff_options{
-		version:           C.GIT_DIFF_OPTIONS_VERSION,
-		flags:             C.uint32_t(opts.Flags),
-		ignore_submodules: C.git_submodule_ignore_t(opts.IgnoreSubmodules),
-		pathspec:          cpathspec,
-		context_lines:     C.uint32_t(opts.ContextLines),
-		interhunk_lines:   C.uint32_t(opts.InterhunkLines),
-		id_abbrev:         C.uint16_t(opts.IdAbbrev),
-		max_size:          C.git_off_t(opts.MaxSize),
-		old_prefix:        oldPrefix,
-		new_prefix:        newPrefix,
-	}
-
-	if opts.NotifyCallback != nil {
-		C._go_git_setup_diff_notify_callbacks(copts)
-		copts.notify_payload = unsafe.Pointer(notifyData)
-	}
-
-	return copts, notifyData, func() {
-		if opts.Pathspec != nil {
-			freeStrarray(&cpathspec)
+	if opts != nil {
+		notifyData = &diffNotifyData{
+			Callback: opts.NotifyCallback,
 		}
-		C.free(unsafe.Pointer(oldPrefix))
-		C.free(unsafe.Pointer(newPrefix))
+		if opts.Pathspec != nil {
+			cpathspec.count = C.size_t(len(opts.Pathspec))
+			cpathspec.strings = makeCStringsFromStrings(opts.Pathspec)
+		}
+
+		copts = &C.git_diff_options{
+			version:           C.GIT_DIFF_OPTIONS_VERSION,
+			flags:             C.uint32_t(opts.Flags),
+			ignore_submodules: C.git_submodule_ignore_t(opts.IgnoreSubmodules),
+			pathspec:          cpathspec,
+			context_lines:     C.uint32_t(opts.ContextLines),
+			interhunk_lines:   C.uint32_t(opts.InterhunkLines),
+			id_abbrev:         C.uint16_t(opts.IdAbbrev),
+			max_size:          C.git_off_t(opts.MaxSize),
+			old_prefix:        C.CString(opts.OldPrefix),
+			new_prefix:        C.CString(opts.NewPrefix),
+		}
+
+		if opts.NotifyCallback != nil {
+			C._go_git_setup_diff_notify_callbacks(copts)
+			copts.notify_payload = unsafe.Pointer(notifyData)
+		}
+	}
+	return
+}
+
+func freeDiffOptions(copts *C.git_diff_options) {
+	if copts != nil {
+		cpathspec := copts.pathspec
+		freeStrarray(&cpathspec)
+		C.free(unsafe.Pointer(copts.old_prefix))
+		C.free(unsafe.Pointer(copts.new_prefix))
 	}
 }
 
@@ -518,10 +514,8 @@ func (v *Repository) DiffTreeToTree(oldTree, newTree *Tree, opts *DiffOptions) (
 		newPtr = newTree.cast_ptr
 	}
 
-	copts, notifyData, free := makeCDiffOptions(opts)
-	if free != nil {
-		defer free()
-	}
+	copts, notifyData := diffOptionsToC(opts)
+	defer freeDiffOptions(copts)
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -545,10 +539,8 @@ func (v *Repository) DiffTreeToWorkdir(oldTree *Tree, opts *DiffOptions) (*Diff,
 		oldPtr = oldTree.cast_ptr
 	}
 
-	copts, notifyData, free := makeCDiffOptions(opts)
-	if free != nil {
-		defer free()
-	}
+	copts, notifyData := diffOptionsToC(opts)
+	defer freeDiffOptions(copts)
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -562,5 +554,4 @@ func (v *Repository) DiffTreeToWorkdir(oldTree *Tree, opts *DiffOptions) (*Diff,
 		return notifyData.Diff, nil
 	}
 	return newDiffFromC(diffPtr), nil
-
 }

@@ -21,6 +21,11 @@
 
 GIT_BEGIN_DECL
 
+/**
+ * Flags to pass to transport
+ *
+ * Currently unused.
+ */
 typedef enum {
 	GIT_TRANSPORTFLAGS_NONE = 0,
 } git_transport_flags_t;
@@ -49,7 +54,7 @@ struct git_transport {
 
 	/* This function may be called after a successful call to
 	 * connect(). The array returned is owned by the transport and
-	 * is guranteed until the next call of a transport function. */
+	 * is guaranteed until the next call of a transport function. */
 	int (*ls)(
 		const git_remote_head ***out,
 		size_t *size,
@@ -286,12 +291,20 @@ typedef int (*git_smart_subtransport_cb)(
 	git_smart_subtransport **out,
 	git_transport* owner);
 
+/**
+ * Definition for a "subtransport"
+ *
+ * This is used to let the smart protocol code know about the protocol
+ * which you are implementing.
+ */
 typedef struct git_smart_subtransport_definition {
-	/* The function to use to create the git_smart_subtransport */
+	/** The function to use to create the git_smart_subtransport */
 	git_smart_subtransport_cb callback;
 
-	/* True if the protocol is stateless; false otherwise. For example,
-	 * http:// is stateless, but git:// is not. */
+	/**
+	 * True if the protocol is stateless; false otherwise. For example,
+	 * http:// is stateless, but git:// is not.
+	 */
 	unsigned rpc;
 } git_smart_subtransport_definition;
 

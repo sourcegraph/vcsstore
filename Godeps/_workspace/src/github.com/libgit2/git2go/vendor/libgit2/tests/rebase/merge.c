@@ -8,12 +8,24 @@
 static git_repository *repo;
 static git_signature *signature;
 
+static void set_core_autocrlf_to(git_repository *repo, bool value)
+{
+	git_config *cfg;
+
+	cl_git_pass(git_repository_config(&cfg, repo));
+	cl_git_pass(git_config_set_bool(cfg, "core.autocrlf", value));
+
+	git_config_free(cfg);
+}
+
 // Fixture setup and teardown
 void test_rebase_merge__initialize(void)
 {
 	repo = cl_git_sandbox_init("rebase");
 	cl_git_pass(git_signature_new(&signature,
 		"Rebaser", "rebaser@rebaser.rb", 1405694510, 0));
+
+	set_core_autocrlf_to(repo, false);
 }
 
 void test_rebase_merge__cleanup(void)
@@ -416,9 +428,9 @@ static void test_copy_note(
 		branch_ref, GIT_OBJ_COMMIT));
 
 	/* Add a note to a commit */
-	cl_git_pass(git_note_create(&note_id, repo,
+	cl_git_pass(git_note_create(&note_id, repo, "refs/notes/test",
 		git_commit_author(branch_commit), git_commit_committer(branch_commit),
-		"refs/notes/test", git_commit_id(branch_commit),
+		git_commit_id(branch_commit),
 		"This is a commit note.", 0));
 
 	cl_git_pass(git_rebase_init(&rebase, repo, branch_head, upstream_head, NULL, signature, opts));

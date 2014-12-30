@@ -170,7 +170,7 @@
 		},
 		{
 			"ImportPath": "github.com/libgit2/git2go",
-			"Rev": "7443b062c662753b27e36e3435f966421a475273"
+			"Rev": "db3754ce8db412a7fd82cca2d0f91ddbcf90b475"
 		},
 		{
 			"ImportPath": "github.com/sqs/fileset",
@@ -200,7 +200,7 @@
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/go-vcs/vcs",
-			"Rev": "1f3b66e5d406581fc62ddc9b328f2a7e021b2fa6"
+			"Rev": "bbd6d0e7d1b3f7f5457d8d8b78889326cbf2f52f"
 		}
 	]
 }

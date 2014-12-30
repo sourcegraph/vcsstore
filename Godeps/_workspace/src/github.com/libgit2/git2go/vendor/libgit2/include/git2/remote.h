@@ -555,6 +555,11 @@ GIT_EXTERN(const git_remote_callbacks *) git_remote_get_callbacks(git_remote *re
  */
 GIT_EXTERN(const git_transfer_progress *) git_remote_stats(git_remote *remote);
 
+/**
+ * Automatic tag following option
+ *
+ * Lets us select the --tags option to use.
+ */
 typedef enum {
 	GIT_REMOTE_DOWNLOAD_TAGS_AUTO = 0,
 	GIT_REMOTE_DOWNLOAD_TAGS_NONE = 1,
@@ -593,7 +598,7 @@ GIT_EXTERN(void) git_remote_set_autotag(
  *
  * @param problems non-default refspecs cannot be renamed and will be
  * stored here for further processing by the caller. Always free this
- * strarray on succesful return.
+ * strarray on successful return.
  * @param repo the repository in which to rename
  * @param name the current name of the reamote
  * @param new_name the new name the remote should bear
