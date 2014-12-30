@@ -37,4 +37,4 @@ install:
 
 script:
   - make install
-  - go list ./... | grep -v cluster | xargs godep go test -tags lgtest -ldflags '-extldflags=-LGodeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build' 
+  - make test 

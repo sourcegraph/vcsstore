@@ -18,3 +18,6 @@ build-libgit2:
 
 install: build-libgit2
 	godep go install -ldflags '-extldflags=-LGodeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build' ./cmd/vcsstore
+
+test:
+	go list ./... | grep -v cluster | xargs godep go test -tags lgtest -ldflags '-extldflags=-LGodeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build'
