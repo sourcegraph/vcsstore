@@ -8,7 +8,6 @@ RUN curl -Ls https://golang.org/dl/go1.3.3.linux-amd64.tar.gz | tar -C /usr/loca
 ENV PATH /usr/local/go/bin:$PATH
 ENV GOBIN /usr/local/bin
 
-# Install libgit2 (for git2go); use pinned version from 2014-05-11 (because it is known to work; there's nothing otherwise special about this commit).
 RUN apt-get install -qy cmake libssh2-1-dev libssl-dev
 
 # Install hglib (for hg blame)
