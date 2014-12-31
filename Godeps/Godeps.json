@@ -200,7 +200,7 @@
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/go-vcs/vcs",
-			"Rev": "bbd6d0e7d1b3f7f5457d8d8b78889326cbf2f52f"
+			"Rev": "a167c3f7f70262b026aec58b6070c710e90a76d4"
 		}
 	]
 }

@@ -120,6 +120,20 @@ func TestMatch(t *testing.T) {
 			wantRouteName: RouteRepoCrossRepoDiff,
 			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Base": "a", "HeadVCS": "git", "HeadCloneURL": "https://x.com/y/z.git", "Head": "b"},
 		},
+
+		// Merge Base
+		{
+			path:          "/" + encodedRepoPath + "/.merge-base/a/b",
+			wantRouteName: RouteRepoMergeBase,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitIDA": "a", "CommitIDB": "b"},
+		},
+
+		// Cross-repo merge base
+		{
+			path:          "/" + encodedRepoPath + "/.cross-repo-merge-base/a/git/https/x.com/y/z.git/b",
+			wantRouteName: RouteRepoCrossRepoMergeBase,
+			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitIDA": "a", "BVCS": "git", "BCloneURL": "https://x.com/y/z.git", "CommitIDB": "b"},
+		},
 	}
 
 	for _, test := range tests {
