@@ -56,6 +56,7 @@ func NewHandler(svc vcsstore.Service, parent *mux.Router, wrap func(http.Handler
 	r.Get(vcsclient.RouteRepoDiff).Handler(wrap(handler{h, h.serveRepoDiff}))
 	r.Get(vcsclient.RouteRepoCrossRepoDiff).Handler(wrap(handler{h, h.serveRepoCrossRepoDiff}))
 	r.Get(vcsclient.RouteRepoMergeBase).Handler(wrap(handler{h, h.serveRepoMergeBase}))
+	r.Get(vcsclient.RouteRepoCrossRepoMergeBase).Handler(wrap(handler{h, h.serveRepoCrossRepoMergeBase}))
 	r.Get(vcsclient.RouteRepoRevision).Handler(wrap(handler{h, h.serveRepoRevision}))
 	r.Get(vcsclient.RouteRepoTag).Handler(wrap(handler{h, h.serveRepoTag}))
 	r.Get(vcsclient.RouteRepoTags).Handler(wrap(handler{h, h.serveRepoTags}))

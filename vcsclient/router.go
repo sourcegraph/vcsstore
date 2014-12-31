@@ -14,21 +14,22 @@ import (
 
 const (
 	// Route names
-	RouteRepo               = "vcs:repo"
-	RouteRepoBlameFile      = "vcs:repo.blame-file"
-	RouteRepoBranch         = "vcs:repo.branch"
-	RouteRepoBranches       = "vcs:repo.branches"
-	RouteRepoCommit         = "vcs:repo.commit"
-	RouteRepoCommits        = "vcs:repo.commits"
-	RouteRepoCreateOrUpdate = "vcs:repo.create-or-update"
-	RouteRepoDiff           = "vcs:repo.diff"
-	RouteRepoCrossRepoDiff  = "vcs:repo.cross-repo-diff"
-	RouteRepoMergeBase      = "vcs:repo.merge-base"
-	RouteRepoRevision       = "vcs:repo.rev"
-	RouteRepoTag            = "vcs:repo.tag"
-	RouteRepoTags           = "vcs:repo.tags"
-	RouteRepoTreeEntry      = "vcs:repo.tree-entry"
-	RouteRoot               = "vcs:root"
+	RouteRepo                   = "vcs:repo"
+	RouteRepoBlameFile          = "vcs:repo.blame-file"
+	RouteRepoBranch             = "vcs:repo.branch"
+	RouteRepoBranches           = "vcs:repo.branches"
+	RouteRepoCommit             = "vcs:repo.commit"
+	RouteRepoCommits            = "vcs:repo.commits"
+	RouteRepoCreateOrUpdate     = "vcs:repo.create-or-update"
+	RouteRepoDiff               = "vcs:repo.diff"
+	RouteRepoCrossRepoDiff      = "vcs:repo.cross-repo-diff"
+	RouteRepoMergeBase          = "vcs:repo.merge-base"
+	RouteRepoCrossRepoMergeBase = "vcs:repo.cross-repo-merge-base"
+	RouteRepoRevision           = "vcs:repo.rev"
+	RouteRepoTag                = "vcs:repo.tag"
+	RouteRepoTags               = "vcs:repo.tags"
+	RouteRepoTreeEntry          = "vcs:repo.tree-entry"
+	RouteRoot                   = "vcs:root"
 )
 
 type Router muxpkg.Router
@@ -85,7 +86,8 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	repo.Path("/.revs/{RevSpec:.+}").Methods("GET").Name(RouteRepoRevision)
 	repo.Path("/.tags").Methods("GET").Name(RouteRepoTags)
 	repo.Path("/.tags/{Tag:.+}").Methods("GET").Name(RouteRepoTag)
-	repo.Path("/.merge-base/{CommitID1}/{CommitID2}").Methods("GET").Name(RouteRepoMergeBase)
+	repo.Path("/.merge-base/{CommitIDA}/{CommitIDB}").Methods("GET").Name(RouteRepoMergeBase)
+	repo.Path("/.cross-repo-merge-base/{CommitIDA}/{EncodedBRepo:" + encodedRepoPattern + "}/{CommitIDB}").Methods("GET").PostMatchFunc(unescapeRepoVars("B")).BuildVarsFunc(escapeRepoVars("B")).Name(RouteRepoCrossRepoMergeBase)
 	repo.Path("/.commits").Methods("GET").Name(RouteRepoCommits)
 	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
@@ -194,7 +196,11 @@ func (r *Router) URLToRepoTreeEntry(vcsType string, cloneURL *url.URL, commitID 
 }
 
 func (r *Router) URLToRepoMergeBase(vcsType string, cloneURL *url.URL, a, b vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoMergeBase, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID1", string(a), "CommitID2", string(b))
+	return r.URLTo(RouteRepoMergeBase, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitIDA", string(a), "CommitIDB", string(b))
+}
+
+func (r *Router) URLToRepoCrossRepoMergeBase(vcsType string, cloneURL *url.URL, a vcs.CommitID, bVCS string, bCloneURL *url.URL, b vcs.CommitID) *url.URL {
+	return r.URLTo(RouteRepoCrossRepoMergeBase, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitIDA", string(a), "BVCS", bVCS, "BCloneURL", bCloneURL.String(), "CommitIDB", string(b))
 }
 
 func (r *Router) URLTo(route string, vars ...string) *url.URL {
