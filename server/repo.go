@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/libgit2/git2go"
 	"github.com/sqs/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
@@ -67,20 +66,18 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 }
 
 func cloneOrUpdateError(err error) error {
-	if gitErr, ok := err.(*git.GitError); ok {
-		if gitErr.Class == git.ErrClassSsh {
-			var c int
-			switch gitErr.Message {
-			case "authentication required but no callback set":
-				c = http.StatusUnauthorized
-			case "callback returned unsupported credentials type":
-				c = http.StatusUnauthorized
-			case "Failed to authenticate SSH session: Waiting for USERAUTH response":
-				c = http.StatusForbidden
-			}
-			if c != 0 {
-				return &httpError{err: gitErr, statusCode: c}
-			}
+	if err != nil {
+		var c int
+		switch err.Error() {
+		case "authentication required but no callback set":
+			c = http.StatusUnauthorized
+		case "callback returned unsupported credentials type":
+			c = http.StatusUnauthorized
+		case "Failed to authenticate SSH session: Waiting for USERAUTH response":
+			c = http.StatusForbidden
+		}
+		if c != 0 {
+			return &httpError{err: err, statusCode: c}
 		}
 	}
 	return err
