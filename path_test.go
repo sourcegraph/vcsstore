@@ -12,6 +12,7 @@ func TestEncodeAndDecodeRepositoryPath(t *testing.T) {
 		want        string
 	}{
 		{"git", "git://foo.com/bar/baz.git", "git/git/foo.com/bar/baz.git"},
+		{"git", "ssh://git@github.com/sourcegraph/go-sourcegraph.git", "git/ssh/git@github.com/sourcegraph/go-sourcegraph.git"},
 	}
 	for _, repo := range repos {
 		cloneURL, err := url.Parse(repo.cloneURLStr)

@@ -105,7 +105,7 @@ func TestIntegration(t *testing.T) {
 					t.Errorf("clone %v failed: %s", ri, err)
 					return
 				}
-				err = repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate()
+				err = repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
 				if err != nil {
 					t.Errorf("remote clone %v failed: %s", ri, err)
 					return
@@ -129,7 +129,7 @@ func TestIntegration(t *testing.T) {
 					if err != nil {
 						return fmt.Errorf("repo %v: resolve branch 'master' failed: %s", ri, err)
 					}
-					commits, err := repo.Commits(vcs.CommitsOptions{Head: commitID})
+					commits, _, err := repo.Commits(vcs.CommitsOptions{Head: commitID})
 					if err != nil {
 						return fmt.Errorf("repo %v: commit log of 'master' failed: %s", ri, err)
 					}

@@ -40,5 +40,5 @@ func parseHostAndUserinfo(s string) (string, *url.Userinfo) {
 
 	userRaw := s[:delim]
 	host := s[delim+1:]
-	return host, url.UserPassword(userRaw, "")
+	return host, url.User(userRaw)
 }
