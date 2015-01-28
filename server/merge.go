@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/sqs/mux"
@@ -55,9 +54,6 @@ func (h *Handler) serveRepoCrossRepoMergeBase(w http.ResponseWriter, r *http.Req
 		return err
 	}
 	defer doneB()
-
-	log.Printf("repoA = %T %p", repoA, repoA)
-	log.Printf("repoB = %T %p", repoB, repoB)
 
 	if repoA, ok := repoA.(vcs.CrossRepoMerger); ok {
 		a, b := vcs.CommitID(v["CommitIDA"]), vcs.CommitID(v["CommitIDB"])
