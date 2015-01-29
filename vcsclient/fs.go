@@ -95,8 +95,13 @@ func (fs *repositoryFS) Get(path string) (*TreeEntry, error) {
 
 // FileRange is a line and byte range in a file.
 type FileRange struct {
-	StartLine, EndLine int `url:",omitempty"` // start and end line range
-	StartByte, EndByte int `url:",omitempty"` // start and end byte range
+	// Start and end line range
+	StartLine int `url:",omitempty" json:"startLine,omitempty"`
+	EndLine   int `url:",omitempty" json:"endLine,omitempty"`
+
+	// Start and end byte range
+	StartByte int `url:",omitempty" json:"byteStart,omitempty"`
+	EndByte   int `url:",omitempty" json:"byteEnd,omitempty"`
 }
 
 // FileWithRange is returned by GetFileWithOptions and includes the
