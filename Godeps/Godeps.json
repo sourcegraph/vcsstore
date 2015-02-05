@@ -173,12 +173,12 @@
 			"Rev": "db3754ce8db412a7fd82cca2d0f91ddbcf90b475"
 		},
 		{
-			"ImportPath": "github.com/sqs/fileset",
-			"Rev": "4317e899aa9438ba7603a6e322389571cb3ffdff"
+			"ImportPath": "github.com/sourcegraph/mux",
+			"Rev": "dd22f369d469f65c3946889f5d8a1fb3933192e9"
 		},
 		{
-			"ImportPath": "github.com/sqs/mux",
-			"Rev": "68e4a78b39826e7f0e4dabdc3f6b58ff5055c1e1"
+			"ImportPath": "github.com/sqs/fileset",
+			"Rev": "4317e899aa9438ba7603a6e322389571cb3ffdff"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/ssh",

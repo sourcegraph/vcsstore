@@ -7,7 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/sqs/mux"
+	"github.com/sourcegraph/mux"
 	"golang.org/x/tools/godoc/vfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/fileutil"
