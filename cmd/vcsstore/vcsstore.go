@@ -21,10 +21,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/gorilla/handlers"
+	"github.com/lox/httpcache"
 	"sourcegraph.com/sourcegraph/datad"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/git"
@@ -112,6 +114,7 @@ func serveCmd(args []string) {
 	tlsCert := fs.String("tls.cert", "", "TLS certificate file (if set, server uses TLS)")
 	tlsKey := fs.String("tls.key", "", "TLS key file (if set, server uses TLS)")
 	basicAuth := fs.String("http.basicauth", "", "if set to 'user:passwd', require HTTP Basic Auth")
+	cache := fs.String("cache", "", "HTTP cache (either 'mem' or 'disk:/path/to/cache/dir')")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore serve [options]
 
@@ -177,6 +180,7 @@ The options are:
 	} else {
 		h = vh
 	}
+	h = cacheHandler(*cache, h)
 	http.Handle("/", handlers.CombinedLoggingHandler(os.Stderr, h))
 
 	if *tlsCert != "" || *tlsKey != "" {
@@ -186,6 +190,32 @@ The options are:
 		fmt.Fprintf(os.Stderr, "Starting HTTP server on %s\n", *bindAddr)
 		log.Fatal(http.ListenAndServe(*bindAddr, nil))
 	}
+}
+
+func cacheHandler(cacheOpt string, h http.Handler) http.Handler {
+	if cacheOpt == "" {
+		return h
+	}
+	var cache *httpcache.Cache
+	if cacheOpt == "mem" {
+		cache = httpcache.NewMemoryCache()
+		log.Printf("Using in-memory HTTP cache.")
+	} else if strings.HasPrefix(cacheOpt, "disk:") {
+		dir := cacheOpt[len("disk:"):]
+		log.Printf("Using on-disk HTTP cache at %q.", dir)
+		var err error
+		cache, err = httpcache.NewDiskCache(dir)
+		if err != nil {
+			log.Fatalf("Error creating HTTP disk cache at dir %q: %s.", dir, err)
+		}
+	} else {
+		log.Fatalf("Invalid -cache option: %q.", cacheOpt)
+	}
+	ch := httpcache.NewHandler(cache, h)
+	if v, _ := strconv.ParseBool(os.Getenv("LOG_CACHE")); !v {
+		ch.Logger = log.New(ioutil.Discard, "", 0)
+	}
+	return ch
 }
 
 func newBasicAuthHandler(user, passwd string, h http.Handler) http.Handler {

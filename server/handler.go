@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/gorilla/schema"
 	"github.com/sourcegraph/mux"
@@ -66,6 +67,7 @@ func NewHandler(svc vcsstore.Service, parent *mux.Router, wrap func(http.Handler
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("date", time.Now().UTC().Format(http.TimeFormat))
 	(*mux.Router)(h.router).ServeHTTP(w, r)
 }
 
