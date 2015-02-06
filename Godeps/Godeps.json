@@ -1,6 +1,6 @@
 {
 	"ImportPath": "sourcegraph.com/sourcegraph/vcsstore",
-	"GoVersion": "go1.3.3",
+	"GoVersion": "go1.4.1",
 	"Packages": [
 		"./..."
 	],
@@ -173,6 +173,10 @@
 			"Rev": "db3754ce8db412a7fd82cca2d0f91ddbcf90b475"
 		},
 		{
+			"ImportPath": "github.com/lox/httpcache",
+			"Rev": "a8b851cd2a43940eb29fd6b2c60f047477b0e1a0"
+		},
+		{
 			"ImportPath": "github.com/sourcegraph/mux",
 			"Rev": "dd22f369d469f65c3946889f5d8a1fb3933192e9"
 		},
@@ -189,6 +193,10 @@
 			"ImportPath": "golang.org/x/tools/godoc/vfs",
 			"Comment": "null-1217",
 			"Rev": "7ff397840258469cc590e818fa09ccc1819cf5f1"
+		},
+		{
+			"ImportPath": "gopkgs.com/vfs.v1",
+			"Rev": "60e0a240148f4dce1a8a1f5639b0e0c9e25fd288"
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/datad",
