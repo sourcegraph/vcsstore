@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/sqs/mux"
+	"github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )

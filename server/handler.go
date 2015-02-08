@@ -8,7 +8,7 @@ import (
 	"reflect"
 
 	"github.com/gorilla/schema"
-	"github.com/sqs/mux"
+	"github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"

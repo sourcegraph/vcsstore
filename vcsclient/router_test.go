@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/kr/pretty"
-	muxpkg "github.com/sqs/mux"
+	muxpkg "github.com/sourcegraph/mux"
 )
 
 func TestMatch(t *testing.T) {
