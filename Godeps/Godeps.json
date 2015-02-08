@@ -174,7 +174,7 @@
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/mux",
-			"Rev": "68e4a78b39826e7f0e4dabdc3f6b58ff5055c1e1"
+			"Rev": "dd22f369d469f65c3946889f5d8a1fb3933192e9"
 		},
 		{
 			"ImportPath": "github.com/sqs/fileset",
