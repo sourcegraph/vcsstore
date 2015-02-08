@@ -100,8 +100,8 @@ type FileRange struct {
 	EndLine   int `url:",omitempty" json:"endLine,omitempty"`
 
 	// Start and end byte range
-	StartByte int `url:",omitempty" json:"byteStart,omitempty"`
-	EndByte   int `url:",omitempty" json:"byteEnd,omitempty"`
+	StartByte int `url:",omitempty"`
+	EndByte   int `url:",omitempty"`
 }
 
 // FileWithRange is returned by GetFileWithOptions and includes the
