@@ -106,7 +106,7 @@ func (r *Repository) ResolveRevision(spec string) (vcs.CommitID, error) {
 		return "", err
 	}
 
-	cmd := exec.Command("git", "rev-parse", spec)
+	cmd := exec.Command("git", "rev-parse", spec+"^{commit}")
 	cmd.Dir = r.Dir
 	stdout, stderr, err := dividedOutput(cmd)
 	if err != nil {
@@ -274,7 +274,7 @@ func (r *Repository) commitLog(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, err
 	// Range
 	rng := string(opt.Head)
 	if opt.Base != "" {
-		rng += ".." + string(opt.Base)
+		rng += "..." + string(opt.Base)
 	}
 	args = append(args, rng)
 
@@ -328,7 +328,7 @@ func (r *Repository) commitLog(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, err
 	}
 
 	// Count commits.
-	cmd = exec.Command("git", "rev-list", "--count", string(opt.Head))
+	cmd = exec.Command("git", "rev-list", "--count", rng)
 	cmd.Dir = r.Dir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -485,7 +485,12 @@ func (r *Repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk,
 		return nil, err
 	}
 
-	cmd := exec.Command("git", "blame", "-w", "--porcelain", string(opt.NewestCommit), "--", path)
+	args := []string{"blame", "-w", "--porcelain"}
+	if opt.StartLine != 0 || opt.EndLine != 0 {
+		args = append(args, fmt.Sprintf("-L%d,%d", opt.StartLine, opt.EndLine))
+	}
+	args = append(args, string(opt.NewestCommit), "--", path)
+	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -549,8 +554,6 @@ func (r *Repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk,
 					Date:  time.Unix(authorTime, 0).In(time.UTC),
 				},
 			}
-			hunk.CommitID = commit.ID
-			hunk.Author = commit.Author
 
 			if len(remainingLines) >= 13 && strings.HasPrefix(remainingLines[10], "previous ") {
 				byteOffset += len(remainingLines[12])
@@ -569,6 +572,14 @@ func (r *Repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk,
 			}
 
 			commits[commitID] = commit
+		}
+
+		if commit, present := commits[commitID]; present {
+			// Should always be present, but check just to avoid
+			// panicking in case of a (somewhat likely) bug in our
+			// git-blame parser above.
+			hunk.CommitID = commit.ID
+			hunk.Author = commit.Author
 		}
 
 		// Consume remaining lines in hunk
@@ -698,7 +709,15 @@ func (fs *gitFSCmd) Lstat(path string) (os.FileInfo, error) {
 	return fis[0], nil
 }
 
+// SetModTime is a boolean indicating whether os.FileInfos
+// representing files should have their ModTime set (which can be slow
+// on large repositories).
+var SetModTime = true
+
 func (fs *gitFSCmd) getModTimeFromGitLog(path string) (time.Time, error) {
+	if !SetModTime {
+		return time.Time{}, nil
+	}
 	cmd := exec.Command("git", "log", "-1", "--format=%ad", string(fs.at), "--", path)
 	cmd.Dir = fs.dir
 	out, err := cmd.CombinedOutput()

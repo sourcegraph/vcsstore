@@ -23,7 +23,7 @@ void test_object_tree_attributes__ensure_correctness_of_attributes_on_insertion(
 
 	cl_git_pass(git_oid_fromstr(&oid, blob_oid));
 
-	cl_git_pass(git_treebuilder_create(&builder, repo, NULL));
+	cl_git_pass(git_treebuilder_new(&builder, repo, NULL));
 
 	cl_git_fail(git_treebuilder_insert(NULL, builder, "one.txt", &oid, (git_filemode_t)0777777));
 	cl_git_fail(git_treebuilder_insert(NULL, builder, "one.txt", &oid, (git_filemode_t)0100666));
@@ -38,7 +38,6 @@ void test_object_tree_attributes__group_writable_tree_entries_created_with_an_an
 	git_tree *tree;
 	const git_tree_entry *entry;
 
-	cl_git_pass(git_repository_open(&repo, cl_fixture("deprecated-mode.git")));
 
 	cl_git_pass(git_oid_fromstr(&tid, tree_oid));
 	cl_git_pass(git_tree_lookup(&tree, repo, &tid));
@@ -58,7 +57,7 @@ void test_object_tree_attributes__treebuilder_reject_invalid_filemode(void)
 	const git_tree_entry *entry;
 
 	cl_git_pass(git_oid_fromstr(&bid, blob_oid));
-	cl_git_pass(git_treebuilder_create(&builder, repo, NULL));
+	cl_git_pass(git_treebuilder_new(&builder, repo, NULL));
 
 	cl_git_fail(git_treebuilder_insert(
 		&entry,
@@ -80,7 +79,7 @@ void test_object_tree_attributes__normalize_attributes_when_creating_a_tree_from
 	cl_git_pass(git_oid_fromstr(&tid, tree_oid));
 	cl_git_pass(git_tree_lookup(&tree, repo, &tid));
 
-	cl_git_pass(git_treebuilder_create(&builder, repo, tree));
+	cl_git_pass(git_treebuilder_new(&builder, repo, tree));
 	
 	entry = git_treebuilder_get(builder, "old_mode.txt");
 	cl_assert_equal_i(

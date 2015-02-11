@@ -35,6 +35,9 @@ typedef struct {
 	int flags;
 	git_atomic cancelled;
 	git_repository *repo;
+	git_transport_message_cb progress_cb;
+	git_transport_message_cb error_cb;
+	void *message_cb_payload;
 	git_vector refs;
 	unsigned connected : 1,
 		have_refs : 1;
@@ -126,8 +129,10 @@ static int add_ref(transport_local *t, const char *name)
 	head = git__calloc(1, sizeof(git_remote_head));
 	GITERR_CHECK_ALLOC(head);
 
-	if (git_buf_join(&buf, 0, name, peeled) < 0)
+	if (git_buf_join(&buf, 0, name, peeled) < 0) {
+		free_head(head);
 		return -1;
+	}
 	head->name = git_buf_detach(&buf);
 
 	if (!(error = git_tag_peel(&target, (git_tag *)obj))) {
@@ -494,6 +499,8 @@ static int foreach_cb(void *buf, size_t len, void *payload)
 	return data->writepack->append(data->writepack, buf, len, data->stats);
 }
 
+static const char *counting_objects_fmt = "Counting objects %d\r";
+
 static int local_download_pack(
 		git_transport *transport,
 		git_repository *repo,
@@ -510,6 +517,7 @@ static int local_download_pack(
 	git_packbuilder *pack = NULL;
 	git_odb_writepack *writepack = NULL;
 	git_odb *odb = NULL;
+	git_buf progress_info = GIT_BUF_INIT;
 
 	if ((error = git_revwalk_new(&walk, t->repo)) < 0)
 		goto cleanup;
@@ -540,6 +548,13 @@ static int local_download_pack(
 		git_object_free(obj);
 	}
 
+	if ((error = git_buf_printf(&progress_info, counting_objects_fmt, git_packbuilder_object_count(pack))) < 0)
+		goto cleanup;
+
+	if (t->progress_cb &&
+	    (error = t->progress_cb(git_buf_cstr(&progress_info), git_buf_len(&progress_info), t->message_cb_payload)) < 0)
+		goto cleanup;
+
 	/* Walk the objects, building a packfile */
 	if ((error = git_repository_odb__weakptr(&odb, repo)) < 0)
 		goto cleanup;
@@ -561,8 +576,27 @@ static int local_download_pack(
 			}
 
 			git_commit_free(commit);
+
+			git_buf_clear(&progress_info);
+			if ((error = git_buf_printf(&progress_info, counting_objects_fmt, git_packbuilder_object_count(pack))) < 0)
+				goto cleanup;
+
+			if (t->progress_cb &&
+			    (error = t->progress_cb(git_buf_cstr(&progress_info), git_buf_len(&progress_info), t->message_cb_payload)) < 0)
+				goto cleanup;
+
 		}
 	}
+
+	/* One last one with the newline */
+	git_buf_clear(&progress_info);
+	git_buf_printf(&progress_info, counting_objects_fmt, git_packbuilder_object_count(pack));
+	if ((error = git_buf_putc(&progress_info, '\n')) < 0)
+		goto cleanup;
+
+	if (t->progress_cb &&
+	    (error = t->progress_cb(git_buf_cstr(&progress_info), git_buf_len(&progress_info), t->message_cb_payload)) < 0)
+		goto cleanup;
 
 	if ((error = git_odb_write_pack(&writepack, odb, progress_cb, progress_payload)) != 0)
 		goto cleanup;
@@ -582,9 +616,28 @@ static int local_download_pack(
 
 cleanup:
 	if (writepack) writepack->free(writepack);
+	git_buf_free(&progress_info);
 	git_packbuilder_free(pack);
 	git_revwalk_free(walk);
 	return error;
+}
+
+static int local_set_callbacks(
+	git_transport *transport,
+	git_transport_message_cb progress_cb,
+	git_transport_message_cb error_cb,
+	git_transport_certificate_check_cb certificate_check_cb,
+	void *message_cb_payload)
+{
+	transport_local *t = (transport_local *)transport;
+
+	GIT_UNUSED(certificate_check_cb);
+
+	t->progress_cb = progress_cb;
+	t->error_cb = error_cb;
+	t->message_cb_payload = message_cb_payload;
+
+	return 0;
 }
 
 static int local_is_connected(git_transport *transport)
@@ -648,6 +701,7 @@ static void local_free(git_transport *transport)
 
 int git_transport_local(git_transport **out, git_remote *owner, void *param)
 {
+	int error;
 	transport_local *t;
 
 	GIT_UNUSED(param);
@@ -656,6 +710,7 @@ int git_transport_local(git_transport **out, git_remote *owner, void *param)
 	GITERR_CHECK_ALLOC(t);
 
 	t->parent.version = GIT_TRANSPORT_VERSION;
+	t->parent.set_callbacks = local_set_callbacks;
 	t->parent.connect = local_connect;
 	t->parent.negotiate_fetch = local_negotiate_fetch;
 	t->parent.download_pack = local_download_pack;
@@ -667,7 +722,11 @@ int git_transport_local(git_transport **out, git_remote *owner, void *param)
 	t->parent.read_flags = local_read_flags;
 	t->parent.cancel = local_cancel;
 
-	git_vector_init(&t->refs, 0, NULL);
+	if ((error = git_vector_init(&t->refs, 0, NULL)) < 0) {
+		git__free(t);
+		return error;
+	}
+
 	t->owner = owner;
 
 	*out = (git_transport *) t;
