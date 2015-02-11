@@ -49,7 +49,8 @@ func parseHeaders(input []string) http.Header {
 }
 
 type client struct {
-	handler http.Handler
+	handler      http.Handler
+	cacheHandler *httpcache.Handler
 }
 
 func (c *client) do(r *http.Request) *clientResponse {
@@ -73,6 +74,7 @@ func (c *client) do(r *http.Request) *clientResponse {
 	return &clientResponse{
 		ResponseRecorder: rec,
 		cacheStatus:      rec.HeaderMap.Get(httpcache.CacheHeader),
+		statusCode:       rec.Code,
 		age:              time.Second * time.Duration(age),
 		body:             rec.Body.Bytes(),
 		header:           rec.HeaderMap,
@@ -98,21 +100,24 @@ func (c *client) post(path string, headers ...string) *clientResponse {
 type clientResponse struct {
 	*httptest.ResponseRecorder
 	cacheStatus string
+	statusCode  int
 	age         time.Duration
 	body        []byte
 	header      http.Header
 }
 
 type upstreamServer struct {
-	Now          time.Time
-	Body         []byte
-	Filename     string
-	CacheControl string
-	Etag, Vary   string
-	LastModified time.Time
-	Header       http.Header
-	asserts      []func(r *http.Request)
-	requests     int
+	Now              time.Time
+	Body             []byte
+	Filename         string
+	CacheControl     string
+	Etag, Vary       string
+	LastModified     time.Time
+	ResponseDuration time.Duration
+	StatusCode       int
+	Header           http.Header
+	asserts          []func(r *http.Request)
+	requests         int
 }
 
 func (u *upstreamServer) timeTravel(d time.Duration) {
@@ -154,8 +159,14 @@ func (u *upstreamServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	http.ServeContent(rw, req, u.Filename, u.LastModified, bytes.NewReader(u.Body))
+	u.timeTravel(u.ResponseDuration)
 
+	if u.StatusCode != 0 && u.StatusCode != 200 {
+		rw.WriteHeader(u.StatusCode)
+		io.Copy(rw, bytes.NewReader(u.Body))
+	} else {
+		http.ServeContent(rw, req, u.Filename, u.LastModified, bytes.NewReader(u.Body))
+	}
 }
 
 func (u *upstreamServer) RoundTrip(req *http.Request) (*http.Response, error) {

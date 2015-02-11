@@ -3,19 +3,20 @@ package httpcache
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 )
 
 const (
 	lastModDivisor = 10
+	viaPseudonym   = "httpcache"
 )
 
 var Clock = func() time.Time {
-	return time.Now()
+	return time.Now().UTC()
 }
 
 type ReadSeekCloser interface {
@@ -32,10 +33,11 @@ func (brsc *byteReadSeekCloser) Close() error { return nil }
 
 type Resource struct {
 	ReadSeekCloser
-	header     http.Header
-	statusCode int
-	cc         CacheControl
-	stale      bool
+	RequestTime, ResponseTime time.Time
+	header                    http.Header
+	statusCode                int
+	cc                        CacheControl
+	stale                     bool
 }
 
 func NewResource(statusCode int, body ReadSeekCloser, hdrs http.Header) *Resource {
@@ -52,6 +54,10 @@ func NewResourceBytes(statusCode int, b []byte, hdrs http.Header) *Resource {
 		statusCode:     statusCode,
 		ReadSeekCloser: &byteReadSeekCloser{bytes.NewReader(b)},
 	}
+}
+
+func (r *Resource) IsNonErrorStatus() bool {
+	return r.statusCode >= 200 && r.statusCode < 400
 }
 
 func (r *Resource) Status() int {
@@ -74,7 +80,8 @@ func (r *Resource) cacheControl() (CacheControl, error) {
 	if r.cc != nil {
 		return r.cc, nil
 	}
-	cc, err := ParseCacheControl(r.header.Get("Cache-Control"))
+
+	cc, err := ParseCacheControlHeaders(r.header)
 	if err != nil {
 		return cc, err
 	}
@@ -103,13 +110,19 @@ func (r *Resource) Expires() (time.Time, error) {
 	return time.Time{}, nil
 }
 
-func (r *Resource) MustValidate() bool {
+func (r *Resource) MustValidate(shared bool) bool {
 	cc, err := r.cacheControl()
 	if err != nil {
-		log.Printf("Error parsing Cache-Control: ", err.Error())
+		debugf("Error parsing Cache-Control: ", err.Error())
+		return true
 	}
 
-	if cc.Has("must-validate") {
+	// The s-maxage directive also implies the semantics of proxy-revalidate
+	if cc.Has("s-maxage") && shared {
+		return true
+	}
+
+	if cc.Has("must-revalidate") || (cc.Has("proxy-revalidate") && shared) {
 		return true
 	}
 
@@ -127,21 +140,20 @@ func (r *Resource) DateAfter(d time.Time) bool {
 	return false
 }
 
+// Calculate the age of the resource
 func (r *Resource) Age() (time.Duration, error) {
 	var age time.Duration
 
-	if ageHeader := r.header.Get("Age"); ageHeader != "" {
-		if ageInt, err := strconv.Atoi(ageHeader); err == nil {
-			age = time.Second * time.Duration(ageInt)
-		}
+	if ageInt, err := intHeader("Age", r.header); err == nil {
+		age = time.Second * time.Duration(ageInt)
 	}
 
-	if dateHeader := r.header.Get("Date"); dateHeader != "" {
-		if t, err := http.ParseTime(dateHeader); err != nil {
-			return time.Duration(0), err
-		} else {
-			return Clock().Sub(t) + age, nil
-		}
+	if proxyDate, err := timeHeader(ProxyDateHeader, r.header); err == nil {
+		return Clock().Sub(proxyDate) + age, nil
+	}
+
+	if date, err := timeHeader("Date", r.header); err == nil {
+		return Clock().Sub(date) + age, nil
 	}
 
 	return time.Duration(0), errors.New("Unable to calculate age")
@@ -180,6 +192,18 @@ func (r *Resource) MaxAge(shared bool) (time.Duration, error) {
 	return time.Duration(0), nil
 }
 
+func (r *Resource) RemovePrivateHeaders() {
+	cc, err := r.cacheControl()
+	if err != nil {
+		debugf("Error parsing Cache-Control: %s", err.Error())
+	}
+
+	for _, p := range cc["private"] {
+		debugf("removing private header %q", p)
+		r.header.Del(p)
+	}
+}
+
 func (r *Resource) HasValidators() bool {
 	if r.header.Get("Last-Modified") != "" || r.header.Get("Etag") != "" {
 		return true
@@ -191,6 +215,7 @@ func (r *Resource) HasValidators() bool {
 func (r *Resource) HasExplicitExpiration() bool {
 	cc, err := r.cacheControl()
 	if err != nil {
+		debugf("Error parsing Cache-Control: %s", err.Error())
 		return false
 	}
 
@@ -210,27 +235,15 @@ func (r *Resource) HasExplicitExpiration() bool {
 }
 
 func (r *Resource) HeuristicFreshness() time.Duration {
-	if r.header.Get("Last-Modified") != "" {
+	if !r.HasExplicitExpiration() && r.header.Get("Last-Modified") != "" {
 		return Clock().Sub(r.LastModified()) / time.Duration(lastModDivisor)
 	}
 
 	return time.Duration(0)
 }
 
-func (r *Resource) Warnings() ([]string, error) {
-	warns := []string{}
-
-	age, err := r.Age()
-	if err != nil {
-		return warns, err
-	}
-
-	// http://httpwg.github.io/specs/rfc7234.html#warn.113
-	if !r.HasExplicitExpiration() {
-		if age > (time.Hour*24) && r.HeuristicFreshness() > (time.Hour*24) {
-			warns = append(warns, `113 - "Heuristic Expiration"`)
-		}
-	}
-
-	return warns, nil
+func (r *Resource) Via() string {
+	via := []string{}
+	via = append(via, fmt.Sprintf("1.1 %s", viaPseudonym))
+	return strings.Join(via, ",")
 }

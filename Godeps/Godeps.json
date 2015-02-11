@@ -174,7 +174,8 @@
 		},
 		{
 			"ImportPath": "github.com/lox/httpcache",
-			"Rev": "a8b851cd2a43940eb29fd6b2c60f047477b0e1a0"
+			"Comment": "v1.1.0-11-g10f3e44",
+			"Rev": "10f3e44c050b12c13981908678e43c81bcfc7c54"
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/mux",

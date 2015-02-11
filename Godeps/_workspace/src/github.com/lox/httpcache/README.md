@@ -24,15 +24,29 @@ log.Printf("proxy listening on http://%s", listen)
 log.Fatal(http.ListenAndServe(listen, proxy))
 ```
 
+## Implemented
+
+- All of [rfc7234][], except those listed below
+- Disk and Memory storage
+- Apache-like logging via `httplog` package
+
 ## Todo
 
-- Better range support (with caching of partial content)
-- Stale support w/ warnings
-- Corrected Age calculations
-- Freshening stored responses
-- Store/No-store support
 - Offline operation
-- Handle key-based private headers
+- Size constraints on memory/disk cache and cache eviction 
+- Correctly handle mixture of HTTP1.0 clients and 1.1 upstreams
+- More detail in `Via` header
+- Support for weak entities with `If-Match` and `If-None-Match`
+- Invalidation based on `Content-Location` and request method
+- Better handling of duplicate headers and CacheControl values
+
+## Caveats
+
+- Conditional requests are never cached, this includes `Range` requests
+
+## Testing
+
+Tests are currently conducted via the test suite and verified via the [CoAdvisor tool](http://coad.measurement-factory.com/).
 
 ## Reading List
 

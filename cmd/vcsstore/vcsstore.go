@@ -212,9 +212,7 @@ func cacheHandler(cacheOpt string, h http.Handler) http.Handler {
 		log.Fatalf("Invalid -cache option: %q.", cacheOpt)
 	}
 	ch := httpcache.NewHandler(cache, h)
-	if v, _ := strconv.ParseBool(os.Getenv("LOG_CACHE")); !v {
-		ch.Logger = log.New(ioutil.Discard, "", 0)
-	}
+	httpcache.DebugLogging, _ = strconv.ParseBool(os.Getenv("LOG_CACHE"))
 	return ch
 }
 
