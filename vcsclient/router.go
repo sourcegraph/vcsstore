@@ -26,6 +26,7 @@ const (
 	RouteRepoMergeBase          = "vcs:repo.merge-base"
 	RouteRepoCrossRepoMergeBase = "vcs:repo.cross-repo-merge-base"
 	RouteRepoRevision           = "vcs:repo.rev"
+	RouteRepoSearch             = "vcs:repo.search"
 	RouteRepoTag                = "vcs:repo.tag"
 	RouteRepoTags               = "vcs:repo.tags"
 	RouteRepoTreeEntry          = "vcs:repo.tree-entry"
@@ -113,6 +114,7 @@ func NewRouter(parent *muxpkg.Router) *Router {
 		return vars
 	}
 	commit.Path("/tree{Path:(?:/.*)*}").Methods("GET").PostMatchFunc(cleanTreeVars).BuildVarsFunc(prepareTreeVars).Name(RouteRepoTreeEntry)
+	commit.Path("/search").Methods("GET").Name(RouteRepoSearch)
 
 	return (*Router)(parent)
 }
@@ -193,6 +195,16 @@ func (r *Router) URLToRepoCommits(vcsType string, cloneURL *url.URL, opt vcs.Com
 
 func (r *Router) URLToRepoTreeEntry(vcsType string, cloneURL *url.URL, commitID vcs.CommitID, path string) *url.URL {
 	return r.URLTo(RouteRepoTreeEntry, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID), "Path", path)
+}
+
+func (r *Router) URLToRepoSearch(vcsType string, cloneURL *url.URL, at vcs.CommitID, opt vcs.SearchOptions) *url.URL {
+	u := r.URLTo(RouteRepoSearch, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(at))
+	q, err := query.Values(opt)
+	if err != nil {
+		panic(err.Error())
+	}
+	u.RawQuery = q.Encode()
+	return u
 }
 
 func (r *Router) URLToRepoMergeBase(vcsType string, cloneURL *url.URL, a, b vcs.CommitID) *url.URL {
