@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kr/pretty"
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
@@ -83,7 +84,7 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	rm := &mockFileSystem{
 		t:  t,
 		at: "abcd",
-		fs: mapFS(map[string]string{"myfile": "mydata", "mydir/f": ""}),
+		fs: mapFS(map[string]string{"myfile": "mydata", "mydir/f": "", "mydir/myotherdir/other": ""}),
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
@@ -133,6 +134,88 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 
 	if !reflect.DeepEqual(e, wantEntry) {
 		t.Errorf("got tree entry %+v, want %+v", e, wantEntry)
+	}
+
+	// used short commit ID, so should not be long-cached
+	if cc := resp.Header.Get("cache-control"); cc != shortCacheControl {
+		t.Errorf("got cache-control %q, want %q", cc, shortCacheControl)
+	}
+}
+
+func TestServeRepoTreeEntry_FullTreeDir(t *testing.T) {
+	setupHandlerTest()
+	defer teardownHandlerTest()
+
+	cloneURL, _ := url.Parse("git://a.b/c")
+	rm := &mockFileSystem{
+		t:  t,
+		at: "abcd",
+		fs: mapFS(map[string]string{"myfile": "mydata", "mydir/f": "", "mydir/myotherdir/other": ""}),
+	}
+	sm := &mockServiceForExistingRepo{
+		t:        t,
+		vcs:      "git",
+		cloneURL: cloneURL,
+		repo:     rm,
+	}
+	testHandler.Service = sm
+
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", "mydir/myotherdir").String() + "?FullTree=true")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if got, want := resp.StatusCode, http.StatusOK; got != want {
+		t.Errorf("got status code %d, want %d", got, want)
+	}
+
+	if !sm.opened {
+		t.Errorf("!opened")
+	}
+	if !rm.called {
+		t.Errorf("!called")
+	}
+
+	var e *vcsclient.TreeEntry
+	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+		t.Fatal(err)
+	}
+
+	wantEntry := &vcsclient.TreeEntry{
+		Name: ".",
+		Type: vcsclient.DirEntry,
+		Entries: []*vcsclient.TreeEntry{
+			{
+				Name: "mydir",
+				Type: vcsclient.DirEntry,
+				Entries: []*vcsclient.TreeEntry{
+					{
+						Name: "myotherdir",
+						Type: vcsclient.DirEntry,
+						Entries: []*vcsclient.TreeEntry{
+							{
+								Name: "other",
+								Type: vcsclient.FileEntry,
+							},
+						},
+					},
+					{
+						Name: "f",
+						Type: vcsclient.FileEntry,
+					},
+				},
+			},
+			{
+				Name: "myfile",
+				Type: vcsclient.FileEntry,
+				Size: 6,
+			},
+		},
+	}
+	normalizeTreeEntry(wantEntry)
+
+	if !reflect.DeepEqual(e, wantEntry) {
+		t.Errorf("got tree entry %# v, want %# v", pretty.Formatter(e), pretty.Formatter(wantEntry))
 	}
 
 	// used short commit ID, so should not be long-cached

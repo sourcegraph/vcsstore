@@ -58,7 +58,16 @@ func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) err
 
 	if fi.Mode().IsDir() {
 		if opt.FullTree {
-			path = ""
+			path = "."
+			fi, err := fs.Lstat(path)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return &httpError{http.StatusNotFound, err}
+				}
+				return err
+			}
+			e = newTreeEntry(fi)
+			respVal = e
 		}
 		ee, err := readDir(fs, path, opt.FullTree)
 		if err != nil {
