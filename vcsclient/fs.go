@@ -135,8 +135,10 @@ type GetFileOptions struct {
 
 	// FullTree only applies if the returned entry is a directory. It will
 	// return the full file tree of the host repository, recursing into all
-	// sub-directories. The base path will be the root of the repository,
-	// not the requested path!
+	// sub-directories.
+	// Warning: Even though the passed path will be validated for existence
+	// in the filesystem, the returned tree will be the entire repository
+	// starting at its root base (".")
 	FullTree bool `url:",omitempty"`
 }
 
