@@ -132,6 +132,12 @@ type GetFileOptions struct {
 	// be extended to the nearest line boundaries on both sides. It is
 	// only valid if StartByte and EndByte are specified.
 	FullLines bool `url:",omitempty"`
+
+	// FullTree only applies if the returned entry is a directory. It will
+	// return the full file tree of the host repository, recursing into all
+	// sub-directories. The base path will be the root of the repository,
+	// not the requested path!
+	FullTree bool `url:",omitempty"`
 }
 
 // GetFileWithOptions gets a file and allows additional configuration
