@@ -10,6 +10,7 @@ import (
 	muxpkg "github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/git"
 )
 
 const (
@@ -41,6 +42,7 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	if parent == nil {
 		parent = muxpkg.NewRouter()
 	}
+	parent = git.NewRouter(parent)
 
 	parent.Path("/").Methods("GET").Name(RouteRoot)
 

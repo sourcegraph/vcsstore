@@ -154,6 +154,13 @@ func isIgnoredRedirectErr(err error) bool {
 	return false
 }
 
+type RepoKey struct {
+	// URI identifies the repository, and it has the form "host/user/repo".
+	// Use RepoKey.RepoKeyURI to parse URI as a RepoKeyURI.
+	URI string
+	VCS string
+}
+
 type RepositoryOpener interface {
 	Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error)
 }
