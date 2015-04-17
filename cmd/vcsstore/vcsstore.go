@@ -33,6 +33,7 @@ import (
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
 	"sourcegraph.com/sourcegraph/vcsstore"
 	"sourcegraph.com/sourcegraph/vcsstore/cluster"
+	"sourcegraph.com/sourcegraph/vcsstore/git"
 	"sourcegraph.com/sourcegraph/vcsstore/server"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
@@ -151,6 +152,7 @@ The options are:
 		conf.DebugLog = log.New(logw, "vcsstore DEBUG: ", log.LstdFlags)
 	}
 
+	git.RepoRootDir = conf.StorageDir
 	vh := server.NewHandler(vcsstore.NewService(conf), nil, nil)
 	vh.Log = log.New(logw, "server: ", log.LstdFlags)
 	vh.Debug = *debug

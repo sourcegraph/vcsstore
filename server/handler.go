@@ -12,6 +12,7 @@ import (
 	"github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/git"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
@@ -33,6 +34,7 @@ type Handler struct {
 // one if parent is nil). If wrap is non-nil, it is called on each internal
 // handler before being registered as the handler for a router.
 func NewHandler(svc vcsstore.Service, parent *mux.Router, wrap func(http.Handler) http.Handler) *Handler {
+	parent = git.NewHandler(parent)
 	router := vcsclient.NewRouter(parent)
 	r := (*mux.Router)(router)
 
