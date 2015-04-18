@@ -1,41 +1,25 @@
-package git
+package server
 
 import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"path/filepath"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/sourcegraph/mux"
+	"sourcegraph.com/sourcegraph/vcsstore/git"
+
+	"github.com/gorilla/mux"
 )
 
-var RepoRootDir string
-
-func NewHandler(base *mux.Router) *mux.Router {
-	router := NewRouter(base)
-
-	router.Get(RouteGitInfoRefs).Handler(handler(serveInfoRefs))
-	router.Get(RouteGitUploadPack).Handler(handler(serveUploadPack))
-	router.Get(RouteGitReceivePack).Handler(handler(serveReceivePack))
-
-	return router
-}
-
-func handler(f func(w http.ResponseWriter, r *http.Request) error) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := f(w, r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusOK)
-		}
-	})
-}
-
-func serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
-	uri := v["URI"]
+	cloneURL, err := url.Parse(v["CloneURL"])
+	if err != nil {
+		return err
+	}
 	rawService := r.URL.Query().Get("service")
 
 	var service string
@@ -43,10 +27,13 @@ func serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 		service = rawService[len("git-"):]
 	}
 
-	t := NewLocalGitTransport(uriToFilePath(uri))
+	t, err := h.GitTransporter.GitTransport("git", cloneURL)
+	if err != nil {
+		return err
+	}
 
 	var refsBuf bytes.Buffer
-	err := t.InfoRefs(&refsBuf, service)
+	err = t.InfoRefs(&refsBuf, service)
 	if err != nil {
 		return err
 	}
@@ -59,37 +46,43 @@ func serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func serveReceivePack(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
-	uri := v["URI"]
+	cloneURL, err := url.Parse(v["CloneURL"])
+	if err != nil {
+		return err
+	}
 
-	var opt GitTransportOpt
+	var opt git.GitTransportOpt
 	opt.ContentEncoding = r.Header.Get("content-encoding")
 
-	t := NewLocalGitTransport(uriToFilePath(uri))
+	t, err := h.GitTransporter.GitTransport("git", cloneURL)
+	if err != nil {
+		return err
+	}
 	w.Header().Set("Content-Type", "application/x-git-receive-pack-result")
 	return t.ReceivePack(w, r.Body, opt)
 }
 
-func serveUploadPack(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) serveUploadPack(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
-	uri := v["URI"]
+	cloneURL, err := url.Parse(v["CloneURL"])
+	if err != nil {
+		return err
+	}
 
-	t := NewLocalGitTransport(uriToFilePath(uri))
+	t, err := h.GitTransporter.GitTransport("git", cloneURL)
+	if err != nil {
+		return err
+	}
 
-	var opt GitTransportOpt
+	var opt git.GitTransportOpt
 	opt.ContentEncoding = r.Header.Get("content-encoding")
 	w.Header().Set("Content-Type", "application/x-git-upload-pack-result")
 	if err := t.UploadPack(w, r.Body, opt); err != nil {
 		return err
 	}
 	return nil
-}
-
-// uriToFilePath maps a repository URI to its file path on disk.
-func uriToFilePath(uri string) string {
-	// TODO(beyang): this is insecure ("..")
-	return filepath.Join(RepoRootDir, uri)
 }
 
 // Helpers copied from githttp

@@ -28,9 +28,9 @@ func NewRouter(base *mux.Router) *mux.Router {
 	}
 
 	gm := base.MatcherFunc(gitMatcher).Subrouter()
-	gm.Path("/{URI:(?:.*)}/info/refs").Methods("GET").Name(RouteGitInfoRefs)
-	gm.Path("/{URI:(?:.*)}/git-upload-pack").Methods("POST").Name(RouteGitUploadPack)
-	gm.Path("/{URI:(?:.*)}/git-receive-pack").Methods("POST").Name(RouteGitReceivePack)
+	gm.Path("/{CloneURL:(?:.*)}/info/refs").Methods("GET").Name(RouteGitInfoRefs)
+	gm.Path("/{CloneURL:(?:.*)}/git-upload-pack").Methods("POST").Name(RouteGitUploadPack)
+	gm.Path("/{CloneURL:(?:.*)}/git-receive-pack").Methods("POST").Name(RouteGitReceivePack)
 
 	return base
 }
