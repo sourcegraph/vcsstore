@@ -24,6 +24,13 @@ func Test_gitTransport_InfoRefs(t *testing.T) {
 003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
 0000`,
 	}, {
+		cloneURL: "file://a.b/c",
+		service:  "receive-pack",
+		expURL:   "/git/file/a.b/c/.git/info/refs?service=receive-pack",
+		expOut: `0090542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context report-status delete-refs side-band-64k quiet ofs-delta agent=git/1.9.1
+003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
+0000`,
+	}, {
 		cloneURL: "git://a.b/c",
 		service:  "upload-pack",
 		expURL:   "/git/git/a.b/c/.git/info/refs?service=upload-pack",
