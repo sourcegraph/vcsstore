@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"sourcegraph.com/sourcegraph/vcsstore"
 	"sourcegraph.com/sourcegraph/vcsstore/git"
@@ -31,7 +30,7 @@ func (t *localGitTransporter) GitTransport(vcsType string, cloneURL *url.URL) (g
 	if err != nil {
 		return nil, err
 	}
-	return &localGitTransport{dir: filepath.Join(t.StorageDir, cloneDir)}, nil
+	return &localGitTransport{dir: cloneDir}, nil
 }
 
 // localGitTransport is a git repository hosted on local disk

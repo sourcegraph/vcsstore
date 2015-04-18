@@ -4,19 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"sourcegraph.com/sourcegraph/vcsstore/git"
-
-	"github.com/gorilla/mux"
 )
 
 func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
-	v := mux.Vars(r)
-	cloneURL, err := url.Parse(v["CloneURL"])
+	cloneURL, err := h.getRepoCloneURL(r)
 	if err != nil {
 		return err
 	}
@@ -47,8 +43,7 @@ func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error {
-	v := mux.Vars(r)
-	cloneURL, err := url.Parse(v["CloneURL"])
+	cloneURL, err := h.getRepoCloneURL(r)
 	if err != nil {
 		return err
 	}
@@ -65,8 +60,7 @@ func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error
 }
 
 func (h *Handler) serveUploadPack(w http.ResponseWriter, r *http.Request) error {
-	v := mux.Vars(r)
-	cloneURL, err := url.Parse(v["CloneURL"])
+	cloneURL, err := h.getRepoCloneURL(r)
 	if err != nil {
 		return err
 	}
