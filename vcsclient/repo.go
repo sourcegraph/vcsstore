@@ -36,6 +36,8 @@ type repository struct {
 	cloneURL *url.URL
 }
 
+var _ vcs.Repository = (*repository)(nil)
+
 type RepositoryCloneUpdater interface {
 	// CloneOrUpdate instructs the server to clone the repository so
 	// it is available to the client via the API if it doesn't yet

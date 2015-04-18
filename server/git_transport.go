@@ -12,7 +12,7 @@ import (
 	"sourcegraph.com/sourcegraph/vcsstore"
 	"sourcegraph.com/sourcegraph/vcsstore/git"
 
-	"github.com/AaronO/go-git-http"
+	githttp "github.com/AaronO/go-git-http"
 )
 
 func NewGitTransporter(conf *vcsstore.Config) git.GitTransporter {
@@ -46,29 +46,29 @@ func (r *localGitTransport) InfoRefs(w io.Writer, service string) error {
 	return cmd.Run()
 }
 
-func (r *localGitTransport) ReceivePack(w io.Writer, rc io.ReadCloser, opt git.GitTransportOpt) error {
-	return r.servicePack("receive-pack", w, rc, opt)
+func (r *localGitTransport) ReceivePack(w io.Writer, rdr io.Reader, opt git.GitTransportOpt) error {
+	return r.servicePack("receive-pack", w, rdr, opt)
 }
 
-func (r *localGitTransport) UploadPack(w io.Writer, rc io.ReadCloser, opt git.GitTransportOpt) error {
-	return r.servicePack("upload-pack", w, rc, opt)
+func (r *localGitTransport) UploadPack(w io.Writer, rdr io.Reader, opt git.GitTransportOpt) error {
+	return r.servicePack("upload-pack", w, rdr, opt)
 }
 
-func (r *localGitTransport) servicePack(service string, w io.Writer, rc io.ReadCloser, opt git.GitTransportOpt) error {
+func (r *localGitTransport) servicePack(service string, w io.Writer, rdr io.Reader, opt git.GitTransportOpt) error {
 	var err error
 	switch opt.ContentEncoding {
 	case "gzip":
-		rc, err = gzip.NewReader(rc)
+		rdr, err = gzip.NewReader(rdr)
 	case "deflate":
-		rc = flate.NewReader(rc)
+		rdr = flate.NewReader(rdr)
 	}
 	if err != nil {
 		return err
 	}
 
 	rpcReader := &githttp.RpcReader{
-		ReadCloser: rc,
-		Rpc:        service,
+		Reader: rdr,
+		Rpc:    service,
 	}
 
 	cmd := exec.Command("git", service, "--stateless-rpc", ".")
@@ -92,7 +92,7 @@ func (r *localGitTransport) servicePack(service string, w io.Writer, rc io.ReadC
 
 	// Scan's git command's output for errors
 	gitReader := &githttp.GitReader{
-		ReadCloser: stdout,
+		Reader: stdout,
 	}
 
 	// Copy input to git binary
