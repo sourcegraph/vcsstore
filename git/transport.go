@@ -5,6 +5,11 @@ import (
 	"net/url"
 )
 
+const (
+	ServiceReceivePack = "receive-pack"
+	ServiceUploadPack  = "upload-pack"
+)
+
 type GitTransporter interface {
 	GitTransport(vcsType string, cloneURL *url.URL) (GitTransport, error)
 }
