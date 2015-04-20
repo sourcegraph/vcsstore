@@ -36,8 +36,6 @@ func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 
 	w.Header().Set("Content-Type", fmt.Sprintf("application/x-git-%s-advertisement", service))
 	w.WriteHeader(http.StatusOK)
-	w.Write(packetWrite("# service=git-" + service + "\n"))
-	w.Write(packetFlush())
 	w.Write(refsBuf.Bytes())
 	return nil
 }

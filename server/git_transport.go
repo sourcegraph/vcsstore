@@ -40,6 +40,9 @@ type localGitTransport struct {
 
 // TODO(security): should we validate 'service'?
 func (r *localGitTransport) InfoRefs(w io.Writer, service string) error {
+	w.Write(packetWrite("# service=git-" + service + "\n"))
+	w.Write(packetFlush())
+
 	cmd := exec.Command("git", service, "--stateless-rpc", "--advertise-refs", ".")
 	cmd.Dir = r.dir
 	cmd.Stdout, cmd.Stderr = w, os.Stderr
