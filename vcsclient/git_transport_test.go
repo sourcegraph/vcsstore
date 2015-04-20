@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"testing"
 
+	"strings"
+
 	"sourcegraph.com/sourcegraph/vcsstore/git"
 )
 
@@ -19,21 +21,21 @@ func Test_gitTransport_InfoRefs(t *testing.T) {
 	}{{
 		cloneURL: "https://a.b/c",
 		service:  "receive-pack",
-		expURL:   "/git/https/a.b/c/.git/info/refs?service=receive-pack",
+		expURL:   "/git/https/a.b/c/.git/info/refs?service=git-receive-pack",
 		expOut: `0090542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context report-status delete-refs side-band-64k quiet ofs-delta agent=git/1.9.1
 003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
 0000`,
 	}, {
 		cloneURL: "file://a.b/c",
 		service:  "receive-pack",
-		expURL:   "/git/file/a.b/c/.git/info/refs?service=receive-pack",
+		expURL:   "/git/file/a.b/c/.git/info/refs?service=git-receive-pack",
 		expOut: `0090542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context report-status delete-refs side-band-64k quiet ofs-delta agent=git/1.9.1
 003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
 0000`,
 	}, {
 		cloneURL: "git://a.b/c",
 		service:  "upload-pack",
-		expURL:   "/git/git/a.b/c/.git/info/refs?service=upload-pack",
+		expURL:   "/git/git/a.b/c/.git/info/refs?service=git-upload-pack",
 		expOut: `00d18096f47503459bcc74d1f4c487b7e6e42e5746b5 HEADmulti_ack thin-pack side-band side-band-64k ofs-delta shallow no-progress include-tag multi_ack_detailed no-done symref=HEAD:refs/heads/master agent=git/1.9.1
 		0047542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context
 		003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
@@ -57,6 +59,10 @@ func Test_gitTransport_InfoRefs(t *testing.T) {
 			var called bool
 			mux.HandleFunc(expURL.Path, func(w http.ResponseWriter, r *http.Request) {
 				called = true
+
+				if userAgent := r.Header.Get("User-Agent"); !strings.HasPrefix(userAgent, "git/") {
+					t.Errorf("expected User-Agent git/*, but got %s", userAgent)
+				}
 
 				if r.Method != "GET" {
 					t.Errorf("expected GET, got %s", r.Method)
@@ -101,6 +107,11 @@ func Test_gitTransport_ReceivePack(t *testing.T) {
 
 	mux.HandleFunc(expURL, func(w http.ResponseWriter, r *http.Request) {
 		called = true
+
+		if userAgent := r.Header.Get("User-Agent"); !strings.HasPrefix(userAgent, "git/") {
+			t.Errorf("expected User-Agent git/*, but got %s", userAgent)
+		}
+
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
@@ -151,6 +162,11 @@ func Test_gitTransport_UploadPack(t *testing.T) {
 
 	mux.HandleFunc(expURL, func(w http.ResponseWriter, r *http.Request) {
 		called = true
+
+		if userAgent := r.Header.Get("User-Agent"); !strings.HasPrefix(userAgent, "git/") {
+			t.Errorf("expected User-Agent git/*, but got %s", userAgent)
+		}
+
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
