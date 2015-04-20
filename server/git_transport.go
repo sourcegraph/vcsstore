@@ -3,6 +3,7 @@ package server
 import (
 	"compress/flate"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"log"
 	"net/url"
@@ -38,8 +39,10 @@ type localGitTransport struct {
 	dir string
 }
 
-// TODO(security): should we validate 'service'?
 func (r *localGitTransport) InfoRefs(w io.Writer, service string) error {
+	if service != "upload-pack" && service != "receive-pack" {
+		return fmt.Errorf("unrecognized git service \"%s\"", service)
+	}
 	w.Write(packetWrite("# service=git-" + service + "\n"))
 	w.Write(packetFlush())
 
