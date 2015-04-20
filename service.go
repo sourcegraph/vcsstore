@@ -1,7 +1,6 @@
 package vcsstore
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -45,10 +44,10 @@ type Config struct {
 // already exist at). If invalid, cloneDir returns a non-nil error.
 func (c *Config) CloneDir(vcsType string, cloneURL *url.URL) (string, error) {
 	if !isLowercaseLetter(vcsType) {
-		return "", errors.New("invalid VCS type")
+		return "", fmt.Errorf("invalid VCS type: %s", vcsType)
 	}
 	if cloneURL.Scheme == "" || cloneURL.Host == "" {
-		return "", errors.New("invalid clone URL")
+		return "", fmt.Errorf("invalid clone URL: %s", cloneURL.String())
 	}
 
 	return filepath.Join(c.StorageDir, EncodeRepositoryPath(vcsType, cloneURL)), nil
