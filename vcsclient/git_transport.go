@@ -10,11 +10,14 @@ import (
 )
 
 type gitTransport struct {
-	client   *Client
+	// client is the vcs client used to issue HTTP requests
+	client *Client
+
+	// cloneURL is the clone URL of the repository being accessed
 	cloneURL *url.URL
 }
 
-var _ git.GitTransport = &gitTransport{}
+var _ git.GitTransport = (*gitTransport)(nil)
 
 func (t *gitTransport) InfoRefs(w io.Writer, service string) error {
 	rp := &repository{client: t.client, vcsType: "git", cloneURL: t.cloneURL}
