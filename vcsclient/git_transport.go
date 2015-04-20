@@ -21,7 +21,7 @@ func (t *gitTransport) InfoRefs(w io.Writer, service string) error {
 	urlQuery := struct {
 		Service string `url:"service"`
 	}{
-		Service: service,
+		Service: "git-" + service,
 	}
 	u, err := rp.url(git.RouteGitInfoRefs, nil, urlQuery)
 	if err != nil {
@@ -33,6 +33,7 @@ func (t *gitTransport) InfoRefs(w io.Writer, service string) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", "git/1.9.1") // TODO: kludge
 	var out bytes.Buffer
 	_, err = t.client.Do(req, &out)
 	if err != nil {
@@ -58,6 +59,7 @@ func (t *gitTransport) ReceivePack(w io.Writer, rdr io.Reader, opt git.GitTransp
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", "git/1.9.1") // TODO: kludge
 	req.Header.Set("content-encoding", opt.ContentEncoding)
 
 	var out bytes.Buffer
@@ -83,6 +85,7 @@ func (t *gitTransport) UploadPack(w io.Writer, rdr io.Reader, opt git.GitTranspo
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", "git/1.9.1") // TODO: kludge
 	req.Header.Set("content-encoding", opt.ContentEncoding)
 
 	var out bytes.Buffer
