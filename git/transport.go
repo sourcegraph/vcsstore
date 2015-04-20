@@ -21,11 +21,11 @@ type GitTransport interface {
 	InfoRefs(w io.Writer, service string) error
 
 	// ReceivePack writes the output of git-receive-pack to w, reading
-	// from rc.
+	// from r.
 	ReceivePack(w io.Writer, r io.Reader, opt GitTransportOpt) error
 
 	// UploadPack writes the output of git-upload-pack to w, reading
-	// from rc.
+	// from r.
 	UploadPack(w io.Writer, r io.Reader, opt GitTransportOpt) error
 }
 
