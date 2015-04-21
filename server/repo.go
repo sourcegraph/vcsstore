@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/sourcegraph/mux"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
@@ -48,10 +49,10 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 	}
 
 	type updateEverythinger interface {
-		UpdateEverything(opt *vcsclient.CloneInfo) error
+		UpdateEverything(opt vcs.RemoteOpts) error
 	}
 	if repo, ok := repo.(updateEverythinger); ok {
-		err := repo.UpdateEverything(&cloneInfo)
+		err := repo.UpdateEverything(cloneInfo.RemoteOpts)
 		if err != nil {
 			return cloneOrUpdateError(err)
 		}

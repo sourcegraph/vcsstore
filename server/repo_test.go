@@ -216,7 +216,7 @@ func TestServeRepoCreateOrUpdate_UpdateExisting_withBody(t *testing.T) {
 
 	repoID := "a.b/c"
 	opt := vcsclient.CloneInfo{RemoteOpts: vcs.RemoteOpts{SSH: &vcs.SSHConfig{User: "u"}}}
-	rm := &mockUpdateEverythinger{t: t, opt: opt}
+	rm := &mockUpdateEverythinger{t: t, opt: opt.RemoteOpts}
 	sm := &mockServiceForExistingRepo{
 		t: t,
 
@@ -252,7 +252,7 @@ type mockUpdateEverythinger struct {
 	t *testing.T
 
 	// expected args
-	opt vcsclient.CloneInfo
+	opt vcs.RemoteOpts
 
 	// return values
 	err error
@@ -260,9 +260,9 @@ type mockUpdateEverythinger struct {
 	called bool
 }
 
-func (m *mockUpdateEverythinger) UpdateEverything(opt *vcsclient.CloneInfo) error {
+func (m *mockUpdateEverythinger) UpdateEverything(opt vcs.RemoteOpts) error {
 	m.called = true
-	if !reflect.DeepEqual(opt, &m.opt) {
+	if !reflect.DeepEqual(opt, m.opt) {
 		m.t.Errorf("mock: got opt %+v, want %+v", asJSON(opt), asJSON(m.opt))
 	}
 	return m.err
