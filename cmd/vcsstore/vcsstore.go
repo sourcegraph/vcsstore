@@ -265,7 +265,7 @@ func cloneCmd(args []string) {
 	datadClient := fs.Bool("datad", false, "use datad cluster client")
 	sshKeyFile := fs.String("i", "", "ssh private key file for clone remote")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: vcsstore clone [options] vcs-type clone-url
+		fmt.Fprintln(os.Stderr, `usage: vcsstore clone [options] repo-id vcs-type clone-url
 
 Clones a repository on the server. Once finished, the repository will be
 available to the client via the vcsstore API.
@@ -277,7 +277,7 @@ The options are:
 	}
 	fs.Parse(args)
 
-	if fs.NArg() != 1 {
+	if fs.NArg() != 3 {
 		fs.Usage()
 	}
 
@@ -286,7 +286,8 @@ The options are:
 		log.Fatal(err)
 	}
 
-	repoID := fs.Arg(0)
+	repoID, vcsType := fs.Arg(0), fs.Arg(1)
+	cloneURL, err := url.Parse(fs.Arg(2))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -316,7 +317,9 @@ The options are:
 	}
 
 	if repo, ok := repo.(vcsclient.RepositoryCloneUpdater); ok {
-		err := repo.CloneOrUpdate(opt)
+		err := repo.CloneOrUpdate(&vcsclient.CloneInfo{
+			VCS: vcsType, CloneURL: cloneURL, RemoteOpts: opt,
+		})
 		if err != nil {
 			log.Fatal("Clone: ", err)
 		}
@@ -333,7 +336,7 @@ func getCmd(args []string) {
 	datadClient := fs.Bool("datad", false, "route request using datad (specify etcd backend in global options)")
 	method := fs.String("method", "GET", "HTTP request method")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: vcsstore get [options] vcs-type clone-url [extra-path]
+		fmt.Fprintln(os.Stderr, `usage: vcsstore get [options] repo-id [extra-path]
 
 Gets a URL path from the server (optionally routing the request using datad).
 

@@ -26,11 +26,9 @@ func (h *Handler) serveRepo(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request) error {
-	// TODO: decode vcsType and scheme from POST body
-
-	var opt vcs.RemoteOpts
+	var cloneInfo vcsclient.CloneInfo
 	if r.ContentLength > 0 {
-		if err := json.NewDecoder(r.Body).Decode(&opt); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&cloneInfo); err != nil {
 			return err
 		}
 	}
@@ -39,7 +37,7 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 	repo, repoID, _, err := h.getRepo(r)
 	if errorHTTPStatusCode(err) == http.StatusNotFound {
 		cloned = true
-		repo, err = h.Service.Clone(repoID, opt)
+		repo, err = h.Service.Clone(repoID, cloneInfo.VCS, cloneInfo.CloneURL, cloneInfo.RemoteOpts)
 	}
 	if err != nil {
 		return cloneOrUpdateError(err)
@@ -55,7 +53,7 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 		UpdateEverything(opt vcs.RemoteOpts) error
 	}
 	if repo, ok := repo.(updateEverythinger); ok {
-		err := repo.UpdateEverything(opt)
+		err := repo.UpdateEverything(cloneInfo.RemoteOpts)
 		if err != nil {
 			return cloneOrUpdateError(err)
 		}
