@@ -12,7 +12,7 @@ import (
 )
 
 func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
-	repoPath, err := h.getRepoID(r, "")
+	repoPath, err := h.getRepoPath(r, "")
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error {
-	repoPath, err := h.getRepoID(r, "")
+	repoPath, err := h.getRepoPath(r, "")
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error
 }
 
 func (h *Handler) serveUploadPack(w http.ResponseWriter, r *http.Request) error {
-	repoPath, err := h.getRepoID(r, "")
+	repoPath, err := h.getRepoPath(r, "")
 	if err != nil {
 		return err
 	}

@@ -88,8 +88,8 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	baseRepoID := "a.b/c"
-	headRepoID := "x.y/z"
+	baseRepoPath := "a.b/c"
+	headRepoPath := "x.y/z"
 	mockHeadRepo := vcs_testing.MockRepository{}
 	opt := vcs.DiffOptions{}
 
@@ -103,12 +103,11 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	}
 	sm := &mockService{
 		t: t,
-		// repoID: baseRepoID,
 		open: func(repoPath string) (interface{}, error) {
 			switch repoPath {
-			case baseRepoID:
+			case baseRepoPath:
 				return rm, nil
-			case headRepoID:
+			case headRepoPath:
 				return mockHeadRepo, nil
 			default:
 				panic("unexpected repo clone: " + repoPath)
@@ -117,7 +116,7 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCrossRepoDiff(baseRepoID, rm.base, headRepoID, rm.head, &opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCrossRepoDiff(baseRepoPath, rm.base, headRepoPath, rm.head, &opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -141,11 +140,11 @@ type mockCrossRepoDiff struct {
 	t *testing.T
 
 	// expected args
-	base       vcs.CommitID
-	headRepo   vcs.Repository
-	headRepoID string
-	head       vcs.CommitID
-	opt        vcs.DiffOptions
+	base         vcs.CommitID
+	headRepo     vcs.Repository
+	headRepoPath string
+	head         vcs.CommitID
+	opt          vcs.DiffOptions
 
 	// return values
 	diff *vcs.Diff

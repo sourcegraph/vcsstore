@@ -54,7 +54,7 @@ func TestRepository_ResolveBranch(t *testing.T) {
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoBranch, repo, map[string]string{"RepoID": repoPath, "Branch": "mybranch"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoBranch, repo, map[string]string{"RepoPath": repoPath, "Branch": "mybranch"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -86,7 +86,7 @@ func TestRepository_ResolveRevision(t *testing.T) {
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoRevision, repo, map[string]string{"RepoID": repoPath, "RevSpec": "myrevspec"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoRevision, repo, map[string]string{"RepoPath": repoPath, "RevSpec": "myrevspec"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -118,7 +118,7 @@ func TestRepository_ResolveTag(t *testing.T) {
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoTag, repo, map[string]string{"RepoID": repoPath, "Tag": "mytag"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoTag, repo, map[string]string{"RepoPath": repoPath, "Tag": "mytag"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 

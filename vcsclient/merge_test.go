@@ -18,7 +18,7 @@ func TestRepository_MergeBase(t *testing.T) {
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoMergeBase, repo, map[string]string{"RepoID": repoPath, "CommitIDA": "a", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoMergeBase, repo, map[string]string{"RepoPath": repoPath, "CommitIDA": "a", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -50,15 +50,15 @@ func TestRepository_CrossRepoMergeBase(t *testing.T) {
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoMergeBase, repo, map[string]string{"RepoID": repoPath, "CommitIDA": "a", "BRepoID": "x.com/y", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoMergeBase, repo, map[string]string{"RepoPath": repoPath, "CommitIDA": "a", "BRepoPath": "x.com/y", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
 		http.Redirect(w, r, urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), http.StatusFound)
 	})
 
-	bRepoID := "x.com/y"
-	bRepo, _ := vcsclient.Repository(bRepoID)
+	bRepoPath := "x.com/y"
+	bRepo, _ := vcsclient.Repository(bRepoPath)
 
 	commitID, err := repo.CrossRepoMergeBase("a", bRepo, "b")
 	if err != nil {

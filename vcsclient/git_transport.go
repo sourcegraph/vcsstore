@@ -12,7 +12,7 @@ type gitTransport struct {
 	// client is the vcs client used to issue HTTP requests
 	client *Client
 
-	// repoID identifies the repository being accessed
+	// repoPath identifies the repository being accessed
 	repoPath string
 }
 

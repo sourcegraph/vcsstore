@@ -24,7 +24,7 @@ func TestEncodeAndDecodeRepositoryPath(t *testing.T) {
 
 		repoPath := DecodeRepositoryPath(encPath)
 		if repoPath != repo.repoPath {
-			t.Errorf("got repoID == %q, want %q", repoPath, repo.repoPath)
+			t.Errorf("got repoPath == %q, want %q", repoPath, repo.repoPath)
 		}
 	}
 }

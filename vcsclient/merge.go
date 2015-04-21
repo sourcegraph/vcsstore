@@ -38,7 +38,7 @@ func (r *repository) CrossRepoMergeBase(a vcs.CommitID, repoB vcs.Repository, b 
 		return "", fmt.Errorf("cross-repo merge-base in vcsclient is not implemented for %T", repoB)
 	}
 
-	url, err := r.url(RouteRepoCrossRepoMergeBase, map[string]string{"CommitIDA": string(a), "BRepoID": repoB2.repoPath, "CommitIDB": string(b)}, nil)
+	url, err := r.url(RouteRepoCrossRepoMergeBase, map[string]string{"CommitIDA": string(a), "BRepoPath": repoB2.repoPath, "CommitIDB": string(b)}, nil)
 	if err != nil {
 		return "", err
 	}

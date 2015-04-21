@@ -19,7 +19,7 @@ func TestRepository_Diff(t *testing.T) {
 	want := &vcs.Diff{Raw: "diff"}
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoDiff, repo, map[string]string{"RepoID": repoPath, "Base": "b", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoDiff, repo, map[string]string{"RepoPath": repoPath, "Base": "b", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -51,15 +51,15 @@ func TestRepository_CrossRepoDiff(t *testing.T) {
 	want := &vcs.Diff{Raw: "diff"}
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoDiff, repo, map[string]string{"RepoID": repoPath, "Base": "b", "HeadRepoID": "x.com/y", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoDiff, repo, map[string]string{"RepoPath": repoPath, "Base": "b", "HeadRepoPath": "x.com/y", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
 		writeJSON(w, want)
 	})
 
-	headRepoID := "x.com/y"
-	headRepo, _ := vcsclient.Repository(headRepoID)
+	headRepoPath := "x.com/y"
+	headRepo, _ := vcsclient.Repository(headRepoPath)
 
 	diff, err := repo.CrossRepoDiff("b", headRepo, "h", nil)
 	if err != nil {

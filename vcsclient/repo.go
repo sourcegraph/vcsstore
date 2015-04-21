@@ -269,7 +269,7 @@ func (r *repository) url(routeName string, routeVars map[string]string, opt inte
 		routeVarsList[i*2+1] = val
 		i++
 	}
-	routeVarsList = append(routeVarsList, "RepoID", r.repoPath)
+	routeVarsList = append(routeVarsList, "RepoPath", r.repoPath)
 	url, err := route.URL(routeVarsList...)
 	if err != nil {
 		return nil, err

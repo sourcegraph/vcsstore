@@ -46,7 +46,7 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 	const repoURIPattern = "(?:[^./][^/]*)(?:/[^./][^/]*){1,}"
 
-	repoPath := "/{RepoID:" + repoURIPattern + "}"
+	repoPath := "/{RepoPath:" + repoURIPattern + "}"
 	parent.Path(repoPath).Methods("GET").Name(RouteRepo)
 	parent.Path(repoPath).Methods("POST").Name(RouteRepoCreateOrUpdate)
 
@@ -58,14 +58,14 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 	repo.Path("/.blame/{Path:.+}").Methods("GET").Name(RouteRepoBlameFile)
 	repo.Path("/.diff/{Base}..{Head}").Methods("GET").Name(RouteRepoDiff)
-	repo.Path("/.cross-repo-diff/{Base}..{HeadRepoID:" + repoURIPattern + "}:{Head}").Methods("GET").Name(RouteRepoCrossRepoDiff)
+	repo.Path("/.cross-repo-diff/{Base}..{HeadRepoPath:" + repoURIPattern + "}:{Head}").Methods("GET").Name(RouteRepoCrossRepoDiff)
 	repo.Path("/.branches").Methods("GET").Name(RouteRepoBranches)
 	repo.Path("/.branches/{Branch:.+}").Methods("GET").Name(RouteRepoBranch)
 	repo.Path("/.revs/{RevSpec:.+}").Methods("GET").Name(RouteRepoRevision)
 	repo.Path("/.tags").Methods("GET").Name(RouteRepoTags)
 	repo.Path("/.tags/{Tag:.+}").Methods("GET").Name(RouteRepoTag)
 	repo.Path("/.merge-base/{CommitIDA}/{CommitIDB}").Methods("GET").Name(RouteRepoMergeBase)
-	repo.Path("/.cross-repo-merge-base/{CommitIDA}/{BRepoID:" + repoURIPattern + "}/{CommitIDB}").Methods("GET").Name(RouteRepoCrossRepoMergeBase)
+	repo.Path("/.cross-repo-merge-base/{CommitIDA}/{BRepoPath:" + repoURIPattern + "}/{CommitIDB}").Methods("GET").Name(RouteRepoCrossRepoMergeBase)
 	repo.Path("/.commits").Methods("GET").Name(RouteRepoCommits)
 	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
@@ -97,11 +97,11 @@ func NewRouter(parent *muxpkg.Router) *Router {
 }
 
 func (r *Router) URLToRepo(repoPath string) *url.URL {
-	return r.URLTo(RouteRepo, "RepoID", repoPath)
+	return r.URLTo(RouteRepo, "RepoPath", repoPath)
 }
 
 func (r *Router) URLToRepoBlameFile(repoPath string, path string, opt *vcs.BlameOptions) *url.URL {
-	u := r.URLTo(RouteRepoBlameFile, "RepoID", repoPath, "Path", path)
+	u := r.URLTo(RouteRepoBlameFile, "RepoPath", repoPath, "Path", path)
 	if opt != nil {
 		q, err := query.Values(opt)
 		if err != nil {
@@ -113,7 +113,7 @@ func (r *Router) URLToRepoBlameFile(repoPath string, path string, opt *vcs.Blame
 }
 
 func (r *Router) URLToRepoDiff(repoPath string, base, head vcs.CommitID, opt *vcs.DiffOptions) *url.URL {
-	u := r.URLTo(RouteRepoDiff, "RepoID", repoPath, "Base", string(base), "Head", string(head))
+	u := r.URLTo(RouteRepoDiff, "RepoPath", repoPath, "Base", string(base), "Head", string(head))
 	if opt != nil {
 		q, err := query.Values(opt)
 		if err != nil {
@@ -124,8 +124,8 @@ func (r *Router) URLToRepoDiff(repoPath string, base, head vcs.CommitID, opt *vc
 	return u
 }
 
-func (r *Router) URLToRepoCrossRepoDiff(baseRepoID string, base vcs.CommitID, headRepoID string, head vcs.CommitID, opt *vcs.DiffOptions) *url.URL {
-	u := r.URLTo(RouteRepoCrossRepoDiff, "RepoID", baseRepoID, "Base", string(base), "HeadRepoID", headRepoID, "Head", string(head))
+func (r *Router) URLToRepoCrossRepoDiff(baseRepoPath string, base vcs.CommitID, headRepoPath string, head vcs.CommitID, opt *vcs.DiffOptions) *url.URL {
+	u := r.URLTo(RouteRepoCrossRepoDiff, "RepoPath", baseRepoPath, "Base", string(base), "HeadRepoPath", headRepoPath, "Head", string(head))
 	if opt != nil {
 		q, err := query.Values(opt)
 		if err != nil {
@@ -137,11 +137,11 @@ func (r *Router) URLToRepoCrossRepoDiff(baseRepoID string, base vcs.CommitID, he
 }
 
 func (r *Router) URLToRepoBranch(repoPath string, branch string) *url.URL {
-	return r.URLTo(RouteRepoBranch, "RepoID", repoPath, "Branch", branch)
+	return r.URLTo(RouteRepoBranch, "RepoPath", repoPath, "Branch", branch)
 }
 
 func (r *Router) URLToRepoBranches(repoPath string, opt vcs.BranchesOptions) *url.URL {
-	u := r.URLTo(RouteRepoBranches, "RepoID", repoPath)
+	u := r.URLTo(RouteRepoBranches, "RepoPath", repoPath)
 	q, err := query.Values(opt)
 	if err != nil {
 		panic(err.Error())
@@ -151,23 +151,23 @@ func (r *Router) URLToRepoBranches(repoPath string, opt vcs.BranchesOptions) *ur
 }
 
 func (r *Router) URLToRepoRevision(repoPath string, revSpec string) *url.URL {
-	return r.URLTo(RouteRepoRevision, "RepoID", repoPath, "RevSpec", revSpec)
+	return r.URLTo(RouteRepoRevision, "RepoPath", repoPath, "RevSpec", revSpec)
 }
 
 func (r *Router) URLToRepoTag(repoPath string, tag string) *url.URL {
-	return r.URLTo(RouteRepoTag, "RepoID", repoPath, "Tag", tag)
+	return r.URLTo(RouteRepoTag, "RepoPath", repoPath, "Tag", tag)
 }
 
 func (r *Router) URLToRepoTags(repoPath string) *url.URL {
-	return r.URLTo(RouteRepoTags, "RepoID", repoPath)
+	return r.URLTo(RouteRepoTags, "RepoPath", repoPath)
 }
 
 func (r *Router) URLToRepoCommit(repoPath string, commitID vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoCommit, "RepoID", repoPath, "CommitID", string(commitID))
+	return r.URLTo(RouteRepoCommit, "RepoPath", repoPath, "CommitID", string(commitID))
 }
 
 func (r *Router) URLToRepoCommits(repoPath string, opt vcs.CommitsOptions) *url.URL {
-	u := r.URLTo(RouteRepoCommits, "RepoID", repoPath)
+	u := r.URLTo(RouteRepoCommits, "RepoPath", repoPath)
 	q, err := query.Values(opt)
 	if err != nil {
 		panic(err.Error())
@@ -177,11 +177,11 @@ func (r *Router) URLToRepoCommits(repoPath string, opt vcs.CommitsOptions) *url.
 }
 
 func (r *Router) URLToRepoTreeEntry(repoPath string, commitID vcs.CommitID, path string) *url.URL {
-	return r.URLTo(RouteRepoTreeEntry, "RepoID", repoPath, "CommitID", string(commitID), "Path", path)
+	return r.URLTo(RouteRepoTreeEntry, "RepoPath", repoPath, "CommitID", string(commitID), "Path", path)
 }
 
 func (r *Router) URLToRepoSearch(repoPath string, at vcs.CommitID, opt vcs.SearchOptions) *url.URL {
-	u := r.URLTo(RouteRepoSearch, "RepoID", repoPath, "CommitID", string(at))
+	u := r.URLTo(RouteRepoSearch, "RepoPath", repoPath, "CommitID", string(at))
 	q, err := query.Values(opt)
 	if err != nil {
 		panic(err.Error())
@@ -191,11 +191,11 @@ func (r *Router) URLToRepoSearch(repoPath string, at vcs.CommitID, opt vcs.Searc
 }
 
 func (r *Router) URLToRepoMergeBase(repoPath string, a, b vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoMergeBase, "RepoID", repoPath, "CommitIDA", string(a), "CommitIDB", string(b))
+	return r.URLTo(RouteRepoMergeBase, "RepoPath", repoPath, "CommitIDA", string(a), "CommitIDB", string(b))
 }
 
-func (r *Router) URLToRepoCrossRepoMergeBase(repoPath string, a vcs.CommitID, bRepoID string, b vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoCrossRepoMergeBase, "RepoID", repoPath, "CommitIDA", string(a), "BRepoID", bRepoID, "CommitIDB", string(b))
+func (r *Router) URLToRepoCrossRepoMergeBase(repoPath string, a vcs.CommitID, bRepoPath string, b vcs.CommitID) *url.URL {
+	return r.URLTo(RouteRepoCrossRepoMergeBase, "RepoPath", repoPath, "CommitIDA", string(a), "BRepoPath", bRepoPath, "CommitIDB", string(b))
 }
 
 func (r *Router) URLTo(route string, vars ...string) *url.URL {

@@ -285,7 +285,7 @@ var _ vcsstore.Service = (*mockServiceForExistingRepo)(nil)
 
 func (m *mockServiceForExistingRepo) Open(repoPath string) (interface{}, error) {
 	if m.repoPath != "" && repoPath != m.repoPath {
-		m.t.Errorf("mock: got repoID arg %q, want %q", repoPath, m.repoPath)
+		m.t.Errorf("mock: got repoPath arg %q, want %q", repoPath, m.repoPath)
 	}
 	m.opened = true
 	return m.repo, m.err
@@ -314,14 +314,14 @@ var _ vcsstore.Service = (*mockService)(nil)
 
 func (m *mockService) Open(repoPath string) (interface{}, error) {
 	if m.repoPath != "" && repoPath != m.repoPath {
-		m.t.Errorf("mock: got repoID arg %q, want %q", repoPath, m.repoPath)
+		m.t.Errorf("mock: got repoPath arg %q, want %q", repoPath, m.repoPath)
 	}
 	return m.open(repoPath)
 }
 
 func (m *mockService) Clone(repoPath string, opt *vcsclient.CloneInfo) (interface{}, error) {
 	if m.repoPath != "" && repoPath != m.repoPath {
-		m.t.Errorf("mock: got repoID arg %q, want %q", repoPath, m.repoPath)
+		m.t.Errorf("mock: got repoPath arg %q, want %q", repoPath, m.repoPath)
 	}
 	if !reflect.DeepEqual(opt, &m.opt) {
 		m.t.Errorf("mock: got opt %+v, want %+v", asJSON(opt), asJSON(m.opt))

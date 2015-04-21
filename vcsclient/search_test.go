@@ -19,7 +19,7 @@ func TestRepository_Search(t *testing.T) {
 	want := []*vcs.SearchResult{{File: "f", StartLine: 1, EndLine: 2, Match: []byte("xyz")}}
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoSearch, repo, map[string]string{"RepoID": repoPath, "CommitID": "c"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoSearch, repo, map[string]string{"RepoPath": repoPath, "CommitID": "c"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 		testFormValues(t, r, values{"Query": "q", "QueryType": "t", "ContextLines": "0", "N": "0", "Offset": "0"})

@@ -93,7 +93,7 @@ func (h *Handler) getRepo(r *http.Request) (repo interface{}, repoPath string, d
 // getRepoLabel allows either getting the main repo in the URL or
 // another one, such as the head repo for cross-repo diffs.
 func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{}, repoPath string, done func(), err error) {
-	repoPath, err = h.getRepoID(r, label)
+	repoPath, err = h.getRepoPath(r, label)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -113,11 +113,11 @@ func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{
 	return repo, repoPath, done, nil
 }
 
-func (h *Handler) getRepoID(r *http.Request, label string) (repoPath string, err error) {
+func (h *Handler) getRepoPath(r *http.Request, label string) (repoPath string, err error) {
 	v := mux.Vars(r)
-	repoPath = v[label+"RepoID"]
+	repoPath = v[label+"RepoPath"]
 	if repoPath == "" {
-		return "", &httpError{http.StatusBadRequest, errors.New("repoID not found")}
+		return "", &httpError{http.StatusBadRequest, errors.New("repoPath not found")}
 	}
 	return repoPath, err
 }
