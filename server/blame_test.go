@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
@@ -52,9 +51,6 @@ func TestServeRepoBlameFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, h := range rm.hunks {
-		normalizeHunk(h)
-	}
 	if !reflect.DeepEqual(hunks, rm.hunks) {
 		t.Errorf("got hunks %+v, want %+v", hunks, rm.hunks)
 	}
@@ -83,8 +79,4 @@ func (m *mockBlameFile) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hu
 	}
 	m.called = true
 	return m.hunks, m.err
-}
-
-func normalizeHunk(c *vcs.Hunk) {
-	c.Author.Date = c.Author.Date.In(time.UTC)
 }

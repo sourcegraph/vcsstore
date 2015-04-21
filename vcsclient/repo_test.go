@@ -212,7 +212,6 @@ func TestRepository_Commits(t *testing.T) {
 	repo := repo_.(*repository)
 
 	want := []*vcs.Commit{{ID: "abcd"}}
-	normalizeTime(&want[0].Author.Date)
 
 	var called bool
 	mux.HandleFunc(urlPath(t, RouteRepoCommits, repo, nil), func(w http.ResponseWriter, r *http.Request) {
@@ -251,7 +250,6 @@ func TestRepository_GetCommit(t *testing.T) {
 	repo := repo_.(*repository)
 
 	want := &vcs.Commit{ID: "abcd"}
-	normalizeTime(&want.Author.Date)
 
 	var called bool
 	mux.HandleFunc(urlPath(t, RouteRepoCommit, repo, map[string]string{"CommitID": "abcd"}), func(w http.ResponseWriter, r *http.Request) {

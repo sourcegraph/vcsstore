@@ -17,7 +17,6 @@ func TestRepository_BlameFile(t *testing.T) {
 	repo := repo_.(*repository)
 
 	want := []*vcs.Hunk{{StartLine: 1, EndLine: 2, CommitID: "c"}}
-	normalizeTime(&want[0].Author.Date)
 
 	var called bool
 	mux.HandleFunc(urlPath(t, RouteRepoBlameFile, repo, map[string]string{"RepoPath": repoPath, "Path": "f"}), func(w http.ResponseWriter, r *http.Request) {
