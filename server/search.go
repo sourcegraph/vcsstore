@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
@@ -17,7 +16,6 @@ func (h *Handler) serveRepoSearch(w http.ResponseWriter, r *http.Request) error 
 
 	var opt vcs.SearchOptions
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
-		log.Println(err)
 		return err
 	}
 

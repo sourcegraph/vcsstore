@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/sourcegraph/mux"
@@ -20,7 +19,6 @@ func (h *Handler) serveRepoDiff(w http.ResponseWriter, r *http.Request) error {
 
 	var opt vcs.DiffOptions
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
-		log.Println(err)
 		return err
 	}
 
@@ -67,7 +65,6 @@ func (h *Handler) serveRepoCrossRepoDiff(w http.ResponseWriter, r *http.Request)
 
 	var opt vcs.DiffOptions
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
-		log.Println(err)
 		return err
 	}
 

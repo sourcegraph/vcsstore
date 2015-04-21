@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -19,7 +18,6 @@ func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error
 
 	var opt vcs.CommitsOptions
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
-		log.Println(err)
 		return err
 	}
 
