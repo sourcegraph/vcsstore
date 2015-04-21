@@ -204,14 +204,14 @@ func (s *service) Clone(repoID string, cloneInfo *vcsclient.CloneInfo) (interfac
 	defer os.RemoveAll(cloneTmpDir)
 
 	cloneOpt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: cloneInfo.RemoteOpts}
-	_, err = vcs.Clone(cloneInfo.VCS, cloneInfo.CloneURL.String(), cloneTmpDir, cloneOpt)
+	_, err = vcs.Clone(cloneInfo.VCS, cloneInfo.CloneURL, cloneTmpDir, cloneOpt)
 	if err != nil {
 		return nil, err
 	}
-	s.debugLogf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", cloneInfo.VCS, cloneInfo.CloneURL.String(), cloneTmpDir, cloneDir)
+	s.debugLogf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", cloneInfo.VCS, cloneInfo.CloneURL, cloneTmpDir, cloneDir)
 
 	if err := os.Rename(cloneTmpDir, cloneDir); err != nil {
-		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", cloneInfo.VCS, cloneInfo.CloneURL.String(), cloneTmpDir, cloneDir)
+		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", cloneInfo.VCS, cloneInfo.CloneURL, cloneTmpDir, cloneDir)
 		return nil, err
 	}
 

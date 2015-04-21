@@ -318,7 +318,7 @@ The options are:
 
 	if repo, ok := repo.(vcsclient.RepositoryCloneUpdater); ok {
 		err := repo.CloneOrUpdate(&vcsclient.CloneInfo{
-			VCS: vcsType, CloneURL: cloneURL, RemoteOpts: opt,
+			VCS: vcsType, CloneURL: cloneURL.String(), RemoteOpts: opt,
 		})
 		if err != nil {
 			log.Fatal("Clone: ", err)

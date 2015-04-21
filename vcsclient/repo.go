@@ -53,7 +53,7 @@ type CloneInfo struct {
 	VCS string
 
 	// CloneURL is the remote URL from which to clone.
-	CloneURL *url.URL
+	CloneURL string
 
 	// Additional options
 	vcs.RemoteOpts

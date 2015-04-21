@@ -3,7 +3,6 @@ package vcsclient
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -18,7 +17,7 @@ func TestRepository_CloneOrUpdate(t *testing.T) {
 	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	cloneURL := "git://a.b/c"
 	opt := &CloneInfo{
 		VCS:        "git",
 		CloneURL:   cloneURL,
