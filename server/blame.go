@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/sourcegraph/mux"
@@ -20,7 +19,6 @@ func (h *Handler) serveRepoBlameFile(w http.ResponseWriter, r *http.Request) err
 
 	var opt vcs.BlameOptions
 	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
-		log.Println(err)
 		return err
 	}
 
