@@ -1,9 +1,8 @@
 syntax = "proto3";
 package vcsclient;
 
-import "gogoproto/gogo.proto";
-import "timestamp.proto";
-
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "sourcegraph.com/sqs/pbtypes/timestamp.proto";
 
 // FileRange is a line and byte range in a file.
 message FileRange {
