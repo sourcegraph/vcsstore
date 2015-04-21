@@ -14,11 +14,16 @@ func TestRepository_CloneOrUpdate(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
-	opt := vcs.RemoteOpts{SSH: &vcs.SSHConfig{PrivateKey: []byte("abc")}}
+	cloneURL, _ := url.Parse("git://a.b/c")
+	opt := &CloneInfo{
+		VCS:        "git",
+		CloneURL:   cloneURL,
+		RemoteOpts: vcs.RemoteOpts{SSH: &vcs.SSHConfig{PrivateKey: []byte("abc")}},
+	}
 
 	var called bool
 	mux.HandleFunc(urlPath(t, RouteRepo, repo, nil), func(w http.ResponseWriter, r *http.Request) {
@@ -43,14 +48,14 @@ func TestRepository_ResolveBranch(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoBranch, repo, map[string]string{"VCS": "git", "CloneURL": cloneURL.String(), "Branch": "mybranch"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoBranch, repo, map[string]string{"RepoID": repoID, "Branch": "mybranch"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -75,14 +80,14 @@ func TestRepository_ResolveRevision(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoRevision, repo, map[string]string{"VCS": "git", "CloneURL": cloneURL.String(), "RevSpec": "myrevspec"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoRevision, repo, map[string]string{"RepoID": repoID, "RevSpec": "myrevspec"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -107,14 +112,14 @@ func TestRepository_ResolveTag(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoTag, repo, map[string]string{"VCS": "git", "CloneURL": cloneURL.String(), "Tag": "mytag"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoTag, repo, map[string]string{"RepoID": repoID, "Tag": "mytag"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -139,8 +144,8 @@ func TestRepository_Branches(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := []*vcs.Branch{{Name: "mybranch", Head: "abcd"}}
@@ -171,8 +176,8 @@ func TestRepository_Tags(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := []*vcs.Tag{{Name: "mytag", CommitID: "abcd"}}
@@ -203,8 +208,8 @@ func TestRepository_Commits(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := []*vcs.Commit{{ID: "abcd"}}
@@ -242,8 +247,8 @@ func TestRepository_GetCommit(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := &vcs.Commit{ID: "abcd"}

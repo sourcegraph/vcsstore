@@ -2,7 +2,6 @@ package vcsclient
 
 import (
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -13,15 +12,15 @@ func TestRepository_BlameFile(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoID := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoID)
 	repo := repo_.(*repository)
 
 	want := []*vcs.Hunk{{StartLine: 1, EndLine: 2, CommitID: "c"}}
 	normalizeTime(&want[0].Author.Date)
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoBlameFile, repo, map[string]string{"VCS": "git", "CloneURL": cloneURL.String(), "Path": "f"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoBlameFile, repo, map[string]string{"RepoID": repoID, "Path": "f"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 		testFormValues(t, r, values{"NewestCommit": "nc", "OldestCommit": "oc", "StartLine": "1", "EndLine": "2"})

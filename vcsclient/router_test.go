@@ -14,9 +14,8 @@ func TestMatch(t *testing.T) {
 	router := NewRouter(nil)
 
 	const (
-		vcsType         = "git"
-		cloneURL        = "git://example.com/my/repo.git"
-		encodedRepoPath = "git/git/example.com/my/repo.git"
+		repoID          = "example.com/my/repo"
+		encodedRepoPath = "example.com/my/repo"
 	)
 
 	tests := []struct {
@@ -36,74 +35,74 @@ func TestMatch(t *testing.T) {
 		{
 			path:          "/" + encodedRepoPath,
 			wantRouteName: RouteRepo,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL},
+			wantVars:      map[string]string{"RepoID": repoID},
 		},
 
 		// Repo revisions
 		{
 			path:          "/" + encodedRepoPath + "/.branches/mybranch",
 			wantRouteName: RouteRepoBranch,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Branch": "mybranch"},
+			wantVars:      map[string]string{"RepoID": repoID, "Branch": "mybranch"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.branches/mybranch/subbranch",
 			wantRouteName: RouteRepoBranch,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Branch": "mybranch/subbranch"},
+			wantVars:      map[string]string{"RepoID": repoID, "Branch": "mybranch/subbranch"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.tags/mytag",
 			wantRouteName: RouteRepoTag,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Tag": "mytag"},
+			wantVars:      map[string]string{"RepoID": repoID, "Tag": "mytag"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.tags/mytag/subtag",
 			wantRouteName: RouteRepoTag,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Tag": "mytag/subtag"},
+			wantVars:      map[string]string{"RepoID": repoID, "Tag": "mytag/subtag"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.revs/myrevspec",
 			wantRouteName: RouteRepoRevision,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "RevSpec": "myrevspec"},
+			wantVars:      map[string]string{"RepoID": repoID, "RevSpec": "myrevspec"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.revs/myrevspec1/mysubdir2",
 			wantRouteName: RouteRepoRevision,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "RevSpec": "myrevspec1/mysubdir2"},
+			wantVars:      map[string]string{"RepoID": repoID, "RevSpec": "myrevspec1/mysubdir2"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid",
 			wantRouteName: RouteRepoCommit,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid"},
+			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid"},
 		},
 
 		// Repo commit log
 		{
 			path:          "/" + encodedRepoPath + "/.commits",
 			wantRouteName: RouteRepoCommits,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL},
+			wantVars:      map[string]string{"RepoID": repoID},
 		},
 
 		// Repo tree
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "."},
+			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "."},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "."},
+			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "."},
 			wantPath:      "/" + encodedRepoPath + "/.commits/mycommitid/tree",
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "a/b"},
+			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "a/b"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b/",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitID": "mycommitid", "Path": "a/b"},
+			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "a/b"},
 			wantPath:      "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
 		},
 
@@ -111,28 +110,28 @@ func TestMatch(t *testing.T) {
 		{
 			path:          "/" + encodedRepoPath + "/.diff/a..b",
 			wantRouteName: RouteRepoDiff,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Base": "a", "Head": "b"},
+			wantVars:      map[string]string{"RepoID": repoID, "Base": "a", "Head": "b"},
 		},
 
 		// Cross-repo diff
 		{
-			path:          "/" + encodedRepoPath + "/.cross-repo-diff/a..git/https/x.com/y/z.git:b",
+			path:          "/" + encodedRepoPath + "/.cross-repo-diff/a..x.com/y/z:b",
 			wantRouteName: RouteRepoCrossRepoDiff,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "Base": "a", "HeadVCS": "git", "HeadCloneURL": "https://x.com/y/z.git", "Head": "b"},
+			wantVars:      map[string]string{"RepoID": repoID, "Base": "a", "HeadRepoID": "x.com/y/z", "Head": "b"},
 		},
 
 		// Merge Base
 		{
 			path:          "/" + encodedRepoPath + "/.merge-base/a/b",
 			wantRouteName: RouteRepoMergeBase,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitIDA": "a", "CommitIDB": "b"},
+			wantVars:      map[string]string{"RepoID": repoID, "CommitIDA": "a", "CommitIDB": "b"},
 		},
 
 		// Cross-repo merge base
 		{
-			path:          "/" + encodedRepoPath + "/.cross-repo-merge-base/a/git/https/x.com/y/z.git/b",
+			path:          "/" + encodedRepoPath + "/.cross-repo-merge-base/a/x.com/y/z/b",
 			wantRouteName: RouteRepoCrossRepoMergeBase,
-			wantVars:      map[string]string{"VCS": "git", "CloneURL": cloneURL, "CommitIDA": "a", "BVCS": "git", "BCloneURL": "https://x.com/y/z.git", "CommitIDB": "b"},
+			wantVars:      map[string]string{"RepoID": repoID, "CommitIDA": "a", "BRepoID": "x.com/y/z", "CommitIDB": "b"},
 		},
 	}
 

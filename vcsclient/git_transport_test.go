@@ -14,28 +14,28 @@ import (
 
 func Test_gitTransport_InfoRefs(t *testing.T) {
 	tests := []struct {
-		cloneURL string
-		service  string
-		expURL   string
-		expOut   string
+		repoID  string
+		service string
+		expURL  string
+		expOut  string
 	}{{
-		cloneURL: "https://a.b/c",
-		service:  "receive-pack",
-		expURL:   "/git/https/a.b/c/.git/info/refs?service=git-receive-pack",
+		repoID:  "a.b/c",
+		service: "receive-pack",
+		expURL:  "/a.b/c/.git/info/refs?service=git-receive-pack",
 		expOut: `0090542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context report-status delete-refs side-band-64k quiet ofs-delta agent=git/1.9.1
 003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
 0000`,
 	}, {
-		cloneURL: "file://a.b/c",
-		service:  "receive-pack",
-		expURL:   "/git/file/a.b/c/.git/info/refs?service=git-receive-pack",
+		repoID:  "a.b/c",
+		service: "receive-pack",
+		expURL:  "/a.b/c/.git/info/refs?service=git-receive-pack",
 		expOut: `0090542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context report-status delete-refs side-band-64k quiet ofs-delta agent=git/1.9.1
 003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
 0000`,
 	}, {
-		cloneURL: "git://a.b/c",
-		service:  "upload-pack",
-		expURL:   "/git/git/a.b/c/.git/info/refs?service=git-upload-pack",
+		repoID:  "a.b/c",
+		service: "upload-pack",
+		expURL:  "/a.b/c/.git/info/refs?service=git-upload-pack",
 		expOut: `00d18096f47503459bcc74d1f4c487b7e6e42e5746b5 HEADmulti_ack thin-pack side-band side-band-64k ofs-delta shallow no-progress include-tag multi_ack_detailed no-done symref=HEAD:refs/heads/master agent=git/1.9.1
 		0047542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context
 		003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
@@ -47,11 +47,9 @@ func Test_gitTransport_InfoRefs(t *testing.T) {
 			setup()
 			defer teardown()
 
-			cloneURL, _ := url.Parse(test.cloneURL)
-			service := test.service
 			expURL, _ := url.Parse(test.expURL)
 
-			gitTransport, err := vcsclient.GitTransport("git", cloneURL)
+			gitTransport, err := vcsclient.GitTransport(test.repoID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -76,7 +74,7 @@ func Test_gitTransport_InfoRefs(t *testing.T) {
 			})
 
 			var buf bytes.Buffer
-			err = gitTransport.InfoRefs(&buf, service)
+			err = gitTransport.InfoRefs(&buf, test.service)
 			if err != nil {
 				t.Errorf("unexpected error calling gitTransport.InfoRefs: %s", err)
 			}
@@ -92,13 +90,13 @@ func Test_gitTransport_ReceivePack(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("https://a.b/c")
+	repoID := "a.b/c"
 	opt := git.GitTransportOpt{}
-	expURL := "/git/https/a.b/c/.git/git-receive-pack"
+	expURL := "/a.b/c/.git/git-receive-pack"
 	expIn := "this is the expected input"
 	expOut := "this is the expected output"
 
-	gitTransport, err := vcsclient.GitTransport("git", cloneURL)
+	gitTransport, err := vcsclient.GitTransport(repoID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,13 +145,13 @@ func Test_gitTransport_UploadPack(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("https://a.b/c")
+	repoID := "a.b/c"
 	opt := git.GitTransportOpt{}
-	expURL := "/git/https/a.b/c/.git/git-upload-pack"
+	expURL := "/a.b/c/.git/git-upload-pack"
 	expIn := "this is the expected input"
 	expOut := "this is the expected output"
 
-	gitTransport, err := vcsclient.GitTransport("git", cloneURL)
+	gitTransport, err := vcsclient.GitTransport(repoID)
 	if err != nil {
 		t.Fatal(err)
 	}
