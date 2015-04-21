@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"net/url"
 	"testing"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
@@ -12,7 +11,7 @@ func TestServeRepoBranch(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockResolveBranch{
 		t:        t,
 		name:     "mybranch",
@@ -20,13 +19,12 @@ func TestServeRepoBranch(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoBranch("git", cloneURL, "mybranch").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoBranch(repoPath, "mybranch").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -38,14 +36,14 @@ func TestServeRepoBranch(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoPath, "abcd"))
 }
 
 func TestServeRepoRevision(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockResolveRevision{
 		t:        t,
 		revSpec:  "myrevspec",
@@ -53,13 +51,12 @@ func TestServeRepoRevision(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoRevision("git", cloneURL, "myrevspec").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoRevision(repoPath, "myrevspec").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -71,14 +68,14 @@ func TestServeRepoRevision(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoPath, "abcd"))
 }
 
 func TestServeRepoTag(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockResolveTag{
 		t:        t,
 		name:     "mytag",
@@ -86,13 +83,12 @@ func TestServeRepoTag(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoTag("git", cloneURL, "mytag").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoTag(repoPath, "mytag").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -104,7 +100,7 @@ func TestServeRepoTag(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoPath, "abcd"))
 }
 
 type mockResolveBranch struct {

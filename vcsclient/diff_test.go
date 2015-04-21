@@ -2,7 +2,6 @@ package vcsclient
 
 import (
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -13,14 +12,14 @@ func TestRepository_Diff(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 
 	want := &vcs.Diff{Raw: "diff"}
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoDiff, repo, map[string]string{"VCS": "git", "CloneURL": cloneURL.String(), "Base": "b", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoDiff, repo, map[string]string{"RepoPath": repoPath, "Base": "b", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -45,22 +44,22 @@ func TestRepository_CrossRepoDiff(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 
 	want := &vcs.Diff{Raw: "diff"}
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoDiff, repo, map[string]string{"VCS": "git", "CloneURL": cloneURL.String(), "Base": "b", "HeadVCS": "git", "HeadCloneURL": "https://x.com/y", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoDiff, repo, map[string]string{"RepoPath": repoPath, "Base": "b", "HeadRepoPath": "x.com/y", "Head": "h"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
 		writeJSON(w, want)
 	})
 
-	headCloneURL, _ := url.Parse("https://x.com/y")
-	headRepo, _ := vcsclient.Repository("git", headCloneURL)
+	headRepoPath := "x.com/y"
+	headRepo, _ := vcsclient.Repository(headRepoPath)
 
 	diff, err := repo.CrossRepoDiff("b", headRepo, "h", nil)
 	if err != nil {

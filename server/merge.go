@@ -11,7 +11,7 @@ import (
 func (h *Handler) serveRepoMergeBase(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, repoPath, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (h *Handler) serveRepoMergeBase(w http.ResponseWriter, r *http.Request) err
 			setShortCache(w)
 			statusCode = http.StatusFound
 		}
-		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, mb).String(), statusCode)
+		http.Redirect(w, r, h.router.URLToRepoCommit(repoPath, mb).String(), statusCode)
 		return nil
 	}
 
@@ -43,7 +43,7 @@ func (h *Handler) serveRepoMergeBase(w http.ResponseWriter, r *http.Request) err
 func (h *Handler) serveRepoCrossRepoMergeBase(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repoA, cloneURLA, doneA, err := h.getRepo(r)
+	repoA, repoPathA, doneA, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (h *Handler) serveRepoCrossRepoMergeBase(w http.ResponseWriter, r *http.Req
 			setShortCache(w)
 			statusCode = http.StatusFound
 		}
-		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURLA, mb).String(), statusCode)
+		http.Redirect(w, r, h.router.URLToRepoCommit(repoPathA, mb).String(), statusCode)
 		return nil
 	}
 

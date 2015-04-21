@@ -32,8 +32,7 @@ func IsRepoNotExist(err error) bool {
 
 type repository struct {
 	client   *Client
-	vcsType  string
-	cloneURL *url.URL
+	repoPath string
 }
 
 var _ vcs.Repository = (*repository)(nil)
@@ -43,16 +42,28 @@ type RepositoryCloneUpdater interface {
 	// it is available to the client via the API if it doesn't yet
 	// exist, or update it from its default remote. The call blocks
 	// until cloning finishes or fails.
-	CloneOrUpdate(vcs.RemoteOpts) error
+	CloneOrUpdate(cloneInfo *CloneInfo) error
 }
 
-func (r *repository) CloneOrUpdate(opt vcs.RemoteOpts) error {
+// CloneInfo is the information needed to clone a repository.
+type CloneInfo struct {
+	// VCS is the type of VCS (e.g., "git")
+	VCS string
+
+	// CloneURL is the remote URL from which to clone.
+	CloneURL string
+
+	// Additional options
+	vcs.RemoteOpts
+}
+
+func (r *repository) CloneOrUpdate(cloneInfo *CloneInfo) error {
 	url, err := r.url(RouteRepo, nil, nil)
 	if err != nil {
 		return err
 	}
 
-	req, err := r.client.NewRequest("POST", url.String(), opt)
+	req, err := r.client.NewRequest("POST", url.String(), cloneInfo)
 	if err != nil {
 		return err
 	}
@@ -258,7 +269,7 @@ func (r *repository) url(routeName string, routeVars map[string]string, opt inte
 		routeVarsList[i*2+1] = val
 		i++
 	}
-	routeVarsList = append(routeVarsList, "CloneURL", r.cloneURL.String(), "VCS", r.vcsType)
+	routeVarsList = append(routeVarsList, "RepoPath", r.repoPath)
 	url, err := route.URL(routeVarsList...)
 	if err != nil {
 		return nil, err

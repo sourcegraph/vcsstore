@@ -46,8 +46,10 @@ func TestCrossRepoDiff_git_git_lg(t *testing.T) {
 	}
 	c := vcsclient.New(baseURL, nil)
 
-	baseRepo := openAndCloneRepo(t, c, "git", "https://github.com/sgtest/vcsstore-cross-repo-diff-test.git")
-	headRepo := openAndCloneRepo(t, c, "git", "https://github.com/sqs/vcsstore-cross-repo-diff-test.git")
+	baseRepo := openAndCloneRepo(t, c, "github.com/sgtest/vcsstore-cross-repo-diff-test",
+		&vcsclient.CloneInfo{VCS: "git", CloneURL: "https://github.com/sgtest/vcsstore-cross-repo-diff-test.git"})
+	headRepo := openAndCloneRepo(t, c, "github.com/sqs/vcsstore-cross-repo-diff-test",
+		&vcsclient.CloneInfo{VCS: "git", CloneURL: "https://github.com/sqs/vcsstore-cross-repo-diff-test.git"})
 
 	const (
 		baseCommit = "e7b2d6b444232fb1174fdd7561c25e94b0f62b60"
@@ -81,16 +83,12 @@ index 78981922613b2afb6025042ff6bd878ac1994e85..422c2b7ab3b3c668038da977e4e93a5f
 	wg.Wait()
 }
 
-func openAndCloneRepo(t *testing.T, c *vcsclient.Client, vcsType, urlStr string) vcs.Repository {
-	url, err := url.Parse(urlStr)
+func openAndCloneRepo(t *testing.T, c *vcsclient.Client, repoPath string, cloneInfo *vcsclient.CloneInfo) vcs.Repository {
+	repo, err := c.Repository(repoPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	repo, err := c.Repository(vcsType, url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{}); err != nil {
+	if err := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(cloneInfo); err != nil {
 		t.Fatal(err)
 	}
 	return repo

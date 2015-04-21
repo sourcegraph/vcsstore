@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"reflect"
 	"testing"
@@ -14,8 +13,8 @@ func TestRepository_FileSystem_Open(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	want := []byte("c")
 	entry := &TreeEntry{
@@ -59,8 +58,8 @@ func TestRepository_FileSystem_Lstat(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	entry := &TreeEntry{Name: "f"}
 	normalizeTime(&entry.ModTime)
@@ -98,8 +97,8 @@ func TestRepository_FileSystem_Stat(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	entry := &TreeEntry{Name: "f"}
 	normalizeTime(&entry.ModTime)
@@ -137,8 +136,8 @@ func TestRepository_FileSystem_ReadDir(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	entries := []*TreeEntry{{Name: "d/a"}, {Name: "d/b"}}
 	normalizeTime(&entries[0].ModTime)
@@ -179,8 +178,8 @@ func TestRepository_FileSystem_Get(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	want := &TreeEntry{Name: "f", Contents: []byte("c")}
 	normalizeTime(&want.ModTime)
@@ -217,8 +216,8 @@ func TestRepository_FileSystem_GetFileWithOptions(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	want := &FileWithRange{
 		TreeEntry: &TreeEntry{Name: "f", Contents: []byte("c")},

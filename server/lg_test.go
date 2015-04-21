@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -28,12 +29,12 @@ var (
 
 func TestCloneGitHTTPS_lg(t *testing.T) {
 	t.Parallel()
-	testClone_lg(t, "git", "https://github.com/sgtest/empty-repo.git", vcs.RemoteOpts{}, "", 0)
+	testClone_lg(t, "github.com/sgtest/empty-repo", &vcsclient.CloneInfo{VCS: "git", CloneURL: "https://github.com/sgtest/empty-repo.git"}, "", 0)
 }
 
 func TestCloneGitGit_lg(t *testing.T) {
 	t.Parallel()
-	testClone_lg(t, "git", "git://github.com/sgtest/empty-repo.git", vcs.RemoteOpts{}, "", 0)
+	testClone_lg(t, "github.com/sgtest/empty-repo", &vcsclient.CloneInfo{VCS: "git", CloneURL: "git://github.com/sgtest/empty-repo.git"}, "", 0)
 }
 
 func TestCloneGitSSH_lg(t *testing.T) {
@@ -42,43 +43,50 @@ func TestCloneGitSSH_lg(t *testing.T) {
 		t.Skip("no ssh key specified")
 	}
 
-	var opt vcs.RemoteOpts
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
 	if *sshKeyFile != "" {
 		key, err := ioutil.ReadFile(*sshKeyFile)
 		if err != nil {
 			log.Fatal(err)
 		}
-		opt.SSH = &vcs.SSHConfig{PrivateKey: key}
+		cloneInfo.SSH = &vcs.SSHConfig{PrivateKey: key}
 	}
 
-	testClone_lg(t, "git", *privateRepo, opt, "", 0)
+	testClone_lg(t, repoPath, cloneInfo, "", 0)
 }
 
 func TestCloneGitSSH_noKey_lg(t *testing.T) {
 	t.Parallel()
-	testClone_lg(t, "git", *privateRepo, vcs.RemoteOpts{}, "authentication required but no callback set", http.StatusUnauthorized)
+
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
+
+	testClone_lg(t, repoPath, cloneInfo, "authentication required but no callback set", http.StatusUnauthorized)
 }
 
 func TestCloneGitSSH_emptyKey_lg(t *testing.T) {
 	t.Parallel()
-	opt := vcs.RemoteOpts{SSH: &vcs.SSHConfig{}}
-	testClone_lg(t, "git", *privateRepo, opt, "callback returned unsupported credentials type", http.StatusUnauthorized)
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
+	cloneInfo.RemoteOpts = vcs.RemoteOpts{SSH: &vcs.SSHConfig{}}
+	testClone_lg(t, repoPath, cloneInfo, "callback returned unsupported credentials type", http.StatusUnauthorized)
 }
 
 func TestCloneGitSSH_badKey_lg(t *testing.T) {
 	t.Parallel()
-	opt := vcs.RemoteOpts{
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
+	cloneInfo.RemoteOpts = vcs.RemoteOpts{
 		SSH: &vcs.SSHConfig{PrivateKey: []byte(badKey)},
 	}
-	testClone_lg(t, "git", *privateRepo, opt, "Failed to authenticate SSH session: Waiting for USERAUTH response", http.StatusForbidden)
+
+	testClone_lg(t, repoPath, cloneInfo, "Failed to authenticate SSH session: Waiting for USERAUTH response", http.StatusForbidden)
 }
 
 func TestCloneHgHTTPS_lg(t *testing.T) {
 	t.Parallel()
-	testClone_lg(t, "hg", "https://bitbucket.org/sqs/go-vcs-hgtest", vcs.RemoteOpts{}, "", 0)
+	testClone_lg(t, "bitbucket.org/sqs/go-vcs-hgtest",
+		&vcsclient.CloneInfo{VCS: "hg", CloneURL: "https://bitbucket.org/sqs/go-vcs-hgtest"}, "", 0)
 }
 
-func testClone_lg(t *testing.T, vcsType, repoURLStr string, opt vcs.RemoteOpts, wantCloneErrStr string, wantCloneErrHTTPStatus int) {
+func testClone_lg(t *testing.T, repoPath string, opt *vcsclient.CloneInfo, wantCloneErrStr string, wantCloneErrHTTPStatus int) {
 	storageDir, err := ioutil.TempDir("", "vcsstore-test")
 	if err != nil {
 		t.Fatal(err)
@@ -103,11 +111,7 @@ func testClone_lg(t *testing.T, vcsType, repoURLStr string, opt vcs.RemoteOpts, 
 		t.Fatal(err)
 	}
 	c := vcsclient.New(baseURL, nil)
-	repoURL, err := url.Parse(repoURLStr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	repo, err := c.Repository(vcsType, repoURL)
+	repo, err := c.Repository(repoPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +127,16 @@ func testClone_lg(t *testing.T, vcsType, repoURLStr string, opt vcs.RemoteOpts, 
 	} else {
 		t.Fatalf("Remote cloning is not implemented for %T.", repo)
 	}
+}
+
+func privateRepoInfo(t *testing.T, vcsType string) (cloneInfo *vcsclient.CloneInfo, repoPath string) {
+	cloneInfo = &vcsclient.CloneInfo{VCS: vcsType, CloneURL: *privateRepo}
+	cloneURL, err := url.Parse(*privateRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoPath = filepath.Join(cloneURL.Host, cloneURL.Path)
+	return
 }
 
 func checkErr(t *testing.T, err error, wantErrStr string, wantCloneErrHTTPStatus int) {

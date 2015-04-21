@@ -9,7 +9,6 @@ import (
 	"github.com/google/go-querystring/query"
 	muxpkg "github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
-	"sourcegraph.com/sourcegraph/vcsstore"
 	"sourcegraph.com/sourcegraph/vcsstore/git"
 )
 
@@ -45,43 +44,13 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 	parent.Path("/").Methods("GET").Name(RouteRoot)
 
-	// Encode the repository VCS type and clone URL using
-	// vcsstore.{Encode,Decode}RepositoryPath.
-	//
-	// Because these are used for both EncodedRepo and
-	// EncodedHeadRepo, they require a string label ("" and "Head",
-	// respectively).
-	const encodedRepoPattern = "(?:[^/]+)(?:/[^./][^/]*){2,}"
-	unescapeRepoVars := func(label string) func(req *http.Request, match *muxpkg.RouteMatch, r *muxpkg.Route) {
-		return func(req *http.Request, match *muxpkg.RouteMatch, r *muxpkg.Route) {
-			vcsType, cloneURL, err := vcsstore.DecodeRepositoryPath(match.Vars["Encoded"+label+"Repo"])
-			if err != nil {
-				return
-			}
-			match.Vars[label+"VCS"] = vcsType
-			match.Vars[label+"CloneURL"] = cloneURL.String()
-			delete(match.Vars, "Encoded"+label+"Repo")
-		}
-	}
-	escapeRepoVars := func(label string) func(vars map[string]string) map[string]string {
-		return func(vars map[string]string) map[string]string {
-			cloneURL, err := url.Parse(vars[label+"CloneURL"])
-			if err != nil {
-				return vars
-			}
-			vars["Encoded"+label+"Repo"] = vcsstore.EncodeRepositoryPath(vars[label+"VCS"], cloneURL)
-			delete(vars, label+"CloneURL")
-			delete(vars, label+"VCS")
-			return vars
-		}
-	}
+	const repoURIPattern = "(?:[^./][^/]*)(?:/[^./][^/]*){1,}"
 
-	repoPath := "/{EncodedRepo:" + encodedRepoPattern + "}"
+	repoPath := "/{RepoPath:" + repoURIPattern + "}"
+	parent.Path(repoPath).Methods("GET").Name(RouteRepo)
+	parent.Path(repoPath).Methods("POST").Name(RouteRepoCreateOrUpdate)
 
-	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars("")).BuildVarsFunc(escapeRepoVars("")).Name(RouteRepo)
-	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars("")).BuildVarsFunc(escapeRepoVars("")).Name(RouteRepoCreateOrUpdate)
-
-	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars("")).BuildVarsFunc(escapeRepoVars("")).Subrouter()
+	repo := parent.PathPrefix(repoPath).Subrouter()
 
 	// attach git transport endpoints
 	repoGit := repo.PathPrefix("/.git").Subrouter()
@@ -89,14 +58,14 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 	repo.Path("/.blame/{Path:.+}").Methods("GET").Name(RouteRepoBlameFile)
 	repo.Path("/.diff/{Base}..{Head}").Methods("GET").Name(RouteRepoDiff)
-	repo.Path("/.cross-repo-diff/{Base}..{EncodedHeadRepo:" + encodedRepoPattern + "}:{Head}").Methods("GET").PostMatchFunc(unescapeRepoVars("Head")).BuildVarsFunc(escapeRepoVars("Head")).Name(RouteRepoCrossRepoDiff)
+	repo.Path("/.cross-repo-diff/{Base}..{HeadRepoPath:" + repoURIPattern + "}:{Head}").Methods("GET").Name(RouteRepoCrossRepoDiff)
 	repo.Path("/.branches").Methods("GET").Name(RouteRepoBranches)
 	repo.Path("/.branches/{Branch:.+}").Methods("GET").Name(RouteRepoBranch)
 	repo.Path("/.revs/{RevSpec:.+}").Methods("GET").Name(RouteRepoRevision)
 	repo.Path("/.tags").Methods("GET").Name(RouteRepoTags)
 	repo.Path("/.tags/{Tag:.+}").Methods("GET").Name(RouteRepoTag)
 	repo.Path("/.merge-base/{CommitIDA}/{CommitIDB}").Methods("GET").Name(RouteRepoMergeBase)
-	repo.Path("/.cross-repo-merge-base/{CommitIDA}/{EncodedBRepo:" + encodedRepoPattern + "}/{CommitIDB}").Methods("GET").PostMatchFunc(unescapeRepoVars("B")).BuildVarsFunc(escapeRepoVars("B")).Name(RouteRepoCrossRepoMergeBase)
+	repo.Path("/.cross-repo-merge-base/{CommitIDA}/{BRepoPath:" + repoURIPattern + "}/{CommitIDB}").Methods("GET").Name(RouteRepoCrossRepoMergeBase)
 	repo.Path("/.commits").Methods("GET").Name(RouteRepoCommits)
 	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
@@ -127,12 +96,12 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	return (*Router)(parent)
 }
 
-func (r *Router) URLToRepo(vcsType string, cloneURL *url.URL) *url.URL {
-	return r.URLTo(RouteRepo, "VCS", vcsType, "CloneURL", cloneURL.String())
+func (r *Router) URLToRepo(repoPath string) *url.URL {
+	return r.URLTo(RouteRepo, "RepoPath", repoPath)
 }
 
-func (r *Router) URLToRepoBlameFile(vcsType string, cloneURL *url.URL, path string, opt *vcs.BlameOptions) *url.URL {
-	u := r.URLTo(RouteRepoBlameFile, "VCS", vcsType, "CloneURL", cloneURL.String(), "Path", path)
+func (r *Router) URLToRepoBlameFile(repoPath string, path string, opt *vcs.BlameOptions) *url.URL {
+	u := r.URLTo(RouteRepoBlameFile, "RepoPath", repoPath, "Path", path)
 	if opt != nil {
 		q, err := query.Values(opt)
 		if err != nil {
@@ -143,8 +112,8 @@ func (r *Router) URLToRepoBlameFile(vcsType string, cloneURL *url.URL, path stri
 	return u
 }
 
-func (r *Router) URLToRepoDiff(vcsType string, cloneURL *url.URL, base, head vcs.CommitID, opt *vcs.DiffOptions) *url.URL {
-	u := r.URLTo(RouteRepoDiff, "VCS", vcsType, "CloneURL", cloneURL.String(), "Base", string(base), "Head", string(head))
+func (r *Router) URLToRepoDiff(repoPath string, base, head vcs.CommitID, opt *vcs.DiffOptions) *url.URL {
+	u := r.URLTo(RouteRepoDiff, "RepoPath", repoPath, "Base", string(base), "Head", string(head))
 	if opt != nil {
 		q, err := query.Values(opt)
 		if err != nil {
@@ -155,8 +124,8 @@ func (r *Router) URLToRepoDiff(vcsType string, cloneURL *url.URL, base, head vcs
 	return u
 }
 
-func (r *Router) URLToRepoCrossRepoDiff(baseVCS string, baseCloneURL *url.URL, base vcs.CommitID, headVCS string, headCloneURL *url.URL, head vcs.CommitID, opt *vcs.DiffOptions) *url.URL {
-	u := r.URLTo(RouteRepoCrossRepoDiff, "VCS", baseVCS, "CloneURL", baseCloneURL.String(), "Base", string(base), "HeadVCS", headVCS, "HeadCloneURL", headCloneURL.String(), "Head", string(head))
+func (r *Router) URLToRepoCrossRepoDiff(baseRepoPath string, base vcs.CommitID, headRepoPath string, head vcs.CommitID, opt *vcs.DiffOptions) *url.URL {
+	u := r.URLTo(RouteRepoCrossRepoDiff, "RepoPath", baseRepoPath, "Base", string(base), "HeadRepoPath", headRepoPath, "Head", string(head))
 	if opt != nil {
 		q, err := query.Values(opt)
 		if err != nil {
@@ -167,12 +136,12 @@ func (r *Router) URLToRepoCrossRepoDiff(baseVCS string, baseCloneURL *url.URL, b
 	return u
 }
 
-func (r *Router) URLToRepoBranch(vcsType string, cloneURL *url.URL, branch string) *url.URL {
-	return r.URLTo(RouteRepoBranch, "VCS", vcsType, "CloneURL", cloneURL.String(), "Branch", branch)
+func (r *Router) URLToRepoBranch(repoPath string, branch string) *url.URL {
+	return r.URLTo(RouteRepoBranch, "RepoPath", repoPath, "Branch", branch)
 }
 
-func (r *Router) URLToRepoBranches(vcsType string, cloneURL *url.URL, opt vcs.BranchesOptions) *url.URL {
-	u := r.URLTo(RouteRepoBranches, "VCS", vcsType, "CloneURL", cloneURL.String())
+func (r *Router) URLToRepoBranches(repoPath string, opt vcs.BranchesOptions) *url.URL {
+	u := r.URLTo(RouteRepoBranches, "RepoPath", repoPath)
 	q, err := query.Values(opt)
 	if err != nil {
 		panic(err.Error())
@@ -181,24 +150,24 @@ func (r *Router) URLToRepoBranches(vcsType string, cloneURL *url.URL, opt vcs.Br
 	return u
 }
 
-func (r *Router) URLToRepoRevision(vcsType string, cloneURL *url.URL, revSpec string) *url.URL {
-	return r.URLTo(RouteRepoRevision, "VCS", vcsType, "CloneURL", cloneURL.String(), "RevSpec", revSpec)
+func (r *Router) URLToRepoRevision(repoPath string, revSpec string) *url.URL {
+	return r.URLTo(RouteRepoRevision, "RepoPath", repoPath, "RevSpec", revSpec)
 }
 
-func (r *Router) URLToRepoTag(vcsType string, cloneURL *url.URL, tag string) *url.URL {
-	return r.URLTo(RouteRepoTag, "VCS", vcsType, "CloneURL", cloneURL.String(), "Tag", tag)
+func (r *Router) URLToRepoTag(repoPath string, tag string) *url.URL {
+	return r.URLTo(RouteRepoTag, "RepoPath", repoPath, "Tag", tag)
 }
 
-func (r *Router) URLToRepoTags(vcsType string, cloneURL *url.URL) *url.URL {
-	return r.URLTo(RouteRepoTags, "VCS", vcsType, "CloneURL", cloneURL.String())
+func (r *Router) URLToRepoTags(repoPath string) *url.URL {
+	return r.URLTo(RouteRepoTags, "RepoPath", repoPath)
 }
 
-func (r *Router) URLToRepoCommit(vcsType string, cloneURL *url.URL, commitID vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoCommit, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID))
+func (r *Router) URLToRepoCommit(repoPath string, commitID vcs.CommitID) *url.URL {
+	return r.URLTo(RouteRepoCommit, "RepoPath", repoPath, "CommitID", string(commitID))
 }
 
-func (r *Router) URLToRepoCommits(vcsType string, cloneURL *url.URL, opt vcs.CommitsOptions) *url.URL {
-	u := r.URLTo(RouteRepoCommits, "VCS", vcsType, "CloneURL", cloneURL.String())
+func (r *Router) URLToRepoCommits(repoPath string, opt vcs.CommitsOptions) *url.URL {
+	u := r.URLTo(RouteRepoCommits, "RepoPath", repoPath)
 	q, err := query.Values(opt)
 	if err != nil {
 		panic(err.Error())
@@ -207,12 +176,12 @@ func (r *Router) URLToRepoCommits(vcsType string, cloneURL *url.URL, opt vcs.Com
 	return u
 }
 
-func (r *Router) URLToRepoTreeEntry(vcsType string, cloneURL *url.URL, commitID vcs.CommitID, path string) *url.URL {
-	return r.URLTo(RouteRepoTreeEntry, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(commitID), "Path", path)
+func (r *Router) URLToRepoTreeEntry(repoPath string, commitID vcs.CommitID, path string) *url.URL {
+	return r.URLTo(RouteRepoTreeEntry, "RepoPath", repoPath, "CommitID", string(commitID), "Path", path)
 }
 
-func (r *Router) URLToRepoSearch(vcsType string, cloneURL *url.URL, at vcs.CommitID, opt vcs.SearchOptions) *url.URL {
-	u := r.URLTo(RouteRepoSearch, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitID", string(at))
+func (r *Router) URLToRepoSearch(repoPath string, at vcs.CommitID, opt vcs.SearchOptions) *url.URL {
+	u := r.URLTo(RouteRepoSearch, "RepoPath", repoPath, "CommitID", string(at))
 	q, err := query.Values(opt)
 	if err != nil {
 		panic(err.Error())
@@ -221,12 +190,12 @@ func (r *Router) URLToRepoSearch(vcsType string, cloneURL *url.URL, at vcs.Commi
 	return u
 }
 
-func (r *Router) URLToRepoMergeBase(vcsType string, cloneURL *url.URL, a, b vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoMergeBase, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitIDA", string(a), "CommitIDB", string(b))
+func (r *Router) URLToRepoMergeBase(repoPath string, a, b vcs.CommitID) *url.URL {
+	return r.URLTo(RouteRepoMergeBase, "RepoPath", repoPath, "CommitIDA", string(a), "CommitIDB", string(b))
 }
 
-func (r *Router) URLToRepoCrossRepoMergeBase(vcsType string, cloneURL *url.URL, a vcs.CommitID, bVCS string, bCloneURL *url.URL, b vcs.CommitID) *url.URL {
-	return r.URLTo(RouteRepoCrossRepoMergeBase, "VCS", vcsType, "CloneURL", cloneURL.String(), "CommitIDA", string(a), "BVCS", bVCS, "BCloneURL", bCloneURL.String(), "CommitIDB", string(b))
+func (r *Router) URLToRepoCrossRepoMergeBase(repoPath string, a vcs.CommitID, bRepoPath string, b vcs.CommitID) *url.URL {
+	return r.URLTo(RouteRepoCrossRepoMergeBase, "RepoPath", repoPath, "CommitIDA", string(a), "BRepoPath", bRepoPath, "CommitIDB", string(b))
 }
 
 func (r *Router) URLTo(route string, vars ...string) *url.URL {

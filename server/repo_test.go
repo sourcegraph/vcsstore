@@ -4,27 +4,28 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"os"
 	"reflect"
 	"testing"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func TestServeRepo(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		t: t,
+
+		repoPath: repoPath,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepo("git", cloneURL).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepo(repoPath).String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,25 +44,25 @@ func TestServeRepo_DoesNotExist(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	var calledOpen bool
 	sm := &mockService{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		open: func(vcs string, cloneURL *url.URL) (interface{}, error) {
+		t: t,
+
+		repoPath: repoPath,
+		open: func(repoPath string) (interface{}, error) {
 			// Simulate that the repository doesn't exist locally.
 			calledOpen = true
 			return nil, os.ErrNotExist
 		},
-		clone: func(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
+		clone: func(repoPath string, opt *vcsclient.CloneInfo) (interface{}, error) {
 			t.Fatal("unexpectedly called Clone")
 			panic("unreachable")
 		},
 	}
 	testHandler.Service = sm
 
-	req, err := http.NewRequest("GET", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), nil)
+	req, err := http.NewRequest("GET", server.URL+testHandler.router.URLToRepo(repoPath).String(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,26 +85,26 @@ func TestServeRepoCreateOrUpdate_CreateNew_noBody(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := struct{}{} // trivial mock repository
 	var calledOpen, calledClone bool
 	sm := &mockService{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		open: func(vcs string, cloneURL *url.URL) (interface{}, error) {
+		t: t,
+
+		repoPath: repoPath,
+		open: func(repoPath string) (interface{}, error) {
 			// Simulate that the repository doesn't exist locally.
 			calledOpen = true
 			return nil, os.ErrNotExist
 		},
-		clone: func(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
+		clone: func(repoPath string, opt *vcsclient.CloneInfo) (interface{}, error) {
 			calledClone = true
 			return rm, nil
 		},
 	}
 	testHandler.Service = sm
 
-	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), nil)
+	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo(repoPath).String(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,21 +130,21 @@ func TestServeRepoCreateOrUpdate_CreateNew_withBody(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	opt := vcs.RemoteOpts{SSH: &vcs.SSHConfig{User: "u"}}
+	repoPath := "a.b/c"
+	opt := vcsclient.CloneInfo{RemoteOpts: vcs.RemoteOpts{SSH: &vcs.SSHConfig{User: "u"}}}
 	rm := struct{}{} // trivial mock repository
 	var calledOpen, calledClone bool
 	sm := &mockService{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		t: t,
+
+		repoPath: repoPath,
 		opt:      opt,
-		open: func(vcs string, cloneURL *url.URL) (interface{}, error) {
+		open: func(repoPath string) (interface{}, error) {
 			// Simulate that the repository doesn't exist locally.
 			calledOpen = true
 			return nil, os.ErrNotExist
 		},
-		clone: func(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
+		clone: func(repoPath string, opt *vcsclient.CloneInfo) (interface{}, error) {
 			calledClone = true
 			return rm, nil
 		},
@@ -151,7 +152,7 @@ func TestServeRepoCreateOrUpdate_CreateNew_withBody(t *testing.T) {
 	testHandler.Service = sm
 
 	body, _ := json.Marshal(opt)
-	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), bytes.NewReader(body))
+	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo(repoPath).String(), bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,17 +178,17 @@ func TestServeRepoCreateOrUpdate_UpdateExisting_noBody(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockUpdateEverythinger{t: t}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		t: t,
+
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), nil)
+	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo(repoPath).String(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,19 +214,19 @@ func TestServeRepoCreateOrUpdate_UpdateExisting_withBody(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	opt := vcs.RemoteOpts{SSH: &vcs.SSHConfig{User: "u"}}
-	rm := &mockUpdateEverythinger{t: t, opt: opt}
+	repoPath := "a.b/c"
+	opt := vcsclient.CloneInfo{RemoteOpts: vcs.RemoteOpts{SSH: &vcs.SSHConfig{User: "u"}}}
+	rm := &mockUpdateEverythinger{t: t, opt: opt.RemoteOpts}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		t: t,
+
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
 	body, _ := json.Marshal(opt)
-	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo("git", cloneURL).String(), bytes.NewReader(body))
+	req, err := http.NewRequest("POST", server.URL+testHandler.router.URLToRepo(repoPath).String(), bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,8 +272,7 @@ type mockServiceForExistingRepo struct {
 	t *testing.T
 
 	// expected args
-	vcs      string
-	cloneURL *url.URL
+	repoPath string
 
 	// return values
 	repo interface{}
@@ -281,61 +281,55 @@ type mockServiceForExistingRepo struct {
 	opened bool
 }
 
-func (m *mockServiceForExistingRepo) Open(vcs string, cloneURL *url.URL) (interface{}, error) {
-	if vcs != m.vcs {
-		m.t.Errorf("mock: got vcs arg %q, want %q", vcs, m.vcs)
-	}
-	if cloneURL.String() != m.cloneURL.String() {
-		m.t.Errorf("mock: got cloneURL arg %q, want %q", cloneURL, m.cloneURL)
+var _ vcsstore.Service = (*mockServiceForExistingRepo)(nil)
+
+func (m *mockServiceForExistingRepo) Open(repoPath string) (interface{}, error) {
+	if m.repoPath != "" && repoPath != m.repoPath {
+		m.t.Errorf("mock: got repoPath arg %q, want %q", repoPath, m.repoPath)
 	}
 	m.opened = true
 	return m.repo, m.err
 }
 
-func (m *mockServiceForExistingRepo) Clone(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
-	m.t.Errorf("mock: unexpectedly called Clone for repo that exists (%s %s)", vcs, cloneURL)
+func (m *mockServiceForExistingRepo) Clone(repoPath string, opt *vcsclient.CloneInfo) (interface{}, error) {
+	m.t.Errorf("mock: unexpectedly called Clone for repo that exists (%s)", repoPath)
 	return m.repo, m.err
 }
 
-func (m *mockServiceForExistingRepo) Close(vcs string, cloneURL *url.URL) {}
+func (m *mockServiceForExistingRepo) Close(repoPath string) {}
 
 type mockService struct {
 	t *testing.T
 
 	// expected args
-	vcs      string
-	cloneURL *url.URL
-	opt      vcs.RemoteOpts
+	repoPath string
+	opt      vcsclient.CloneInfo
 
 	// mockable methods
-	open  func(vcs string, cloneURL *url.URL) (interface{}, error)
-	clone func(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error)
+	open  func(repoPath string) (interface{}, error)
+	clone func(repoPath string, opt *vcsclient.CloneInfo) (interface{}, error)
 }
 
-func (m *mockService) Open(vcs string, cloneURL *url.URL) (interface{}, error) {
-	if m.vcs != "" && vcs != m.vcs {
-		m.t.Errorf("mock: got vcs arg %q, want %q", vcs, m.vcs)
+var _ vcsstore.Service = (*mockService)(nil)
+
+func (m *mockService) Open(repoPath string) (interface{}, error) {
+	if m.repoPath != "" && repoPath != m.repoPath {
+		m.t.Errorf("mock: got repoPath arg %q, want %q", repoPath, m.repoPath)
 	}
-	if m.cloneURL != nil && cloneURL.String() != m.cloneURL.String() {
-		m.t.Errorf("mock: got cloneURL arg %q, want %q", cloneURL, m.cloneURL)
-	}
-	return m.open(vcs, cloneURL)
+	return m.open(repoPath)
 }
 
-func (m *mockService) Clone(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
-	if vcs != m.vcs {
-		m.t.Errorf("mock: got vcs arg %q, want %q", vcs, m.vcs)
+func (m *mockService) Clone(repoPath string, opt *vcsclient.CloneInfo) (interface{}, error) {
+	if m.repoPath != "" && repoPath != m.repoPath {
+		m.t.Errorf("mock: got repoPath arg %q, want %q", repoPath, m.repoPath)
 	}
-	if cloneURL.String() != m.cloneURL.String() {
-		m.t.Errorf("mock: got cloneURL arg %q, want %q", cloneURL, m.cloneURL)
-	}
-	if !reflect.DeepEqual(opt, m.opt) {
+	if !reflect.DeepEqual(opt, &m.opt) {
 		m.t.Errorf("mock: got opt %+v, want %+v", asJSON(opt), asJSON(m.opt))
 	}
-	return m.clone(vcs, cloneURL, opt)
+	return m.clone(repoPath, opt)
 }
 
-func (m *mockService) Close(vcs string, cloneURL *url.URL) {}
+func (m *mockService) Close(repoPath string) {}
 
 func asJSON(v interface{}) string {
 	b, _ := json.Marshal(v)

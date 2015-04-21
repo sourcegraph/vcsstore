@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/url"
 	"os"
 	"os/exec"
 
@@ -26,8 +25,8 @@ type localGitTransporter struct {
 
 var _ git.GitTransporter = (*localGitTransporter)(nil)
 
-func (t *localGitTransporter) GitTransport(vcsType string, cloneURL *url.URL) (git.GitTransport, error) {
-	cloneDir, err := t.Config.CloneDir(vcsType, cloneURL)
+func (t *localGitTransporter) GitTransport(repoPath string) (git.GitTransport, error) {
+	cloneDir, err := t.Config.CloneDir(repoPath)
 	if err != nil {
 		return nil, err
 	}

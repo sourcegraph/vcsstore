@@ -1,9 +1,6 @@
 package git
 
-import (
-	"io"
-	"net/url"
-)
+import "io"
 
 const (
 	ServiceReceivePack = "receive-pack"
@@ -11,7 +8,7 @@ const (
 )
 
 type GitTransporter interface {
-	GitTransport(vcsType string, cloneURL *url.URL) (GitTransport, error)
+	GitTransport(repoPath string) (GitTransport, error)
 }
 
 // GitTransport represents a git repository with all the functions to

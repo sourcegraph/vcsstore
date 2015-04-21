@@ -2,7 +2,6 @@ package vcsclient
 
 import (
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -13,14 +12,14 @@ func TestRepository_Search(t *testing.T) {
 	setup()
 	defer teardown()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
-	repo_, _ := vcsclient.Repository("git", cloneURL)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 
 	want := []*vcs.SearchResult{{File: "f", StartLine: 1, EndLine: 2, Match: []byte("xyz")}}
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoSearch, repo, map[string]string{"VCS": "git", "CloneURL": cloneURL.String(), "CommitID": "c"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoSearch, repo, map[string]string{"RepoPath": repoPath, "CommitID": "c"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 		testFormValues(t, r, values{"Query": "q", "QueryType": "t", "ContextLines": "0", "N": "0", "Offset": "0"})

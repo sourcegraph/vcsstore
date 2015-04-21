@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 	"time"
@@ -16,7 +15,7 @@ func TestServeRepoCommits(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	opt := vcs.CommitsOptions{Head: "abcd", N: 2, Skip: 3}
 
 	rm := &mockCommits{
@@ -27,13 +26,12 @@ func TestServeRepoCommits(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommits("git", cloneURL, opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommits(repoPath, opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}

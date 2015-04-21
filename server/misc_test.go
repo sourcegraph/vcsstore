@@ -12,21 +12,20 @@ func TestHandlers_NotImplemented(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	uris := []*url.URL{
-		testHandler.router.URLToRepoBranch("git", cloneURL, "mybranch"),
-		testHandler.router.URLToRepoRevision("git", cloneURL, "myrevspec"),
-		testHandler.router.URLToRepoTag("git", cloneURL, "mytag"),
-		testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"),
-		testHandler.router.URLToRepoCommits("git", cloneURL, vcs.CommitsOptions{Head: "abcd"}),
-		testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", "myfile"),
-		testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", "."),
+		testHandler.router.URLToRepoBranch(repoPath, "mybranch"),
+		testHandler.router.URLToRepoRevision(repoPath, "myrevspec"),
+		testHandler.router.URLToRepoTag(repoPath, "mytag"),
+		testHandler.router.URLToRepoCommit(repoPath, "abcd"),
+		testHandler.router.URLToRepoCommits(repoPath, vcs.CommitsOptions{Head: "abcd"}),
+		testHandler.router.URLToRepoTreeEntry(repoPath, "abcd", "myfile"),
+		testHandler.router.URLToRepoTreeEntry(repoPath, "abcd", "."),
 	}
 
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     nil, // doesn't implement any repo methods
 	}
 	testHandler.Service = sm

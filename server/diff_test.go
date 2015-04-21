@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestServeRepoDiff(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	opt := vcs.DiffOptions{}
 
 	rm := &mockDiff{
@@ -29,13 +28,12 @@ func TestServeRepoDiff(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoDiff("git", cloneURL, rm.base, rm.head, &opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoDiff(repoPath, rm.base, rm.head, &opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -90,8 +88,8 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	baseCloneURL, _ := url.Parse("git://a.b/c")
-	headCloneURL, _ := url.Parse("git://x.y/z")
+	baseRepoPath := "a.b/c"
+	headRepoPath := "x.y/z"
 	mockHeadRepo := vcs_testing.MockRepository{}
 	opt := vcs.DiffOptions{}
 
@@ -105,20 +103,20 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	}
 	sm := &mockService{
 		t: t,
-		open: func(vcs string, cloneURL *url.URL) (interface{}, error) {
-			switch cloneURL.String() {
-			case baseCloneURL.String():
+		open: func(repoPath string) (interface{}, error) {
+			switch repoPath {
+			case baseRepoPath:
 				return rm, nil
-			case headCloneURL.String():
+			case headRepoPath:
 				return mockHeadRepo, nil
 			default:
-				panic("unexpected repo clone: " + cloneURL.String())
+				panic("unexpected repo clone: " + repoPath)
 			}
 		},
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCrossRepoDiff("git", baseCloneURL, rm.base, "git", headCloneURL, rm.head, &opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCrossRepoDiff(baseRepoPath, rm.base, headRepoPath, rm.head, &opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -144,8 +142,7 @@ type mockCrossRepoDiff struct {
 	// expected args
 	base         vcs.CommitID
 	headRepo     vcs.Repository
-	headVCS      string
-	headCloneURL *url.URL
+	headRepoPath string
 	head         vcs.CommitID
 	opt          vcs.DiffOptions
 

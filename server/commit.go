@@ -11,9 +11,7 @@ import (
 )
 
 func (h *Handler) serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
-	v := mux.Vars(r)
-
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, repoPath, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -35,7 +33,7 @@ func (h *Handler) serveRepoCommit(w http.ResponseWriter, r *http.Request) error 
 
 		if commit.ID != commitID {
 			setShortCache(w)
-			http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commit.ID).String(), http.StatusFound)
+			http.Redirect(w, r, h.router.URLToRepoCommit(repoPath, commit.ID).String(), http.StatusFound)
 			return nil
 		}
 

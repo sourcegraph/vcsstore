@@ -1,11 +1,9 @@
 package vcsstore
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,21 +11,22 @@ import (
 	"time"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 type Service interface {
 	// Open opens a repository. If it doesn't exist. an
 	// os.ErrNotExist-satisfying error is returned. If opening succeeds, the
 	// repository is returned.
-	Open(vcs string, cloneURL *url.URL) (interface{}, error)
+	Open(repoPath string) (interface{}, error)
 
 	// Close closes the repository.
-	Close(vcs string, cloneURL *url.URL)
+	Close(repoPath string)
 
 	// Clone clones the repository if a clone doesn't yet exist locally.
 	// Otherwise, it opens the repository. If no errors occur, the repository is
 	// returned.
-	Clone(vcs string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error)
+	Clone(repoPath string, cloneInfo *vcsclient.CloneInfo) (interface{}, error)
 }
 
 type Config struct {
@@ -43,15 +42,8 @@ type Config struct {
 // CloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
 // the local directory that the repository should be cloned to (which it may
 // already exist at). If invalid, cloneDir returns a non-nil error.
-func (c *Config) CloneDir(vcsType string, cloneURL *url.URL) (string, error) {
-	if !isLowercaseLetter(vcsType) {
-		return "", errors.New("invalid VCS type")
-	}
-	if cloneURL.Scheme == "" || cloneURL.Host == "" {
-		return "", errors.New("invalid clone URL")
-	}
-
-	return filepath.Join(c.StorageDir, EncodeRepositoryPath(vcsType, cloneURL)), nil
+func (c *Config) CloneDir(repoPath string) (string, error) {
+	return filepath.Join(c.StorageDir, EncodeRepositoryPath(repoPath)), nil
 }
 
 func NewService(c *Config) Service {
@@ -88,20 +80,23 @@ type service struct {
 }
 
 type repoKey struct {
-	vcsType  string
 	cloneDir string
 }
 
-func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
-	cloneDir, err := s.CloneDir(vcsType, cloneURL)
+func (s *service) Open(repoPath string) (interface{}, error) {
+	cloneDir, err := s.CloneDir(repoPath)
 	if err != nil {
 		return nil, err
 	}
-	return s.open(vcsType, cloneDir)
+	return s.open(cloneDir)
 }
 
-func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
-	key := repoKey{vcsType, cloneDir}
+func (s *service) open(cloneDir string) (interface{}, error) {
+	key := repoKey{cloneDir}
+	vcsType, err := vcsTypeFromDir(cloneDir)
+	if err != nil {
+		return nil, err
+	}
 
 	// Quick check if another goroutine has already opened (and not
 	// yet closed) the repo. Use that instance if so.
@@ -137,14 +132,14 @@ func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
 	return repo, nil
 }
 
-func (s *service) Close(vcsType string, cloneURL *url.URL) {
-	cloneDir, err := s.CloneDir(vcsType, cloneURL)
+func (s *service) Close(repoPath string) {
+	cloneDir, err := s.CloneDir(repoPath)
 	if err != nil {
 		panic(err)
 	}
 	s.repoMuMu.Lock()
 	defer s.repoMuMu.Unlock()
-	key := repoKey{vcsType, cloneDir}
+	key := repoKey{cloneDir}
 	s.repoUsers[key]--
 	if s.repoUsers[key] == 0 {
 		delete(s.repoUsers, key)
@@ -152,40 +147,40 @@ func (s *service) Close(vcsType string, cloneURL *url.URL) {
 	}
 }
 
-func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
-	cloneDir, err := s.CloneDir(vcsType, cloneURL)
+func (s *service) Clone(repoPath string, cloneInfo *vcsclient.CloneInfo) (interface{}, error) {
+	cloneDir, err := s.CloneDir(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// See if the clone directory exists and return immediately (without
 	// locking) if so.
-	if r, err := s.open(vcsType, cloneDir); !os.IsNotExist(err) {
+	if r, err := s.open(repoPath); !os.IsNotExist(err) {
 		if err == nil {
-			s.debugLogf("Clone(%s, %s): repository already exists at %s", vcsType, cloneURL, cloneDir)
+			s.debugLogf("Clone(%s): repository already exists at %s", repoPath, cloneDir)
 		} else {
-			s.debugLogf("Clone(%s, %s): opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
+			s.debugLogf("Clone(%s): opening existing repository at %s failed: %s", repoPath, cloneDir, err)
 		}
 		return r, err
 	}
 
 	// The local clone directory doesn't exist, so we need to clone the repository.
-	mu := s.Mutex(repoKey{vcsType, cloneDir})
+	mu := s.Mutex(repoKey{cloneDir})
 	mu.Lock()
 	defer mu.Unlock()
 
 	// Check again after obtaining the lock, so we don't clone multiple times.
-	if r, err := s.open(vcsType, cloneDir); !os.IsNotExist(err) {
+	if r, err := s.open(cloneDir); !os.IsNotExist(err) {
 		if err == nil {
-			s.debugLogf("Clone(%s, %s): after obtaining clone lock, repository already exists at %s", vcsType, cloneURL, cloneDir)
+			s.debugLogf("Clone(%s): after obtaining clone lock, repository already exists at %s", repoPath, cloneDir)
 		} else {
-			s.debugLogf("Clone(%s, %s): after obtaining clone lock, opening existing repository at %s failed: %s", vcsType, cloneURL, cloneDir, err)
+			s.debugLogf("Clone(%s): after obtaining clone lock, opening existing repository at %s failed: %s", repoPath, cloneDir, err)
 		}
 		return r, err
 	}
 
 	start := time.Now()
-	msg := fmt.Sprintf("%s %s to %s", vcsType, cloneURL.String(), cloneDir)
+	msg := fmt.Sprintf("%s to %s", repoPath, cloneDir)
 	s.Log.Print("Cloning ", msg, "...")
 
 	// "Atomically" clone the repository. First, clone it to a temporary sibling
@@ -204,18 +199,18 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (
 	if err != nil {
 		return nil, err
 	}
-	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", vcsType, cloneURL, cloneTmpDir)
+	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", repoPath, cloneTmpDir)
 	defer os.RemoveAll(cloneTmpDir)
 
-	cloneOpt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: opt}
-	_, err = vcs.Clone(vcsType, cloneURL.String(), cloneTmpDir, cloneOpt)
+	cloneOpt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: cloneInfo.RemoteOpts}
+	_, err = vcs.Clone(cloneInfo.VCS, cloneInfo.CloneURL, cloneTmpDir, cloneOpt)
 	if err != nil {
 		return nil, err
 	}
-	s.debugLogf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+	s.debugLogf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", cloneInfo.VCS, cloneInfo.CloneURL, cloneTmpDir, cloneDir)
 
 	if err := os.Rename(cloneTmpDir, cloneDir); err != nil {
-		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", cloneInfo.VCS, cloneInfo.CloneURL, cloneTmpDir, cloneDir)
 		return nil, err
 	}
 
@@ -223,7 +218,7 @@ func (s *service) Clone(vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (
 		s.Log.Print("Finished cloning ", msg, " in ", time.Since(start))
 	}()
 
-	return s.open(vcsType, cloneDir)
+	return s.open(cloneDir)
 }
 
 func (s *service) Mutex(key repoKey) *sync.RWMutex {

@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -14,20 +13,19 @@ func TestServeRepoTags(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockTags{
 		t:    t,
 		tags: []*vcs.Tag{{Name: "t", CommitID: "c"}},
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTags("git", cloneURL).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTags(repoPath).String())
 	if err != nil {
 		t.Fatal(err)
 	}

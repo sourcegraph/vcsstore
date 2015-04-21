@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -22,7 +21,7 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 
 	commitID := vcs.CommitID(strings.Repeat("a", 40))
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
@@ -30,13 +29,12 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry("git", cloneURL, commitID, "myfile").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoPath, commitID, "myfile").String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +77,7 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockFileSystem{
 		t:  t,
 		at: "abcd",
@@ -87,13 +85,12 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry("git", cloneURL, "abcd", ".").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoPath, "abcd", ".").String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +144,7 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 
 	commitID := vcs.CommitID(strings.Repeat("a", 40))
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoPath := "a.b/c"
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
@@ -155,13 +152,12 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 	}
 	sm := &mockServiceForExistingRepo{
 		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
+		repoPath: repoPath,
 		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry("git", cloneURL, commitID, "myfile").String() + "?StartByte=2&EndByte=4")
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoPath, commitID, "myfile").String() + "?StartByte=2&EndByte=4")
 	if err != nil {
 		t.Fatal(err)
 	}
