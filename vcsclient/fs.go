@@ -93,12 +93,6 @@ func (fs *repositoryFS) Get(path string) (*TreeEntry, error) {
 	return entry, nil
 }
 
-// FileRange is a line and byte range in a file.
-type FileRange struct {
-	StartLine, EndLine int `url:",omitempty"` // start and end line range
-	StartByte, EndByte int `url:",omitempty"` // start and end byte range
-}
-
 // FileWithRange is returned by GetFileWithOptions and includes the
 // returned file's TreeEntry as well as the actual range of lines and
 // bytes returned (based on the GetFileOptions parameters). That is,
@@ -109,29 +103,6 @@ type FileRange struct {
 type FileWithRange struct {
 	*TreeEntry
 	FileRange // range of actual returned tree entry contents within file
-}
-
-// GetFileOptions specifies options for GetFileWithOptions.
-type GetFileOptions struct {
-	FileRange // line or byte range to fetch (can't set both line *and* byte range)
-
-	// EntireFile is whether the entire file contents should be
-	// returned. If true, Start/EndLine and Start/EndBytes are
-	// ignored.
-	EntireFile bool `url:",omitempty"`
-
-	// ExpandContextLines is how many lines of additional output
-	// context to include (if Start/EndLine and Start/EndBytes are
-	// specified). For example, specifying 2 will expand the range to
-	// include 2 full lines before the beginning and 2 full lines
-	// after the end of the range specified by Start/EndLine and
-	// Start/EndBytes.
-	ExpandContextLines int `url:",omitempty"`
-
-	// FullLines is whether a range that includes partial lines should
-	// be extended to the nearest line boundaries on both sides. It is
-	// only valid if StartByte and EndByte are specified.
-	FullLines bool `url:",omitempty"`
 }
 
 // GetFileWithOptions gets a file and allows additional configuration

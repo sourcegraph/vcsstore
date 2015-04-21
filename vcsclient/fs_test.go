@@ -62,7 +62,6 @@ func TestRepository_FileSystem_Lstat(t *testing.T) {
 	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	entry := &TreeEntry{Name: "f"}
-	normalizeTime(&entry.ModTime)
 	want, _ := entry.Stat()
 
 	var called bool
@@ -101,7 +100,6 @@ func TestRepository_FileSystem_Stat(t *testing.T) {
 	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	entry := &TreeEntry{Name: "f"}
-	normalizeTime(&entry.ModTime)
 	want, _ := entry.Stat()
 
 	var called bool
@@ -140,8 +138,6 @@ func TestRepository_FileSystem_ReadDir(t *testing.T) {
 	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	entries := []*TreeEntry{{Name: "d/a"}, {Name: "d/b"}}
-	normalizeTime(&entries[0].ModTime)
-	normalizeTime(&entries[1].ModTime)
 	fi0, _ := entries[0].Stat()
 	fi1, _ := entries[1].Stat()
 	want := []os.FileInfo{fi0, fi1}
@@ -182,7 +178,6 @@ func TestRepository_FileSystem_Get(t *testing.T) {
 	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 	want := &TreeEntry{Name: "f", Contents: []byte("c")}
-	normalizeTime(&want.ModTime)
 
 	var called bool
 	mux.HandleFunc(urlPath(t, RouteRepoTreeEntry, repo, map[string]string{"CommitID": "abcd", "Path": "f"}), func(w http.ResponseWriter, r *http.Request) {
@@ -226,7 +221,6 @@ func TestRepository_FileSystem_GetFileWithOptions(t *testing.T) {
 			StartLine: 2, EndLine: 4,
 		},
 	}
-	normalizeTime(&want.ModTime)
 
 	var called bool
 	mux.HandleFunc(urlPath(t, RouteRepoTreeEntry, repo, map[string]string{"CommitID": "abcd", "Path": "f"}), func(w http.ResponseWriter, r *http.Request) {

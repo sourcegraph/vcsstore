@@ -12,6 +12,7 @@ import (
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/fileutil"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sqs/pbtypes"
 )
 
 func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) error {
@@ -108,8 +109,8 @@ func (h *Handler) serveRepoTreeEntry(w http.ResponseWriter, r *http.Request) err
 func newTreeEntry(fi os.FileInfo) *vcsclient.TreeEntry {
 	e := &vcsclient.TreeEntry{
 		Name:    fi.Name(),
-		Size:    int(fi.Size()),
-		ModTime: fi.ModTime(),
+		Size:    fi.Size(),
+		ModTime: pbtypes.NewTimestamp(fi.ModTime()),
 	}
 	if fi.Mode().IsDir() {
 		e.Type = vcsclient.DirEntry
