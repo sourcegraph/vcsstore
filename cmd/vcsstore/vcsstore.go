@@ -20,7 +20,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -32,7 +31,6 @@ import (
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/git"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
 	"sourcegraph.com/sourcegraph/vcsstore"
-	"sourcegraph.com/sourcegraph/vcsstore/cluster"
 	"sourcegraph.com/sourcegraph/vcsstore/server"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
@@ -109,8 +107,8 @@ func serveCmd(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	debug := fs.Bool("d", false, "debug mode (don't use on publicly available servers)")
 	bindAddr := fs.String("http", ":"+defaultPort, "HTTP listen address")
-	datadNode := fs.Bool("datad", false, "participate as a node in a datad cluster")
-	datadNodeName := fs.String("datad-node-name", "127.0.0.1:"+defaultPort, "datad node name (must be accessible to datad clients & other nodes)")
+	// datadNode := fs.Bool("datad", false, "participate as a node in a datad cluster")
+	// datadNodeName := fs.String("datad-node-name", "127.0.0.1:"+defaultPort, "datad node name (must be accessible to datad clients & other nodes)")
 	tlsCert := fs.String("tls.cert", "", "TLS certificate file (if set, server uses TLS)")
 	tlsKey := fs.String("tls.key", "", "TLS key file (if set, server uses TLS)")
 	basicAuth := fs.String("http.basicauth", "", "if set to 'user:passwd', require HTTP Basic Auth")
@@ -155,15 +153,15 @@ The options are:
 	vh.Log = log.New(logw, "server: ", log.LstdFlags)
 	vh.Debug = *debug
 
-	if *datadNode {
-		node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, vh.Service))
-		node.Updaters = runtime.GOMAXPROCS(0)
-		err := node.Start()
-		if err != nil {
-			log.Fatal("Failed to start datad node: ", err)
-		}
-		log.Printf("Started datad node %s.", *datadNodeName)
-	}
+	// if *datadNode {
+	// 	node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, vh.Service))
+	// 	node.Updaters = runtime.GOMAXPROCS(0)
+	// 	err := node.Start()
+	// 	if err != nil {
+	// 		log.Fatal("Failed to start datad node: ", err)
+	// 	}
+	// 	log.Printf("Started datad node %s.", *datadNodeName)
+	// }
 
 	var h http.Handler
 	if *basicAuth != "" {
@@ -240,7 +238,7 @@ func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func repoCmd(args []string) {
 	fs := flag.NewFlagSet("repo", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: vcsstore repo [options] vcs-type clone-url
+		fmt.Fprintln(os.Stderr, `usage: vcsstore repo [options] repo-id
 
 Displays the directory to which a repository would be cloned.
 
@@ -251,18 +249,14 @@ The options are:
 	}
 	fs.Parse(args)
 
-	if fs.NArg() != 2 {
+	if fs.NArg() != 1 {
 		fs.Usage()
 	}
 
-	vcsType := fs.Arg(0)
-	cloneURL, err := url.Parse(fs.Arg(1))
-	if err != nil {
-		log.Fatal(err)
-	}
+	repoID := fs.Arg(0)
 
-	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.EncodeRepositoryPath(vcsType, cloneURL)))
-	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(vcsType, cloneURL))
+	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.EncodeRepositoryPath(repoID)))
+	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(repoID))
 }
 
 func cloneCmd(args []string) {
@@ -283,7 +277,7 @@ The options are:
 	}
 	fs.Parse(args)
 
-	if fs.NArg() != 2 {
+	if fs.NArg() != 1 {
 		fs.Usage()
 	}
 
@@ -292,22 +286,21 @@ The options are:
 		log.Fatal(err)
 	}
 
-	vcsType := fs.Arg(0)
-	cloneURL, err := url.Parse(fs.Arg(1))
+	repoID := fs.Arg(0)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var repo vcs.Repository
 	if *datadClient {
-		cc := cluster.NewClient(datad.NewClient(etcdBackend()), nil)
-		repo, err = cc.Repository(vcsType, cloneURL)
-		if err != nil {
-			log.Fatal(err)
-		}
+		// cc := cluster.NewClient(datad.NewClient(etcdBackend()), nil)
+		// repo, err = cc.Repository(vcsType, cloneURL)
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 	} else {
 		c := vcsclient.New(baseURL, nil)
-		repo, err = c.Repository(vcsType, cloneURL)
+		repo, err = c.Repository(repoID)
 		if err != nil {
 			log.Fatal("Open repository: ", err)
 		}
@@ -331,7 +324,7 @@ The options are:
 		log.Fatalf("Remote cloning is not implemented for %T.", repo)
 	}
 
-	fmt.Printf("%-5s %-45s cloned OK\n", vcsType, cloneURL)
+	fmt.Printf("%-5s cloned OK\n", repoID)
 }
 
 func getCmd(args []string) {
@@ -351,13 +344,13 @@ The options are:
 	}
 	fs.Parse(args)
 
-	if n := fs.NArg(); n != 2 && n != 3 {
+	if n := fs.NArg(); n != 1 && n != 2 {
 		fs.Usage()
 	}
-	vcsType, cloneURLStr := fs.Arg(0), fs.Arg(1)
+	repoID := fs.Arg(0)
 	var extraPath string
-	if fs.NArg() == 3 {
-		extraPath = fs.Arg(2)
+	if fs.NArg() == 2 {
+		extraPath = fs.Arg(1)
 	}
 
 	baseURL, err := url.Parse(*urlStr)
@@ -365,34 +358,29 @@ The options are:
 		log.Fatal(err)
 	}
 
-	cloneURL, err := url.Parse(cloneURLStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	router := vcsclient.NewRouter(nil)
-	url := router.URLToRepo(vcsType, cloneURL)
+	url := router.URLToRepo(repoID)
 	url.Path = strings.TrimPrefix(url.Path, "/")
 	url = baseURL.ResolveReference(url)
 	url.Path = filepath.Join(url.Path, extraPath)
 
 	if *datadClient {
-		datadGet(*method, vcsType, cloneURL, url)
+		// datadGet(*method, vcsType, cloneURL, url)
 	} else {
 		normalGet(*method, nil, url)
 	}
 }
 
-func datadGet(method string, vcsType string, cloneURL *url.URL, reqURL *url.URL) {
-	cc := cluster.NewClient(datad.NewClient(etcdBackend()), nil)
-	t, err := cc.TransportForRepository(vcsType, cloneURL)
-	if err != nil {
-		log.Fatal(err)
-	}
+// func datadGet(method string, vcsType string, cloneURL *url.URL, reqURL *url.URL) {
+// 	cc := cluster.NewClient(datad.NewClient(etcdBackend()), nil)
+// 	t, err := cc.TransportForRepository(vcsType, cloneURL)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	reqURL.Host = "$(DATAD_NODE)"
-	normalGet(method, &http.Client{Transport: t}, reqURL)
-}
+// 	reqURL.Host = "$(DATAD_NODE)"
+// 	normalGet(method, &http.Client{Transport: t}, reqURL)
+// }
 
 func normalGet(method string, c *http.Client, url *url.URL) {
 	if c == nil {

@@ -12,7 +12,7 @@ import (
 )
 
 func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
-	cloneURL, err := h.getRepoCloneURL(r, "")
+	repoID, err := h.getRepoCloneURL(r, "")
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 		service = rawService[len("git-"):]
 	}
 
-	t, err := h.GitTransporter.GitTransport("git", cloneURL)
+	t, err := h.GitTransporter.GitTransport(repoID)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (h *Handler) serveInfoRefs(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error {
-	cloneURL, err := h.getRepoCloneURL(r, "")
+	repoID, err := h.getRepoCloneURL(r, "")
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error
 	var opt git.GitTransportOpt
 	opt.ContentEncoding = r.Header.Get("content-encoding")
 
-	t, err := h.GitTransporter.GitTransport("git", cloneURL)
+	t, err := h.GitTransporter.GitTransport(repoID)
 	if err != nil {
 		return err
 	}
@@ -58,12 +58,12 @@ func (h *Handler) serveReceivePack(w http.ResponseWriter, r *http.Request) error
 }
 
 func (h *Handler) serveUploadPack(w http.ResponseWriter, r *http.Request) error {
-	cloneURL, err := h.getRepoCloneURL(r, "")
+	repoID, err := h.getRepoCloneURL(r, "")
 	if err != nil {
 		return err
 	}
 
-	t, err := h.GitTransporter.GitTransport("git", cloneURL)
+	t, err := h.GitTransporter.GitTransport(repoID)
 	if err != nil {
 		return err
 	}

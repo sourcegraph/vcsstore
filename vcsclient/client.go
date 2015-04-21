@@ -59,16 +59,15 @@ func New(base *url.URL, httpClient *http.Client) *Client {
 	return c
 }
 
-func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error) {
+func (c *Client) Repository(repoID string) (vcs.Repository, error) {
 	return &repository{
-		client:   c,
-		vcsType:  vcsType,
-		cloneURL: cloneURL,
+		client: c,
+		repoID: repoID,
 	}, nil
 }
 
-func (c *Client) GitTransport(vcsType string, cloneURL *url.URL) (git.GitTransport, error) {
-	return &gitTransport{client: c, cloneURL: cloneURL}, nil
+func (c *Client) GitTransport(repoID string) (git.GitTransport, error) {
+	return &gitTransport{client: c, repoID: repoID}, nil
 }
 
 // NewRequest creates an API request. A relative URL can be provided in urlStr,
@@ -172,21 +171,21 @@ type RepoKey struct {
 }
 
 type RepositoryOpener interface {
-	Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error)
+	Repository(repoID string) (vcs.Repository, error)
 }
 
 type MockRepositoryOpener struct{ Return vcs.Repository }
 
 var _ RepositoryOpener = MockRepositoryOpener{}
 
-func (m MockRepositoryOpener) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error) {
+func (m MockRepositoryOpener) Repository(repoID string) (vcs.Repository, error) {
 	return m.Return, nil
 }
 
 // GetFile gets a file from the repository's tree at a specific commit. If the
 // path does not refer to a file, a non-nil error is returned.
-func GetFile(o RepositoryOpener, vcsType string, cloneURL *url.URL, at vcs.CommitID, path string) ([]byte, os.FileInfo, error) {
-	r, err := o.Repository(vcsType, cloneURL)
+func GetFile(o RepositoryOpener, repoID string, at vcs.CommitID, path string) ([]byte, os.FileInfo, error) {
+	r, err := o.Repository(repoID)
 	if err != nil {
 		return nil, nil, err
 	}

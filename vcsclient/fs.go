@@ -69,7 +69,7 @@ func (fs *repositoryFS) ReadDir(path string) ([]os.FileInfo, error) {
 }
 
 func (fs *repositoryFS) String() string {
-	return fmt.Sprintf("%s repository %s commit %s (client)", fs.repo.vcsType, fs.repo.cloneURL, fs.at)
+	return fmt.Sprintf("repository %s commit %s (client)", fs.repo.repoID, fs.at)
 }
 
 // Get returns the whole TreeEntry struct for a tree entry.

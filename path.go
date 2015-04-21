@@ -1,11 +1,16 @@
 package vcsstore
 
-import (
-	"net/url"
-	"path/filepath"
-	"strings"
-)
+import "path/filepath"
 
+func EncodeRepositoryPath(repoID string) (path string) {
+	return filepath.Clean(repoID)
+}
+
+func DecodeRepositoryPath(path string) (repoID string) {
+	return path
+}
+
+/*
 // EncodeRepositoryPath encodes the VCS type and clone URL of a repository into
 // a path suitable for use in a URL. The encoded path may be decoded with
 // DecodeRepositoryPath, which is roughly the inverse operation (except for
@@ -42,3 +47,4 @@ func parseHostAndUserinfo(s string) (string, *url.Userinfo) {
 	host := s[delim+1:]
 	return host, url.User(userRaw)
 }
+*/

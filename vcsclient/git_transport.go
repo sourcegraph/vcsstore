@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"net/url"
 
 	"sourcegraph.com/sourcegraph/vcsstore/git"
 )
@@ -13,14 +12,14 @@ type gitTransport struct {
 	// client is the vcs client used to issue HTTP requests
 	client *Client
 
-	// cloneURL is the clone URL of the repository being accessed
-	cloneURL *url.URL
+	// repoID identifies the repository being accessed
+	repoID string
 }
 
 var _ git.GitTransport = (*gitTransport)(nil)
 
 func (t *gitTransport) InfoRefs(w io.Writer, service string) error {
-	rp := &repository{client: t.client, vcsType: "git", cloneURL: t.cloneURL}
+	rp := &repository{client: t.client, repoID: t.repoID}
 	urlQuery := struct {
 		Service string `url:"service"`
 	}{
@@ -51,7 +50,7 @@ func (t *gitTransport) InfoRefs(w io.Writer, service string) error {
 }
 
 func (t *gitTransport) ReceivePack(w io.Writer, rdr io.Reader, opt git.GitTransportOpt) error {
-	rp := &repository{client: t.client, vcsType: "git", cloneURL: t.cloneURL}
+	rp := &repository{client: t.client, repoID: t.repoID}
 	u, err := rp.url(git.RouteGitReceivePack, nil, nil)
 	if err != nil {
 		return err
@@ -77,7 +76,7 @@ func (t *gitTransport) ReceivePack(w io.Writer, rdr io.Reader, opt git.GitTransp
 }
 
 func (t *gitTransport) UploadPack(w io.Writer, rdr io.Reader, opt git.GitTransportOpt) error {
-	rp := &repository{client: t.client, vcsType: "git", cloneURL: t.cloneURL}
+	rp := &repository{client: t.client, repoID: t.repoID}
 	u, err := rp.url(git.RouteGitUploadPack, nil, nil)
 	if err != nil {
 		return err
