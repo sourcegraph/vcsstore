@@ -10,21 +10,21 @@ import (
 
 func TestEncodeAndDecodeRepositoryPath(t *testing.T) {
 	repos := []struct {
-		repoID string
-		want   string
+		repoPath string
+		want     string
 	}{
 		{"foo.com/bar/baz", "foo.com/bar/baz"},
 		{"github.com/sourcegraph/go-sourcegraph", "github.com/sourcegraph/go-sourcegraph"},
 	}
 	for _, repo := range repos {
-		encPath := EncodeRepositoryPath(repo.repoID)
+		encPath := EncodeRepositoryPath(repo.repoPath)
 		if encPath != repo.want {
 			t.Errorf("got encoded path == %q, want %q", encPath, repo.want)
 		}
 
-		repoID := DecodeRepositoryPath(encPath)
-		if repoID != repo.repoID {
-			t.Errorf("got repoID == %q, want %q", repoID, repo.repoID)
+		repoPath := DecodeRepositoryPath(encPath)
+		if repoPath != repo.repoPath {
+			t.Errorf("got repoID == %q, want %q", repoPath, repo.repoPath)
 		}
 	}
 }

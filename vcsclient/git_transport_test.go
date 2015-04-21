@@ -14,28 +14,28 @@ import (
 
 func Test_gitTransport_InfoRefs(t *testing.T) {
 	tests := []struct {
-		repoID  string
-		service string
-		expURL  string
-		expOut  string
+		repoPath string
+		service  string
+		expURL   string
+		expOut   string
 	}{{
-		repoID:  "a.b/c",
-		service: "receive-pack",
-		expURL:  "/a.b/c/.git/info/refs?service=git-receive-pack",
+		repoPath: "a.b/c",
+		service:  "receive-pack",
+		expURL:   "/a.b/c/.git/info/refs?service=git-receive-pack",
 		expOut: `0090542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context report-status delete-refs side-band-64k quiet ofs-delta agent=git/1.9.1
 003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
 0000`,
 	}, {
-		repoID:  "a.b/c",
-		service: "receive-pack",
-		expURL:  "/a.b/c/.git/info/refs?service=git-receive-pack",
+		repoPath: "a.b/c",
+		service:  "receive-pack",
+		expURL:   "/a.b/c/.git/info/refs?service=git-receive-pack",
 		expOut: `0090542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context report-status delete-refs side-band-64k quiet ofs-delta agent=git/1.9.1
 003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
 0000`,
 	}, {
-		repoID:  "a.b/c",
-		service: "upload-pack",
-		expURL:  "/a.b/c/.git/info/refs?service=git-upload-pack",
+		repoPath: "a.b/c",
+		service:  "upload-pack",
+		expURL:   "/a.b/c/.git/info/refs?service=git-upload-pack",
 		expOut: `00d18096f47503459bcc74d1f4c487b7e6e42e5746b5 HEADmulti_ack thin-pack side-band side-band-64k ofs-delta shallow no-progress include-tag multi_ack_detailed no-done symref=HEAD:refs/heads/master agent=git/1.9.1
 		0047542272db9b9b8f3dfd57ab143176c9ecaf7f6abb refs/heads/custom-context
 		003f8096f47503459bcc74d1f4c487b7e6e42e5746b5 refs/heads/master
@@ -49,7 +49,7 @@ func Test_gitTransport_InfoRefs(t *testing.T) {
 
 			expURL, _ := url.Parse(test.expURL)
 
-			gitTransport, err := vcsclient.GitTransport(test.repoID)
+			gitTransport, err := vcsclient.GitTransport(test.repoPath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -90,13 +90,13 @@ func Test_gitTransport_ReceivePack(t *testing.T) {
 	setup()
 	defer teardown()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	opt := git.GitTransportOpt{}
 	expURL := "/a.b/c/.git/git-receive-pack"
 	expIn := "this is the expected input"
 	expOut := "this is the expected output"
 
-	gitTransport, err := vcsclient.GitTransport(repoID)
+	gitTransport, err := vcsclient.GitTransport(repoPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,13 +145,13 @@ func Test_gitTransport_UploadPack(t *testing.T) {
 	setup()
 	defer teardown()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	opt := git.GitTransportOpt{}
 	expURL := "/a.b/c/.git/git-upload-pack"
 	expIn := "this is the expected input"
 	expOut := "this is the expected output"
 
-	gitTransport, err := vcsclient.GitTransport(repoID)
+	gitTransport, err := vcsclient.GitTransport(repoPath)
 	if err != nil {
 		t.Fatal(err)
 	}

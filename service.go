@@ -18,15 +18,15 @@ type Service interface {
 	// Open opens a repository. If it doesn't exist. an
 	// os.ErrNotExist-satisfying error is returned. If opening succeeds, the
 	// repository is returned.
-	Open(repoID string) (interface{}, error)
+	Open(repoPath string) (interface{}, error)
 
 	// Close closes the repository.
-	Close(repoID string)
+	Close(repoPath string)
 
 	// Clone clones the repository if a clone doesn't yet exist locally.
 	// Otherwise, it opens the repository. If no errors occur, the repository is
 	// returned.
-	Clone(repoID string, cloneInfo *vcsclient.CloneInfo) (interface{}, error)
+	Clone(repoPath string, cloneInfo *vcsclient.CloneInfo) (interface{}, error)
 }
 
 type Config struct {
@@ -42,8 +42,8 @@ type Config struct {
 // CloneDir validates vcsType and cloneURL. If they are valid, cloneDir returns
 // the local directory that the repository should be cloned to (which it may
 // already exist at). If invalid, cloneDir returns a non-nil error.
-func (c *Config) CloneDir(repoID string) (string, error) {
-	return filepath.Join(c.StorageDir, EncodeRepositoryPath(repoID)), nil
+func (c *Config) CloneDir(repoPath string) (string, error) {
+	return filepath.Join(c.StorageDir, EncodeRepositoryPath(repoPath)), nil
 }
 
 func NewService(c *Config) Service {
@@ -83,8 +83,8 @@ type repoKey struct {
 	cloneDir string
 }
 
-func (s *service) Open(repoID string) (interface{}, error) {
-	cloneDir, err := s.CloneDir(repoID)
+func (s *service) Open(repoPath string) (interface{}, error) {
+	cloneDir, err := s.CloneDir(repoPath)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func (s *service) open(cloneDir string) (interface{}, error) {
 	return repo, nil
 }
 
-func (s *service) Close(repoID string) {
-	cloneDir, err := s.CloneDir(repoID)
+func (s *service) Close(repoPath string) {
+	cloneDir, err := s.CloneDir(repoPath)
 	if err != nil {
 		panic(err)
 	}
@@ -147,19 +147,19 @@ func (s *service) Close(repoID string) {
 	}
 }
 
-func (s *service) Clone(repoID string, cloneInfo *vcsclient.CloneInfo) (interface{}, error) {
-	cloneDir, err := s.CloneDir(repoID)
+func (s *service) Clone(repoPath string, cloneInfo *vcsclient.CloneInfo) (interface{}, error) {
+	cloneDir, err := s.CloneDir(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// See if the clone directory exists and return immediately (without
 	// locking) if so.
-	if r, err := s.open(repoID); !os.IsNotExist(err) {
+	if r, err := s.open(repoPath); !os.IsNotExist(err) {
 		if err == nil {
-			s.debugLogf("Clone(%s): repository already exists at %s", repoID, cloneDir)
+			s.debugLogf("Clone(%s): repository already exists at %s", repoPath, cloneDir)
 		} else {
-			s.debugLogf("Clone(%s): opening existing repository at %s failed: %s", repoID, cloneDir, err)
+			s.debugLogf("Clone(%s): opening existing repository at %s failed: %s", repoPath, cloneDir, err)
 		}
 		return r, err
 	}
@@ -172,15 +172,15 @@ func (s *service) Clone(repoID string, cloneInfo *vcsclient.CloneInfo) (interfac
 	// Check again after obtaining the lock, so we don't clone multiple times.
 	if r, err := s.open(cloneDir); !os.IsNotExist(err) {
 		if err == nil {
-			s.debugLogf("Clone(%s): after obtaining clone lock, repository already exists at %s", repoID, cloneDir)
+			s.debugLogf("Clone(%s): after obtaining clone lock, repository already exists at %s", repoPath, cloneDir)
 		} else {
-			s.debugLogf("Clone(%s): after obtaining clone lock, opening existing repository at %s failed: %s", repoID, cloneDir, err)
+			s.debugLogf("Clone(%s): after obtaining clone lock, opening existing repository at %s failed: %s", repoPath, cloneDir, err)
 		}
 		return r, err
 	}
 
 	start := time.Now()
-	msg := fmt.Sprintf("%s to %s", repoID, cloneDir)
+	msg := fmt.Sprintf("%s to %s", repoPath, cloneDir)
 	s.Log.Print("Cloning ", msg, "...")
 
 	// "Atomically" clone the repository. First, clone it to a temporary sibling
@@ -199,7 +199,7 @@ func (s *service) Clone(repoID string, cloneInfo *vcsclient.CloneInfo) (interfac
 	if err != nil {
 		return nil, err
 	}
-	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", repoID, cloneTmpDir)
+	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", repoPath, cloneTmpDir)
 	defer os.RemoveAll(cloneTmpDir)
 
 	cloneOpt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: cloneInfo.RemoteOpts}

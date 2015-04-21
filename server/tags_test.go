@@ -13,19 +13,19 @@ func TestServeRepoTags(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	rm := &mockTags{
 		t:    t,
 		tags: []*vcs.Tag{{Name: "t", CommitID: "c"}},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTags(repoID).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTags(repoPath).String())
 	if err != nil {
 		t.Fatal(err)
 	}

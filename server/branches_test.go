@@ -13,7 +13,7 @@ func TestServeRepoBranches(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	opt := vcs.BranchesOptions{}
 
 	rm := &mockBranches{
@@ -21,13 +21,13 @@ func TestServeRepoBranches(t *testing.T) {
 		branches: []*vcs.Branch{{Name: "t", Head: "c"}},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBranches(repoID, opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBranches(repoPath, opt).String())
 	if err != nil {
 		t.Fatal(err)
 	}

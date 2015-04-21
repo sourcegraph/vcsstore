@@ -13,7 +13,7 @@ func TestServeRepoMergeBase(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	rm := &mockMergeBase{
 		t:         t,
 		a:         "a",
@@ -21,13 +21,13 @@ func TestServeRepoMergeBase(t *testing.T) {
 		mergeBase: "abcd",
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoMergeBase(repoID, "a", "b").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoMergeBase(repoPath, "a", "b").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestServeRepoMergeBase(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoID, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoPath, "abcd"))
 }
 
 type mockMergeBase struct {
@@ -83,14 +83,14 @@ func TestServeRepoCrossRepoMergeBase(t *testing.T) {
 	}
 	sm := &mockService{
 		t: t,
-		open: func(repoID string) (interface{}, error) {
-			switch repoID {
+		open: func(repoPath string) (interface{}, error) {
+			switch repoPath {
 			case aRepoID:
 				return rm, nil
 			case bRepoID:
 				return mockRepoB, nil
 			default:
-				panic("unexpected repo clone: " + repoID)
+				panic("unexpected repo clone: " + repoPath)
 			}
 		},
 	}

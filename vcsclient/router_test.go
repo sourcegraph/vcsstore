@@ -14,7 +14,7 @@ func TestMatch(t *testing.T) {
 	router := NewRouter(nil)
 
 	const (
-		repoID          = "example.com/my/repo"
+		repoPath        = "example.com/my/repo"
 		encodedRepoPath = "example.com/my/repo"
 	)
 
@@ -35,74 +35,74 @@ func TestMatch(t *testing.T) {
 		{
 			path:          "/" + encodedRepoPath,
 			wantRouteName: RouteRepo,
-			wantVars:      map[string]string{"RepoID": repoID},
+			wantVars:      map[string]string{"RepoID": repoPath},
 		},
 
 		// Repo revisions
 		{
 			path:          "/" + encodedRepoPath + "/.branches/mybranch",
 			wantRouteName: RouteRepoBranch,
-			wantVars:      map[string]string{"RepoID": repoID, "Branch": "mybranch"},
+			wantVars:      map[string]string{"RepoID": repoPath, "Branch": "mybranch"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.branches/mybranch/subbranch",
 			wantRouteName: RouteRepoBranch,
-			wantVars:      map[string]string{"RepoID": repoID, "Branch": "mybranch/subbranch"},
+			wantVars:      map[string]string{"RepoID": repoPath, "Branch": "mybranch/subbranch"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.tags/mytag",
 			wantRouteName: RouteRepoTag,
-			wantVars:      map[string]string{"RepoID": repoID, "Tag": "mytag"},
+			wantVars:      map[string]string{"RepoID": repoPath, "Tag": "mytag"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.tags/mytag/subtag",
 			wantRouteName: RouteRepoTag,
-			wantVars:      map[string]string{"RepoID": repoID, "Tag": "mytag/subtag"},
+			wantVars:      map[string]string{"RepoID": repoPath, "Tag": "mytag/subtag"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.revs/myrevspec",
 			wantRouteName: RouteRepoRevision,
-			wantVars:      map[string]string{"RepoID": repoID, "RevSpec": "myrevspec"},
+			wantVars:      map[string]string{"RepoID": repoPath, "RevSpec": "myrevspec"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.revs/myrevspec1/mysubdir2",
 			wantRouteName: RouteRepoRevision,
-			wantVars:      map[string]string{"RepoID": repoID, "RevSpec": "myrevspec1/mysubdir2"},
+			wantVars:      map[string]string{"RepoID": repoPath, "RevSpec": "myrevspec1/mysubdir2"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid",
 			wantRouteName: RouteRepoCommit,
-			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid"},
+			wantVars:      map[string]string{"RepoID": repoPath, "CommitID": "mycommitid"},
 		},
 
 		// Repo commit log
 		{
 			path:          "/" + encodedRepoPath + "/.commits",
 			wantRouteName: RouteRepoCommits,
-			wantVars:      map[string]string{"RepoID": repoID},
+			wantVars:      map[string]string{"RepoID": repoPath},
 		},
 
 		// Repo tree
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "."},
+			wantVars:      map[string]string{"RepoID": repoPath, "CommitID": "mycommitid", "Path": "."},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "."},
+			wantVars:      map[string]string{"RepoID": repoPath, "CommitID": "mycommitid", "Path": "."},
 			wantPath:      "/" + encodedRepoPath + "/.commits/mycommitid/tree",
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "a/b"},
+			wantVars:      map[string]string{"RepoID": repoPath, "CommitID": "mycommitid", "Path": "a/b"},
 		},
 		{
 			path:          "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b/",
 			wantRouteName: RouteRepoTreeEntry,
-			wantVars:      map[string]string{"RepoID": repoID, "CommitID": "mycommitid", "Path": "a/b"},
+			wantVars:      map[string]string{"RepoID": repoPath, "CommitID": "mycommitid", "Path": "a/b"},
 			wantPath:      "/" + encodedRepoPath + "/.commits/mycommitid/tree/a/b",
 		},
 
@@ -110,28 +110,28 @@ func TestMatch(t *testing.T) {
 		{
 			path:          "/" + encodedRepoPath + "/.diff/a..b",
 			wantRouteName: RouteRepoDiff,
-			wantVars:      map[string]string{"RepoID": repoID, "Base": "a", "Head": "b"},
+			wantVars:      map[string]string{"RepoID": repoPath, "Base": "a", "Head": "b"},
 		},
 
 		// Cross-repo diff
 		{
 			path:          "/" + encodedRepoPath + "/.cross-repo-diff/a..x.com/y/z:b",
 			wantRouteName: RouteRepoCrossRepoDiff,
-			wantVars:      map[string]string{"RepoID": repoID, "Base": "a", "HeadRepoID": "x.com/y/z", "Head": "b"},
+			wantVars:      map[string]string{"RepoID": repoPath, "Base": "a", "HeadRepoID": "x.com/y/z", "Head": "b"},
 		},
 
 		// Merge Base
 		{
 			path:          "/" + encodedRepoPath + "/.merge-base/a/b",
 			wantRouteName: RouteRepoMergeBase,
-			wantVars:      map[string]string{"RepoID": repoID, "CommitIDA": "a", "CommitIDB": "b"},
+			wantVars:      map[string]string{"RepoID": repoPath, "CommitIDA": "a", "CommitIDB": "b"},
 		},
 
 		// Cross-repo merge base
 		{
 			path:          "/" + encodedRepoPath + "/.cross-repo-merge-base/a/x.com/y/z/b",
 			wantRouteName: RouteRepoCrossRepoMergeBase,
-			wantVars:      map[string]string{"RepoID": repoID, "CommitIDA": "a", "BRepoID": "x.com/y/z", "CommitIDB": "b"},
+			wantVars:      map[string]string{"RepoID": repoPath, "CommitIDA": "a", "BRepoID": "x.com/y/z", "CommitIDB": "b"},
 		},
 	}
 

@@ -11,14 +11,14 @@ func TestRepository_MergeBase(t *testing.T) {
 	setup()
 	defer teardown()
 
-	repoID := "a.b/c"
-	repo_, _ := vcsclient.Repository(repoID)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoMergeBase, repo, map[string]string{"RepoID": repoID, "CommitIDA": "a", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoMergeBase, repo, map[string]string{"RepoID": repoPath, "CommitIDA": "a", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 
@@ -43,14 +43,14 @@ func TestRepository_CrossRepoMergeBase(t *testing.T) {
 	setup()
 	defer teardown()
 
-	repoID := "a.b/c"
-	repo_, _ := vcsclient.Repository(repoID)
+	repoPath := "a.b/c"
+	repo_, _ := vcsclient.Repository(repoPath)
 	repo := repo_.(*repository)
 
 	want := vcs.CommitID("abcd")
 
 	var called bool
-	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoMergeBase, repo, map[string]string{"RepoID": repoID, "CommitIDA": "a", "BRepoID": "x.com/y", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(urlPath(t, RouteRepoCrossRepoMergeBase, repo, map[string]string{"RepoID": repoPath, "CommitIDA": "a", "BRepoID": "x.com/y", "CommitIDB": "b"}), func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		testMethod(t, r, "GET")
 

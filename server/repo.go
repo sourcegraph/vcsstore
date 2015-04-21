@@ -33,15 +33,15 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 	}
 
 	var cloned bool // whether the repo was newly cloned
-	repo, repoID, _, err := h.getRepo(r)
+	repo, repoPath, _, err := h.getRepo(r)
 	if errorHTTPStatusCode(err) == http.StatusNotFound {
 		cloned = true
-		repo, err = h.Service.Clone(repoID, &cloneInfo)
+		repo, err = h.Service.Clone(repoPath, &cloneInfo)
 	}
 	if err != nil {
 		return cloneOrUpdateError(err)
 	}
-	defer h.Service.Close(repoID)
+	defer h.Service.Close(repoPath)
 
 	if cloned {
 		w.WriteHeader(http.StatusCreated)
@@ -86,38 +86,38 @@ const (
 	cloneIfNotExists = 1 << iota
 )
 
-func (h *Handler) getRepo(r *http.Request) (repo interface{}, repoID string, done func(), err error) {
+func (h *Handler) getRepo(r *http.Request) (repo interface{}, repoPath string, done func(), err error) {
 	return h.getRepoLabeled(r, "")
 }
 
 // getRepoLabel allows either getting the main repo in the URL or
 // another one, such as the head repo for cross-repo diffs.
-func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{}, repoID string, done func(), err error) {
-	repoID, err = h.getRepoID(r, label)
+func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{}, repoPath string, done func(), err error) {
+	repoPath, err = h.getRepoID(r, label)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	repo, err = h.Service.Open(repoID)
+	repo, err = h.Service.Open(repoPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = &httpError{http.StatusNotFound, vcsclient.ErrRepoNotExist}
 		}
-		return nil, repoID, nil, err
+		return nil, repoPath, nil, err
 	}
 
 	done = func() {
-		h.Service.Close(repoID)
+		h.Service.Close(repoPath)
 	}
 
-	return repo, repoID, done, nil
+	return repo, repoPath, done, nil
 }
 
-func (h *Handler) getRepoID(r *http.Request, label string) (repoID string, err error) {
+func (h *Handler) getRepoID(r *http.Request, label string) (repoPath string, err error) {
 	v := mux.Vars(r)
-	repoID = v[label+"RepoID"]
-	if repoID == "" {
+	repoPath = v[label+"RepoID"]
+	if repoPath == "" {
 		return "", &httpError{http.StatusBadRequest, errors.New("repoID not found")}
 	}
-	return repoID, err
+	return repoPath, err
 }

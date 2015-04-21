@@ -21,20 +21,20 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 
 	commitID := vcs.CommitID(strings.Repeat("a", 40))
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
 		fs: mapFS(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoID, commitID, "myfile").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoPath, commitID, "myfile").String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,20 +77,20 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	rm := &mockFileSystem{
 		t:  t,
 		at: "abcd",
 		fs: mapFS(map[string]string{"myfile": "mydata", "mydir/f": ""}),
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoID, "abcd", ".").String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoPath, "abcd", ".").String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,20 +144,20 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 
 	commitID := vcs.CommitID(strings.Repeat("a", 40))
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	rm := &mockFileSystem{
 		t:  t,
 		at: commitID,
 		fs: mapFS(map[string]string{"myfile": "mydata"}),
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoID, commitID, "myfile").String() + "?StartByte=2&EndByte=4")
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoTreeEntry(repoPath, commitID, "myfile").String() + "?StartByte=2&EndByte=4")
 	if err != nil {
 		t.Fatal(err)
 	}

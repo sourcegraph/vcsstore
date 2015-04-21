@@ -83,8 +83,8 @@ index 78981922613b2afb6025042ff6bd878ac1994e85..422c2b7ab3b3c668038da977e4e93a5f
 	wg.Wait()
 }
 
-func openAndCloneRepo(t *testing.T, c *vcsclient.Client, repoID string, cloneInfo *vcsclient.CloneInfo) vcs.Repository {
-	repo, err := c.Repository(repoID)
+func openAndCloneRepo(t *testing.T, c *vcsclient.Client, repoPath string, cloneInfo *vcsclient.CloneInfo) vcs.Repository {
+	repo, err := c.Repository(repoPath)
 	if err != nil {
 		t.Fatal(err)
 	}

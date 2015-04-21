@@ -8,7 +8,7 @@ const (
 )
 
 type GitTransporter interface {
-	GitTransport(repoID string) (GitTransport, error)
+	GitTransport(repoPath string) (GitTransport, error)
 }
 
 // GitTransport represents a git repository with all the functions to

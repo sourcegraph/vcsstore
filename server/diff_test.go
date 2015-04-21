@@ -16,7 +16,7 @@ func TestServeRepoDiff(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	opt := vcs.DiffOptions{}
 
 	rm := &mockDiff{
@@ -27,13 +27,13 @@ func TestServeRepoDiff(t *testing.T) {
 		diff: &vcs.Diff{Raw: "diff"},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoDiff(repoID, rm.base, rm.head, &opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoDiff(repoPath, rm.base, rm.head, &opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -104,14 +104,14 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	sm := &mockService{
 		t: t,
 		// repoID: baseRepoID,
-		open: func(repoID string) (interface{}, error) {
-			switch repoID {
+		open: func(repoPath string) (interface{}, error) {
+			switch repoPath {
 			case baseRepoID:
 				return rm, nil
 			case headRepoID:
 				return mockHeadRepo, nil
 			default:
-				panic("unexpected repo clone: " + repoID)
+				panic("unexpected repo clone: " + repoPath)
 			}
 		},
 	}

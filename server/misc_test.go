@@ -12,21 +12,21 @@ func TestHandlers_NotImplemented(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	uris := []*url.URL{
-		testHandler.router.URLToRepoBranch(repoID, "mybranch"),
-		testHandler.router.URLToRepoRevision(repoID, "myrevspec"),
-		testHandler.router.URLToRepoTag(repoID, "mytag"),
-		testHandler.router.URLToRepoCommit(repoID, "abcd"),
-		testHandler.router.URLToRepoCommits(repoID, vcs.CommitsOptions{Head: "abcd"}),
-		testHandler.router.URLToRepoTreeEntry(repoID, "abcd", "myfile"),
-		testHandler.router.URLToRepoTreeEntry(repoID, "abcd", "."),
+		testHandler.router.URLToRepoBranch(repoPath, "mybranch"),
+		testHandler.router.URLToRepoRevision(repoPath, "myrevspec"),
+		testHandler.router.URLToRepoTag(repoPath, "mytag"),
+		testHandler.router.URLToRepoCommit(repoPath, "abcd"),
+		testHandler.router.URLToRepoCommits(repoPath, vcs.CommitsOptions{Head: "abcd"}),
+		testHandler.router.URLToRepoTreeEntry(repoPath, "abcd", "myfile"),
+		testHandler.router.URLToRepoTreeEntry(repoPath, "abcd", "."),
 	}
 
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   nil, // doesn't implement any repo methods
+		t:        t,
+		repoPath: repoPath,
+		repo:     nil, // doesn't implement any repo methods
 	}
 	testHandler.Service = sm
 

@@ -232,10 +232,10 @@ The options are:
 		fs.Usage()
 	}
 
-	repoID := fs.Arg(0)
+	repoPath := fs.Arg(0)
 
-	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.EncodeRepositoryPath(repoID)))
-	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(repoID))
+	fmt.Println("RepositoryPath:      ", filepath.Join(*storageDir, vcsstore.EncodeRepositoryPath(repoPath)))
+	fmt.Println("URL:                 ", vcsclient.NewRouter(nil).URLToRepo(repoPath))
 }
 
 func cloneCmd(args []string) {
@@ -264,7 +264,7 @@ The options are:
 		log.Fatal(err)
 	}
 
-	repoID, vcsType := fs.Arg(0), fs.Arg(1)
+	repoPath, vcsType := fs.Arg(0), fs.Arg(1)
 	cloneURL, err := url.Parse(fs.Arg(2))
 	if err != nil {
 		log.Fatal(err)
@@ -272,7 +272,7 @@ The options are:
 
 	var repo vcs.Repository
 	c := vcsclient.New(baseURL, nil)
-	repo, err = c.Repository(repoID)
+	repo, err = c.Repository(repoPath)
 	if err != nil {
 		log.Fatal("Open repository: ", err)
 	}
@@ -297,7 +297,7 @@ The options are:
 		log.Fatalf("Remote cloning is not implemented for %T.", repo)
 	}
 
-	fmt.Printf("%-5s cloned OK\n", repoID)
+	fmt.Printf("%-5s cloned OK\n", repoPath)
 }
 
 func getCmd(args []string) {
@@ -319,7 +319,7 @@ The options are:
 	if n := fs.NArg(); n != 1 && n != 2 {
 		fs.Usage()
 	}
-	repoID := fs.Arg(0)
+	repoPath := fs.Arg(0)
 	var extraPath string
 	if fs.NArg() == 2 {
 		extraPath = fs.Arg(1)
@@ -331,7 +331,7 @@ The options are:
 	}
 
 	router := vcsclient.NewRouter(nil)
-	url := router.URLToRepo(repoID)
+	url := router.URLToRepo(repoPath)
 	url.Path = strings.TrimPrefix(url.Path, "/")
 	url = baseURL.ResolveReference(url)
 	url.Path = filepath.Join(url.Path, extraPath)

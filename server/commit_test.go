@@ -16,20 +16,20 @@ func TestServeRepoCommit(t *testing.T) {
 
 	commitID := vcs.CommitID(strings.Repeat("a", 40))
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	rm := &mockGetCommit{
 		t:      t,
 		id:     commitID,
 		commit: &vcs.Commit{ID: commitID},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommit(repoID, commitID).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommit(repoPath, commitID).String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,20 +61,20 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	rm := &mockGetCommit{
 		t:      t,
 		id:     "ab",
 		commit: &vcs.Commit{ID: "abcd"},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoCommit(repoID, "ab").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoCommit(repoPath, "ab").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoID, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoPath, "abcd"))
 
 	if cc := resp.Header.Get("cache-control"); cc != shortCacheControl {
 		t.Errorf("got cache-control %q, want %q", cc, shortCacheControl)

@@ -13,13 +13,13 @@ type gitTransport struct {
 	client *Client
 
 	// repoID identifies the repository being accessed
-	repoID string
+	repoPath string
 }
 
 var _ git.GitTransport = (*gitTransport)(nil)
 
 func (t *gitTransport) InfoRefs(w io.Writer, service string) error {
-	rp := &repository{client: t.client, repoID: t.repoID}
+	rp := &repository{client: t.client, repoPath: t.repoPath}
 	urlQuery := struct {
 		Service string `url:"service"`
 	}{
@@ -50,7 +50,7 @@ func (t *gitTransport) InfoRefs(w io.Writer, service string) error {
 }
 
 func (t *gitTransport) ReceivePack(w io.Writer, rdr io.Reader, opt git.GitTransportOpt) error {
-	rp := &repository{client: t.client, repoID: t.repoID}
+	rp := &repository{client: t.client, repoPath: t.repoPath}
 	u, err := rp.url(git.RouteGitReceivePack, nil, nil)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (t *gitTransport) ReceivePack(w io.Writer, rdr io.Reader, opt git.GitTransp
 }
 
 func (t *gitTransport) UploadPack(w io.Writer, rdr io.Reader, opt git.GitTransportOpt) error {
-	rp := &repository{client: t.client, repoID: t.repoID}
+	rp := &repository{client: t.client, repoPath: t.repoPath}
 	u, err := rp.url(git.RouteGitUploadPack, nil, nil)
 	if err != nil {
 		return err

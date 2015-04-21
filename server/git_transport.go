@@ -25,8 +25,8 @@ type localGitTransporter struct {
 
 var _ git.GitTransporter = (*localGitTransporter)(nil)
 
-func (t *localGitTransporter) GitTransport(repoID string) (git.GitTransport, error) {
-	cloneDir, err := t.Config.CloneDir(repoID)
+func (t *localGitTransporter) GitTransport(repoPath string) (git.GitTransport, error) {
+	cloneDir, err := t.Config.CloneDir(repoPath)
 	if err != nil {
 		return nil, err
 	}

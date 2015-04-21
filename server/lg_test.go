@@ -43,7 +43,7 @@ func TestCloneGitSSH_lg(t *testing.T) {
 		t.Skip("no ssh key specified")
 	}
 
-	cloneInfo, repoID := privateRepoInfo(t, "git")
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
 	if *sshKeyFile != "" {
 		key, err := ioutil.ReadFile(*sshKeyFile)
 		if err != nil {
@@ -52,32 +52,32 @@ func TestCloneGitSSH_lg(t *testing.T) {
 		cloneInfo.SSH = &vcs.SSHConfig{PrivateKey: key}
 	}
 
-	testClone_lg(t, repoID, cloneInfo, "", 0)
+	testClone_lg(t, repoPath, cloneInfo, "", 0)
 }
 
 func TestCloneGitSSH_noKey_lg(t *testing.T) {
 	t.Parallel()
 
-	cloneInfo, repoID := privateRepoInfo(t, "git")
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
 
-	testClone_lg(t, repoID, cloneInfo, "authentication required but no callback set", http.StatusUnauthorized)
+	testClone_lg(t, repoPath, cloneInfo, "authentication required but no callback set", http.StatusUnauthorized)
 }
 
 func TestCloneGitSSH_emptyKey_lg(t *testing.T) {
 	t.Parallel()
-	cloneInfo, repoID := privateRepoInfo(t, "git")
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
 	cloneInfo.RemoteOpts = vcs.RemoteOpts{SSH: &vcs.SSHConfig{}}
-	testClone_lg(t, repoID, cloneInfo, "callback returned unsupported credentials type", http.StatusUnauthorized)
+	testClone_lg(t, repoPath, cloneInfo, "callback returned unsupported credentials type", http.StatusUnauthorized)
 }
 
 func TestCloneGitSSH_badKey_lg(t *testing.T) {
 	t.Parallel()
-	cloneInfo, repoID := privateRepoInfo(t, "git")
+	cloneInfo, repoPath := privateRepoInfo(t, "git")
 	cloneInfo.RemoteOpts = vcs.RemoteOpts{
 		SSH: &vcs.SSHConfig{PrivateKey: []byte(badKey)},
 	}
 
-	testClone_lg(t, repoID, cloneInfo, "Failed to authenticate SSH session: Waiting for USERAUTH response", http.StatusForbidden)
+	testClone_lg(t, repoPath, cloneInfo, "Failed to authenticate SSH session: Waiting for USERAUTH response", http.StatusForbidden)
 }
 
 func TestCloneHgHTTPS_lg(t *testing.T) {
@@ -86,7 +86,7 @@ func TestCloneHgHTTPS_lg(t *testing.T) {
 		&vcsclient.CloneInfo{VCS: "hg", CloneURL: "https://bitbucket.org/sqs/go-vcs-hgtest"}, "", 0)
 }
 
-func testClone_lg(t *testing.T, repoID string, opt *vcsclient.CloneInfo, wantCloneErrStr string, wantCloneErrHTTPStatus int) {
+func testClone_lg(t *testing.T, repoPath string, opt *vcsclient.CloneInfo, wantCloneErrStr string, wantCloneErrHTTPStatus int) {
 	storageDir, err := ioutil.TempDir("", "vcsstore-test")
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +111,7 @@ func testClone_lg(t *testing.T, repoID string, opt *vcsclient.CloneInfo, wantClo
 		t.Fatal(err)
 	}
 	c := vcsclient.New(baseURL, nil)
-	repo, err := c.Repository(repoID)
+	repo, err := c.Repository(repoPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,13 +129,13 @@ func testClone_lg(t *testing.T, repoID string, opt *vcsclient.CloneInfo, wantClo
 	}
 }
 
-func privateRepoInfo(t *testing.T, vcsType string) (cloneInfo *vcsclient.CloneInfo, repoID string) {
+func privateRepoInfo(t *testing.T, vcsType string) (cloneInfo *vcsclient.CloneInfo, repoPath string) {
 	cloneInfo = &vcsclient.CloneInfo{VCS: vcsType, CloneURL: *privateRepo}
 	cloneURL, err := url.Parse(*privateRepo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	repoID = filepath.Join(cloneURL.Host, cloneURL.Path)
+	repoPath = filepath.Join(cloneURL.Host, cloneURL.Path)
 	return
 }
 

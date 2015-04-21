@@ -38,7 +38,7 @@ func (r *repository) CrossRepoDiff(base vcs.CommitID, headRepo vcs.Repository, h
 		return nil, fmt.Errorf("cross-repo diffing in vcsclient is not implemented for %T", headRepo)
 	}
 
-	url, err := r.url(RouteRepoCrossRepoDiff, map[string]string{"Base": string(base), "HeadRepoID": headRepo2.repoID, "Head": string(head)}, opt)
+	url, err := r.url(RouteRepoCrossRepoDiff, map[string]string{"Base": string(base), "HeadRepoID": headRepo2.repoPath, "Head": string(head)}, opt)
 	if err != nil {
 		return nil, err
 	}

@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 )
 
-func EncodeRepositoryPath(repoID string) (path string) {
-	return filepath.Clean(repoID)
+func EncodeRepositoryPath(repoPath string) (path string) {
+	return filepath.Clean(repoPath)
 }
 
-func DecodeRepositoryPath(path string) (repoID string) {
+func DecodeRepositoryPath(path string) (repoPath string) {
 	return path
 }
 

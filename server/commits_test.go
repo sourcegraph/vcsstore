@@ -15,7 +15,7 @@ func TestServeRepoCommits(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	repoID := "a.b/c"
+	repoPath := "a.b/c"
 	opt := vcs.CommitsOptions{Head: "abcd", N: 2, Skip: 3}
 
 	rm := &mockCommits{
@@ -25,13 +25,13 @@ func TestServeRepoCommits(t *testing.T) {
 		total:   123,
 	}
 	sm := &mockServiceForExistingRepo{
-		t:      t,
-		repoID: repoID,
-		repo:   rm,
+		t:        t,
+		repoPath: repoPath,
+		repo:     rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommits(repoID, opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommits(repoPath, opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}

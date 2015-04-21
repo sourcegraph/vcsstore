@@ -31,8 +31,8 @@ func IsRepoNotExist(err error) bool {
 }
 
 type repository struct {
-	client *Client
-	repoID string
+	client   *Client
+	repoPath string
 }
 
 var _ vcs.Repository = (*repository)(nil)
@@ -269,7 +269,7 @@ func (r *repository) url(routeName string, routeVars map[string]string, opt inte
 		routeVarsList[i*2+1] = val
 		i++
 	}
-	routeVarsList = append(routeVarsList, "RepoID", r.repoID)
+	routeVarsList = append(routeVarsList, "RepoID", r.repoPath)
 	url, err := route.URL(routeVarsList...)
 	if err != nil {
 		return nil, err

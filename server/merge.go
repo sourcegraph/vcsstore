@@ -11,7 +11,7 @@ import (
 func (h *Handler) serveRepoMergeBase(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, repoID, done, err := h.getRepo(r)
+	repo, repoPath, done, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (h *Handler) serveRepoMergeBase(w http.ResponseWriter, r *http.Request) err
 			setShortCache(w)
 			statusCode = http.StatusFound
 		}
-		http.Redirect(w, r, h.router.URLToRepoCommit(repoID, mb).String(), statusCode)
+		http.Redirect(w, r, h.router.URLToRepoCommit(repoPath, mb).String(), statusCode)
 		return nil
 	}
 
