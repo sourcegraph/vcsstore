@@ -138,8 +138,8 @@ func (r *repository) parseCommitIDInURL(urlStr string) (vcs.CommitID, error) {
 	return vcs.CommitID(info.Vars["CommitID"]), nil
 }
 
-func (r *repository) Branches() ([]*vcs.Branch, error) {
-	url, err := r.url(RouteRepoBranches, nil, nil)
+func (r *repository) Branches(opt vcs.BranchesOptions) ([]*vcs.Branch, error) {
+	url, err := r.url(RouteRepoBranches, nil, opt)
 	if err != nil {
 		return nil, err
 	}

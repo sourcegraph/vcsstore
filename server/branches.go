@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
@@ -14,11 +15,17 @@ func (h *Handler) serveRepoBranches(w http.ResponseWriter, r *http.Request) erro
 	}
 	defer done()
 
+	var opt vcs.BranchesOptions
+	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
+		log.Println(err)
+		return err
+	}
+
 	type branches interface {
-		Branches() ([]*vcs.Branch, error)
+		Branches(opt vcs.BranchesOptions) ([]*vcs.Branch, error)
 	}
 	if repo, ok := repo.(branches); ok {
-		branches, err := repo.Branches()
+		branches, err := repo.Branches(opt)
 		if err != nil {
 			return err
 		}
