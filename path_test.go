@@ -1,7 +1,11 @@
 package vcsstore
 
 import (
+	"io/ioutil"
 	"net/url"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -37,5 +41,36 @@ func TestEncodeAndDecodeRepositoryPath(t *testing.T) {
 		if cloneURL2.String() != repo.cloneURLStr {
 			t.Errorf("got cloneURL == %q, want %q", cloneURL2, repo.cloneURLStr)
 		}
+	}
+}
+
+func TestVCSTypeFromDir(t *testing.T) {
+	tests := []struct {
+		initCmd    string
+		expVCSType string
+	}{{"git init", "git"}, {"git init --bare", "git"}, {"hg init", "hg"}}
+
+	for _, test := range tests {
+		func() {
+			repoDir, err := ioutil.TempDir("", "TestVCSTypeFromDir")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(repoDir)
+
+			cmdArgs := strings.Fields(test.initCmd)
+			cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+			cmd.Dir = repoDir
+			if err := cmd.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			vcsType, err := vcsTypeFromDir(repoDir)
+			if err != nil {
+				t.Errorf("unexpected error calling vcsTypeFromDir: %s", err)
+			} else if vcsType != test.expVCSType {
+				t.Errorf("expected VCS type %s, but got %s", test.expVCSType, vcsType)
+			}
+		}()
 	}
 }

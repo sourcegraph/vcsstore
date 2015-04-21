@@ -94,7 +94,7 @@ func (s *service) Open(repoID string) (interface{}, error) {
 
 func (s *service) open(cloneDir string) (interface{}, error) {
 	key := repoKey{cloneDir}
-	vcsType, err := s.vcsTypeFromDir(cloneDir)
+	vcsType, err := vcsTypeFromDir(cloneDir)
 	if err != nil {
 		return nil, err
 	}
@@ -243,9 +243,4 @@ func (s *service) debugLogf(format string, args ...interface{}) {
 	if s.DebugLog != nil {
 		s.DebugLog.Printf(format, args...)
 	}
-}
-
-func (s *service) vcsTypeFromDir(cloneDir string) (vcsType string, err error) {
-	// TODO(beyang): get vcs type from filesystem structure
-	return "git", nil
 }
