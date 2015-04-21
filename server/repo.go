@@ -20,7 +20,6 @@ func (h *Handler) serveRepo(w http.ResponseWriter, r *http.Request) error {
 
 	return writeJSON(w, struct {
 		ImplementationType string
-		// TODO: include CloneURL here?
 	}{fmt.Sprintf("%T", repo)})
 }
 

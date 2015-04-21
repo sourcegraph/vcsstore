@@ -80,7 +80,6 @@ type service struct {
 }
 
 type repoKey struct {
-	// vcsType  string
 	cloneDir string
 }
 

@@ -33,8 +33,6 @@ func IsRepoNotExist(err error) bool {
 type repository struct {
 	client *Client
 	repoID string
-	// vcsType  string
-	// cloneURL *url.URL
 }
 
 var _ vcs.Repository = (*repository)(nil)

@@ -23,10 +23,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coreos/go-etcd/etcd"
 	"github.com/gorilla/handlers"
 	"github.com/lox/httpcache"
-	"sourcegraph.com/sourcegraph/datad"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/git"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
@@ -38,9 +36,6 @@ import (
 var (
 	storageDir = flag.String("s", "/tmp/vcsstore", "storage root dir for VCS repos")
 	verbose    = flag.Bool("v", true, "show verbose output")
-
-	etcdEndpoint  = flag.String("etcd", "http://127.0.0.1:4001", "etcd endpoint")
-	etcdKeyPrefix = flag.String("etcd-key-prefix", filepath.Join(datad.DefaultKeyPrefix, "vcs"), "keyspace for datad registry and provider list in etcd")
 
 	defaultPort = "9090"
 )
@@ -99,16 +94,10 @@ var subcommands = []subcommand{
 	{"get", "gets a path from the server (or datad cluster)", getCmd},
 }
 
-func etcdBackend() datad.Backend {
-	return datad.NewEtcdBackend(*etcdKeyPrefix, etcd.NewClient([]string{*etcdEndpoint}))
-}
-
 func serveCmd(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	debug := fs.Bool("d", false, "debug mode (don't use on publicly available servers)")
 	bindAddr := fs.String("http", ":"+defaultPort, "HTTP listen address")
-	// datadNode := fs.Bool("datad", false, "participate as a node in a datad cluster")
-	// datadNodeName := fs.String("datad-node-name", "127.0.0.1:"+defaultPort, "datad node name (must be accessible to datad clients & other nodes)")
 	tlsCert := fs.String("tls.cert", "", "TLS certificate file (if set, server uses TLS)")
 	tlsKey := fs.String("tls.key", "", "TLS key file (if set, server uses TLS)")
 	basicAuth := fs.String("http.basicauth", "", "if set to 'user:passwd', require HTTP Basic Auth")
@@ -152,16 +141,6 @@ The options are:
 	vh := server.NewHandler(vcsstore.NewService(conf), server.NewGitTransporter(conf), nil)
 	vh.Log = log.New(logw, "server: ", log.LstdFlags)
 	vh.Debug = *debug
-
-	// if *datadNode {
-	// 	node := datad.NewNode(*datadNodeName, etcdBackend(), cluster.NewProvider(conf, vh.Service))
-	// 	node.Updaters = runtime.GOMAXPROCS(0)
-	// 	err := node.Start()
-	// 	if err != nil {
-	// 		log.Fatal("Failed to start datad node: ", err)
-	// 	}
-	// 	log.Printf("Started datad node %s.", *datadNodeName)
-	// }
 
 	var h http.Handler
 	if *basicAuth != "" {
@@ -262,7 +241,6 @@ The options are:
 func cloneCmd(args []string) {
 	fs := flag.NewFlagSet("clone", flag.ExitOnError)
 	urlStr := fs.String("url", "http://localhost:"+defaultPort, "base URL to a running vcsstore API server")
-	datadClient := fs.Bool("datad", false, "use datad cluster client")
 	sshKeyFile := fs.String("i", "", "ssh private key file for clone remote")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore clone [options] repo-id vcs-type clone-url
@@ -293,18 +271,10 @@ The options are:
 	}
 
 	var repo vcs.Repository
-	if *datadClient {
-		// cc := cluster.NewClient(datad.NewClient(etcdBackend()), nil)
-		// repo, err = cc.Repository(vcsType, cloneURL)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-	} else {
-		c := vcsclient.New(baseURL, nil)
-		repo, err = c.Repository(repoID)
-		if err != nil {
-			log.Fatal("Open repository: ", err)
-		}
+	c := vcsclient.New(baseURL, nil)
+	repo, err = c.Repository(repoID)
+	if err != nil {
+		log.Fatal("Open repository: ", err)
 	}
 
 	var opt vcs.RemoteOpts
@@ -333,7 +303,6 @@ The options are:
 func getCmd(args []string) {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 	urlStr := fs.String("url", "http://localhost:"+defaultPort, "base URL to a running vcsstore API server")
-	datadClient := fs.Bool("datad", false, "route request using datad (specify etcd backend in global options)")
 	method := fs.String("method", "GET", "HTTP request method")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore get [options] repo-id [extra-path]
@@ -367,23 +336,8 @@ The options are:
 	url = baseURL.ResolveReference(url)
 	url.Path = filepath.Join(url.Path, extraPath)
 
-	if *datadClient {
-		// datadGet(*method, vcsType, cloneURL, url)
-	} else {
-		normalGet(*method, nil, url)
-	}
+	normalGet(*method, nil, url)
 }
-
-// func datadGet(method string, vcsType string, cloneURL *url.URL, reqURL *url.URL) {
-// 	cc := cluster.NewClient(datad.NewClient(etcdBackend()), nil)
-// 	t, err := cc.TransportForRepository(vcsType, cloneURL)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	reqURL.Host = "$(DATAD_NODE)"
-// 	normalGet(method, &http.Client{Transport: t}, reqURL)
-// }
 
 func normalGet(method string, c *http.Client, url *url.URL) {
 	if c == nil {
