@@ -12,11 +12,13 @@ import (
 	"github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/git"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 type Handler struct {
-	Service vcsstore.Service
+	Service        vcsstore.Service
+	GitTransporter git.GitTransporter
 
 	router *vcsclient.Router
 
@@ -32,37 +34,38 @@ type Handler struct {
 // NewHandler adds routes and handlers to an existing parent router (or creates
 // one if parent is nil). If wrap is non-nil, it is called on each internal
 // handler before being registered as the handler for a router.
-func NewHandler(svc vcsstore.Service, parent *mux.Router, wrap func(http.Handler) http.Handler) *Handler {
+func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.Router) *Handler {
 	router := vcsclient.NewRouter(parent)
 	r := (*mux.Router)(router)
 
-	if wrap == nil {
-		wrap = func(h http.Handler) http.Handler { return h }
-	}
-
 	h := &Handler{
-		Service: svc,
-		router:  router,
-		Log:     log.New(ioutil.Discard, "", 0),
+		Service:        svc,
+		GitTransporter: gitTrans,
+		router:         router,
+		Log:            log.New(ioutil.Discard, "", 0),
 	}
 
-	r.Get(vcsclient.RouteRoot).Handler(wrap(handler{h, h.serveRoot}))
-	r.Get(vcsclient.RouteRepo).Handler(wrap(handler{h, h.serveRepo}))
-	r.Get(vcsclient.RouteRepoCreateOrUpdate).Handler(wrap(handler{h, h.serveRepoCreateOrUpdate}))
-	r.Get(vcsclient.RouteRepoBlameFile).Handler(wrap(handler{h, h.serveRepoBlameFile}))
-	r.Get(vcsclient.RouteRepoBranch).Handler(wrap(handler{h, h.serveRepoBranch}))
-	r.Get(vcsclient.RouteRepoBranches).Handler(wrap(handler{h, h.serveRepoBranches}))
-	r.Get(vcsclient.RouteRepoCommit).Handler(wrap(handler{h, h.serveRepoCommit}))
-	r.Get(vcsclient.RouteRepoCommits).Handler(wrap(handler{h, h.serveRepoCommits}))
-	r.Get(vcsclient.RouteRepoDiff).Handler(wrap(handler{h, h.serveRepoDiff}))
-	r.Get(vcsclient.RouteRepoCrossRepoDiff).Handler(wrap(handler{h, h.serveRepoCrossRepoDiff}))
-	r.Get(vcsclient.RouteRepoMergeBase).Handler(wrap(handler{h, h.serveRepoMergeBase}))
-	r.Get(vcsclient.RouteRepoCrossRepoMergeBase).Handler(wrap(handler{h, h.serveRepoCrossRepoMergeBase}))
-	r.Get(vcsclient.RouteRepoSearch).Handler(wrap(handler{h, h.serveRepoSearch}))
-	r.Get(vcsclient.RouteRepoRevision).Handler(wrap(handler{h, h.serveRepoRevision}))
-	r.Get(vcsclient.RouteRepoTag).Handler(wrap(handler{h, h.serveRepoTag}))
-	r.Get(vcsclient.RouteRepoTags).Handler(wrap(handler{h, h.serveRepoTags}))
-	r.Get(vcsclient.RouteRepoTreeEntry).Handler(wrap(handler{h, h.serveRepoTreeEntry}))
+	r.Get(git.RouteGitInfoRefs).Handler(handler{h, h.serveInfoRefs})
+	r.Get(git.RouteGitUploadPack).Handler(handler{h, h.serveUploadPack})
+	r.Get(git.RouteGitReceivePack).Handler(handler{h, h.serveReceivePack})
+
+	r.Get(vcsclient.RouteRoot).Handler(handler{h, h.serveRoot})
+	r.Get(vcsclient.RouteRepo).Handler(handler{h, h.serveRepo})
+	r.Get(vcsclient.RouteRepoCreateOrUpdate).Handler(handler{h, h.serveRepoCreateOrUpdate})
+	r.Get(vcsclient.RouteRepoBlameFile).Handler(handler{h, h.serveRepoBlameFile})
+	r.Get(vcsclient.RouteRepoBranch).Handler(handler{h, h.serveRepoBranch})
+	r.Get(vcsclient.RouteRepoBranches).Handler(handler{h, h.serveRepoBranches})
+	r.Get(vcsclient.RouteRepoCommit).Handler(handler{h, h.serveRepoCommit})
+	r.Get(vcsclient.RouteRepoCommits).Handler(handler{h, h.serveRepoCommits})
+	r.Get(vcsclient.RouteRepoDiff).Handler(handler{h, h.serveRepoDiff})
+	r.Get(vcsclient.RouteRepoCrossRepoDiff).Handler(handler{h, h.serveRepoCrossRepoDiff})
+	r.Get(vcsclient.RouteRepoMergeBase).Handler(handler{h, h.serveRepoMergeBase})
+	r.Get(vcsclient.RouteRepoCrossRepoMergeBase).Handler(handler{h, h.serveRepoCrossRepoMergeBase})
+	r.Get(vcsclient.RouteRepoSearch).Handler(handler{h, h.serveRepoSearch})
+	r.Get(vcsclient.RouteRepoRevision).Handler(handler{h, h.serveRepoRevision})
+	r.Get(vcsclient.RouteRepoTag).Handler(handler{h, h.serveRepoTag})
+	r.Get(vcsclient.RouteRepoTags).Handler(handler{h, h.serveRepoTags})
+	r.Get(vcsclient.RouteRepoTreeEntry).Handler(handler{h, h.serveRepoTreeEntry})
 
 	return h
 }

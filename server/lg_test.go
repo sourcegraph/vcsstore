@@ -91,7 +91,7 @@ func testClone_lg(t *testing.T, vcsType, repoURLStr string, opt vcs.RemoteOpts, 
 		DebugLog:   log.New(os.Stderr, "", log.LstdFlags),
 	}
 
-	h := NewHandler(vcsstore.NewService(conf), nil, nil)
+	h := NewHandler(vcsstore.NewService(conf), NewGitTransporter(conf), nil)
 	h.Log = log.New(os.Stderr, "", 0)
 	h.Debug = true
 

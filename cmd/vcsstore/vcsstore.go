@@ -151,7 +151,7 @@ The options are:
 		conf.DebugLog = log.New(logw, "vcsstore DEBUG: ", log.LstdFlags)
 	}
 
-	vh := server.NewHandler(vcsstore.NewService(conf), nil, nil)
+	vh := server.NewHandler(vcsstore.NewService(conf), server.NewGitTransporter(conf), nil)
 	vh.Log = log.New(logw, "server: ", log.LstdFlags)
 	vh.Debug = *debug
 

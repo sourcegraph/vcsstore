@@ -96,24 +96,13 @@ func (h *Handler) getRepo(r *http.Request) (repo interface{}, cloneURL *url.URL,
 // getRepoLabel allows either getting the main repo in the URL or
 // another one, such as the head repo for cross-repo diffs.
 func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{}, cloneURL *url.URL, done func(), err error) {
+	cloneURL, err = h.getRepoCloneURL(r, label)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	v := mux.Vars(r)
 	vcsType := v[label+"VCS"]
-	cloneURLStr := v[label+"CloneURL"]
-	if cloneURLStr == "" {
-		// If cloneURLStr is empty, then the CloneURLEscaped route var failed to
-		// be unescaped using url.QueryUnescape.
-		return nil, nil, nil, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (unescaping failed)")}
-	}
-
-	cloneURL, err = url.Parse(cloneURLStr)
-	if err != nil {
-		return nil, nil, nil, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (parsing failed)")}
-	}
-
-	if cloneURL.Scheme == "" || cloneURL.Host == "" {
-		return nil, cloneURL, nil, errors.New("invalid clone URL")
-	}
-
 	repo, err = h.Service.Open(vcsType, cloneURL)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -127,4 +116,21 @@ func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{
 	}
 
 	return repo, cloneURL, done, nil
+}
+
+func (h *Handler) getRepoCloneURL(r *http.Request, label string) (cloneURL *url.URL, err error) {
+	v := mux.Vars(r)
+	cloneURLStr := v[label+"CloneURL"]
+	if cloneURLStr == "" {
+		// If cloneURLStr is empty, then the CloneURLEscaped route var failed to
+		// be unescaped using url.QueryUnescape.
+		return nil, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (unescaping failed)")}
+	}
+
+	cloneURL, err = url.Parse(cloneURLStr)
+	if err != nil {
+		return nil, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (parsing failed)")}
+	}
+
+	return cloneURL, err
 }

@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/git"
 )
 
 const (
@@ -33,6 +35,8 @@ type Client struct {
 	// redirects.
 	ignoreRedirectsHTTPClient *http.Client
 }
+
+var _ VCSStore = (*Client)(nil)
 
 // New returns a new vcsstore API client that communicates with an HTTP server
 // at the base URL. If httpClient is nil, http.DefaultClient is used.
@@ -61,6 +65,10 @@ func (c *Client) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, 
 		vcsType:  vcsType,
 		cloneURL: cloneURL,
 	}, nil
+}
+
+func (c *Client) GitTransport(vcsType string, cloneURL *url.URL) (git.GitTransport, error) {
+	return &gitTransport{client: c, cloneURL: cloneURL}, nil
 }
 
 // NewRequest creates an API request. A relative URL can be provided in urlStr,
@@ -123,6 +131,8 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 	if v != nil {
 		if bp, ok := v.(*[]byte); ok {
 			*bp, err = ioutil.ReadAll(resp.Body)
+		} else if buf, ok := v.(*bytes.Buffer); ok {
+			_, err = io.Copy(buf, resp.Body)
 		} else {
 			err = json.NewDecoder(resp.Body).Decode(v)
 		}
@@ -152,6 +162,13 @@ func isIgnoredRedirectErr(err error) bool {
 		return true
 	}
 	return false
+}
+
+type RepoKey struct {
+	// URI identifies the repository, and it has the form "host/user/repo".
+	// Use RepoKey.RepoKeyURI to parse URI as a RepoKeyURI.
+	URI string
+	VCS string
 }
 
 type RepositoryOpener interface {

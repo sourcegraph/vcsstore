@@ -10,6 +10,7 @@ import (
 	muxpkg "github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore"
+	"sourcegraph.com/sourcegraph/vcsstore/git"
 )
 
 const (
@@ -76,9 +77,16 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	}
 
 	repoPath := "/{EncodedRepo:" + encodedRepoPattern + "}"
+
 	parent.Path(repoPath).Methods("GET").PostMatchFunc(unescapeRepoVars("")).BuildVarsFunc(escapeRepoVars("")).Name(RouteRepo)
 	parent.Path(repoPath).Methods("POST").PostMatchFunc(unescapeRepoVars("")).BuildVarsFunc(escapeRepoVars("")).Name(RouteRepoCreateOrUpdate)
+
 	repo := parent.PathPrefix(repoPath).PostMatchFunc(unescapeRepoVars("")).BuildVarsFunc(escapeRepoVars("")).Subrouter()
+
+	// attach git transport endpoints
+	repoGit := repo.PathPrefix("/.git").Subrouter()
+	git.NewRouter(repoGit)
+
 	repo.Path("/.blame/{Path:.+}").Methods("GET").Name(RouteRepoBlameFile)
 	repo.Path("/.diff/{Base}..{Head}").Methods("GET").Name(RouteRepoDiff)
 	repo.Path("/.cross-repo-diff/{Base}..{EncodedHeadRepo:" + encodedRepoPattern + "}:{Head}").Methods("GET").PostMatchFunc(unescapeRepoVars("Head")).BuildVarsFunc(escapeRepoVars("Head")).Name(RouteRepoCrossRepoDiff)

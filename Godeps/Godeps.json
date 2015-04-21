@@ -1,6 +1,6 @@
 {
 	"ImportPath": "sourcegraph.com/sourcegraph/vcsstore",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -176,6 +176,10 @@
 			"ImportPath": "github.com/lox/httpcache",
 			"Comment": "v1.1.0-11-g10f3e44",
 			"Rev": "10f3e44c050b12c13981908678e43c81bcfc7c54"
+		},
+		{
+			"ImportPath": "github.com/sourcegraph/go-git-http",
+			"Rev": "c60458df83221cfdd4c70869a4b3b93429678d4f"
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/mux",
