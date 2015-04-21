@@ -153,7 +153,7 @@ func TestRepository_Branches(t *testing.T) {
 		writeJSON(w, want)
 	})
 
-	branches, err := repo.Branches()
+	branches, err := repo.Branches(vcs.BranchesOptions{})
 	if err != nil {
 		t.Errorf("Repository.Branches returned error: %v", err)
 	}

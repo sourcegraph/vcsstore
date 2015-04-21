@@ -22,9 +22,8 @@ void test_clone_nonetwork__initialize(void)
 	memset(&g_options, 0, sizeof(git_clone_options));
 	g_options.version = GIT_CLONE_OPTIONS_VERSION;
 	g_options.checkout_opts = dummy_opts;
-	g_options.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE_CREATE;
+	g_options.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE;
 	g_options.remote_callbacks = dummy_callbacks;
-	cl_git_pass(git_signature_now(&g_options.signature, "Me", "foo@example.com"));
 }
 
 void test_clone_nonetwork__cleanup(void)
@@ -44,7 +43,6 @@ void test_clone_nonetwork__cleanup(void)
 		g_remote = NULL;
 	}
 
-	git_signature_free(g_options.signature);
 	cl_fixture_cleanup("./foo");
 }
 
@@ -228,13 +226,11 @@ void test_clone_nonetwork__can_detached_head(void)
 	git_object *obj;
 	git_repository *cloned;
 	git_reference *cloned_head;
-	git_reflog *log;
-	const git_reflog_entry *entry;
 
 	cl_git_pass(git_clone(&g_repo, cl_git_fixture_url("testrepo.git"), "./foo", &g_options));
 
 	cl_git_pass(git_revparse_single(&obj, g_repo, "master~1"));
-	cl_git_pass(git_repository_set_head_detached(g_repo, git_object_id(obj), NULL, NULL));
+	cl_git_pass(git_repository_set_head_detached(g_repo, git_object_id(obj)));
 
 	cl_git_pass(git_clone(&cloned, "./foo", "./foo1", &g_options));
 
@@ -243,16 +239,56 @@ void test_clone_nonetwork__can_detached_head(void)
 	cl_git_pass(git_repository_head(&cloned_head, cloned));
 	cl_assert_equal_oid(git_object_id(obj), git_reference_target(cloned_head));
 
-	cl_git_pass(git_reflog_read(&log, cloned, "HEAD"));
-	entry = git_reflog_entry_byindex(log, 0);
-	cl_assert_equal_s("foo@example.com", git_reflog_entry_committer(entry)->email);
-
 	git_object_free(obj);
 	git_reference_free(cloned_head);
-	git_reflog_free(log);
 	git_repository_free(cloned);
 
 	cl_fixture_cleanup("./foo1");
+}
+
+void test_clone_nonetwork__clone_tag_to_tree(void)
+{
+	git_repository *stage;
+	git_index_entry entry;
+	git_index *index;
+	git_odb *odb;
+	git_oid tree_id;
+	git_tree *tree;
+	git_reference *tag;
+	git_tree_entry *tentry;
+	const char *file_path = "some/deep/path.txt";
+	const char *file_content = "some content\n";
+	const char *tag_name = "refs/tags/tree-tag";
+
+	stage = cl_git_sandbox_init("testrepo.git");
+	cl_git_pass(git_repository_odb(&odb, stage));
+	cl_git_pass(git_index_new(&index));
+
+	memset(&entry, 0, sizeof(git_index_entry));
+	entry.path = file_path;
+	entry.mode = GIT_FILEMODE_BLOB;
+	cl_git_pass(git_odb_write(&entry.id, odb, file_content, strlen(file_content), GIT_OBJ_BLOB));
+
+	cl_git_pass(git_index_add(index, &entry));
+	cl_git_pass(git_index_write_tree_to(&tree_id, index, stage));
+	cl_git_pass(git_reference_create(&tag, stage, tag_name, &tree_id, 0, NULL));
+	git_reference_free(tag);
+	git_odb_free(odb);
+	git_index_free(index);
+
+	g_options.local = GIT_CLONE_NO_LOCAL;
+	cl_git_pass(git_clone(&g_repo, cl_git_path_url(git_repository_path(stage)), "./foo", &g_options));
+	git_repository_free(stage);
+
+	cl_git_pass(git_reference_lookup(&tag, g_repo, tag_name));
+	cl_git_pass(git_tree_lookup(&tree, g_repo, git_reference_target(tag)));
+	git_reference_free(tag);
+
+	cl_git_pass(git_tree_entry_bypath(&tentry, tree, file_path));
+	git_tree_entry_free(tentry);
+	git_tree_free(tree);
+
+	cl_fixture_cleanup("testrepo.git");
 }
 
 static void assert_correct_reflog(const char *name)
@@ -267,7 +303,6 @@ static void assert_correct_reflog(const char *name)
 	cl_assert_equal_i(1, git_reflog_entrycount(log));
 	entry = git_reflog_entry_byindex(log, 0);
 	cl_assert_equal_s(expected_log_message, git_reflog_entry_message(entry));
-	cl_assert_equal_s("foo@example.com", git_reflog_entry_committer(entry)->email);
 
 	git_reflog_free(log);
 }
@@ -301,7 +336,7 @@ void test_clone_nonetwork__clone_from_empty_sets_upstream(void)
 	cl_set_cleanup(&cleanup_repository, "./repowithunborn");
 	cl_git_pass(git_clone(&repo, "./test1", "./repowithunborn", NULL));
 
-	cl_git_pass(git_repository_config(&config, repo));
+	cl_git_pass(git_repository_config_snapshot(&config, repo));
 
 	cl_git_pass(git_config_get_string(&str, config, "branch.master.remote"));
 	cl_assert_equal_s("origin", str);

@@ -284,11 +284,12 @@ int git_diff_foreach(
 		if (git_diff_delta__should_skip(&diff->opts, patch.delta))
 			continue;
 
-		if ((error = diff_patch_init_from_diff(&patch, diff, idx)) < 0)
-			break;
-
-		if (!(error = diff_patch_invoke_file_callback(&patch, &xo.output)))
-			error = diff_patch_generate(&patch, &xo.output);
+		if ((error = diff_patch_invoke_file_callback(&patch, &xo.output)) == 0) {
+			if (hunk_cb || data_cb) {
+				if ((error = diff_patch_init_from_diff(&patch, diff, idx)) == 0)
+					error = diff_patch_generate(&patch, &xo.output);
+			}
+		}
 
 		git_patch_free(&patch);
 
@@ -387,8 +388,13 @@ static int diff_patch_with_delta_alloc(
 	diff_patch_with_delta *pd;
 	size_t old_len = *old_path ? strlen(*old_path) : 0;
 	size_t new_len = *new_path ? strlen(*new_path) : 0;
+	size_t alloc_len;
 
-	*out = pd = git__calloc(1, sizeof(*pd) + old_len + new_len + 2);
+	GITERR_CHECK_ALLOC_ADD(&alloc_len, sizeof(*pd), old_len);
+	GITERR_CHECK_ALLOC_ADD(&alloc_len, alloc_len, new_len);
+	GITERR_CHECK_ALLOC_ADD(&alloc_len, alloc_len, 2);
+
+	*out = pd = git__calloc(1, alloc_len);
 	GITERR_CHECK_ALLOC(pd);
 
 	pd->patch.flags = GIT_DIFF_PATCH_ALLOCATED;
@@ -822,7 +828,8 @@ int git_patch__invoke_callbacks(
 	for (i = 0; !error && i < git_array_size(patch->hunks); ++i) {
 		diff_patch_hunk *h = git_array_get(patch->hunks, i);
 
-		error = hunk_cb(patch->delta, &h->hunk, payload);
+		if (hunk_cb)
+			error = hunk_cb(patch->delta, &h->hunk, payload);
 
 		if (!line_cb)
 			continue;

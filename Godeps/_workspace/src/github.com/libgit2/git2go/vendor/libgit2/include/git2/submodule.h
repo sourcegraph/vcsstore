@@ -137,23 +137,17 @@ typedef struct git_submodule_update_options {
 
 	/**
 	 * The checkout strategy to use when the sub repository needs to
-	 * be cloned. Use GIT_CHECKOUT_SAFE_CREATE to create all files
+	 * be cloned. Use GIT_CHECKOUT_SAFE to create all files
 	 * in the working directory for the newly cloned repository.
 	 */
 	unsigned int clone_checkout_strategy;
-
-	/**
-	 * The identity used when updating the reflog. NULL means to
-	 * use the default signature using the config.
-	 */
-	git_signature *signature;
 } git_submodule_update_options;
 
 #define GIT_SUBMODULE_UPDATE_OPTIONS_VERSION 1
 #define GIT_SUBMODULE_UPDATE_OPTIONS_INIT \
 	{ GIT_CHECKOUT_OPTIONS_VERSION, \
-		{ GIT_CHECKOUT_OPTIONS_VERSION, GIT_CHECKOUT_SAFE}, \
-	GIT_REMOTE_CALLBACKS_INIT, GIT_CHECKOUT_SAFE_CREATE }
+		{ GIT_CHECKOUT_OPTIONS_VERSION, GIT_CHECKOUT_SAFE }, \
+	GIT_REMOTE_CALLBACKS_INIT, GIT_CHECKOUT_SAFE }
 
 /**
  * Initializes a `git_submodule_update_options` with default values.
@@ -375,6 +369,22 @@ GIT_EXTERN(int) git_submodule_resolve_url(git_buf *out, git_repository *repo, co
 * @return Pointer to the submodule branch
 */
 GIT_EXTERN(const char *) git_submodule_branch(git_submodule *submodule);
+
+/**
+ * Set the branch for the submodule.
+ *
+ * This sets the branch in memory for the submodule. This will be used for
+ * any following submodule actions while this submodule data is in memory.
+ *
+ * After calling this, you may wish to call `git_submodule_save()` to write
+ * the changes back to the ".gitmodules" file and `git_submodule_sync()` to
+ * write the changes to the checked out submodule repository.
+ *
+ * @param submodule Pointer to the submodule object
+ * @param branch Branch that should be used for the submodule
+ * @return 0 on success, <0 on failure
+ */
+GIT_EXTERN(int) git_submodule_set_branch(git_submodule *submodule, const char *branch);
 
 /**
  * Set the URL for the submodule.

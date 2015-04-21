@@ -171,8 +171,14 @@ func (r *Router) URLToRepoBranch(vcsType string, cloneURL *url.URL, branch strin
 	return r.URLTo(RouteRepoBranch, "VCS", vcsType, "CloneURL", cloneURL.String(), "Branch", branch)
 }
 
-func (r *Router) URLToRepoBranches(vcsType string, cloneURL *url.URL) *url.URL {
-	return r.URLTo(RouteRepoBranches, "VCS", vcsType, "CloneURL", cloneURL.String())
+func (r *Router) URLToRepoBranches(vcsType string, cloneURL *url.URL, opt vcs.BranchesOptions) *url.URL {
+	u := r.URLTo(RouteRepoBranches, "VCS", vcsType, "CloneURL", cloneURL.String())
+	q, err := query.Values(opt)
+	if err != nil {
+		panic(err.Error())
+	}
+	u.RawQuery = q.Encode()
+	return u
 }
 
 func (r *Router) URLToRepoRevision(vcsType string, cloneURL *url.URL, revSpec string) *url.URL {

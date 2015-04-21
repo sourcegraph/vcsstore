@@ -1,6 +1,106 @@
 v0.22 + 1
 ------
 
+### Changes or improvements
+
+* Patience and minimal diff drivers can now be used for merges.
+
+* Merges can now ignore whitespace changes.
+
+* Updated binary identification in CRLF filtering to avoid false positives in
+  UTF-8 files.
+
+* Rename and copy detection is enabled for small files.
+
+* Checkout can now handle an initial checkout of a repository, making
+  `GIT_CHECKOUT_SAFE_CREATE` unnecessary for users of clone.
+
+* The signature parameter in the ref-modifying functions has been
+  removed. Use `git_repository_set_ident()` and
+  `git_repository_ident()` to override the signature to be used.
+
+* The local transport now auto-scales the number of threads to use
+  when creating the packfile instead of sticking to one.
+
+* Reference renaming now uses the right id for the old value.
+
+* The annotated version of branch creation, HEAD detaching and reset
+  allow for specifying the expression from the user to be put into the
+  reflog.
+
+### API additions
+
+* The `git_merge_options` gained a `file_flags` member.
+
+* Parsing and retrieving a configuration value as a path is exposed
+  via `git_config_parse_path()` and `git_config_get_path()`
+  respectively.
+
+* `git_repository_set_ident()` and `git_repository_ident()` serve to
+  set and query which identity will be used when writing to the
+  reflog.
+
+* `git_config_entry_free()` frees a config entry.
+
+* `git_config_get_string_buf()` provides a way to safely retrieve a
+  string from a non-snapshot configuration.
+
+* `git_annotated_commit_from_revspec()` allows to get an annotated
+  commit from an extended sha synatx string.
+
+* `git_repository_set_head_detached_from_annotated()`,
+  `git_branch_create_from_annotated()` and
+  `git_reset_from_annotated()` allow for the caller to provide an
+  annotated commit through which they can control what expression is
+  put into the reflog as the source/target.
+
+* `git_index_add_frombuffer()` can now create a blob from memory
+   buffer and add it to the index which is attached to a repository.
+
+### API removals
+
+### Breaking API changes
+
+* The `git_merge_options` structure member `flags` has been renamed
+  to `tree_flags`.
+
+* The `git_merge_file_options` structure member `flags` is now
+  an unsigned int. It was previously a `git_merge_file_flags_t`.
+
+* `GIT_CHECKOUT_SAFE_CREATE` has been removed.  Most users will generally
+  be able to switch to `GIT_CHECKOUT_SAFE`, but if you require missing
+  file handling during checkout, you may now use `GIT_CHECKOUT_SAFE |
+  GIT_CHECKOUT_RECREATE_MISSING`.
+
+* The `git_clone_options` and `git_submodule_update_options`
+  structures no longer have a `signature` field.
+
+* The following functions have removed the signature and/or log message
+  parameters in favour of git-emulating ones.
+
+    * `git_branch_create()`, `git_branch_move()`
+    * `git_rebase_init()`, `git_rebase_abort()`
+    * `git_reference_symbolic_create_matching()`,
+      `git_reference_symbolic_create()`, `git_reference_create()`,
+      `git_reference_create_matching()`,
+      `git_reference_symbolic_set_target()`,
+      `git_reference_set_target()`, `git_reference_rename()`
+    * `git_remote_update_tips()`, `git_remote_fetch()`, `git_remote_push()`
+    * `git_repository_set_head()`,
+      `git_repository_set_head_detached()`,
+      `git_repository_detach_head()`
+    * `git_reset()`
+
+* `git_config_get_entry()` now gives back a ref-counted
+  `git_config_entry`. You must free it when you no longer need it.
+
+* `git_config_get_string()` will return an error if used on a
+  non-snapshot configuration, as there can be no guarantee that the
+  returned pointer is valid.
+
+* `git_note_default_ref()` now uses a `git_buf` to return the string,
+  as the string is otherwise not guaranteed to stay allocated.
+
 v0.22
 ------
 

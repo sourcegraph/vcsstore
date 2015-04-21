@@ -15,6 +15,8 @@ func TestServeRepoBranches(t *testing.T) {
 	defer teardownHandlerTest()
 
 	cloneURL, _ := url.Parse("git://a.b/c")
+	opt := vcs.BranchesOptions{}
+
 	rm := &mockBranches{
 		t:        t,
 		branches: []*vcs.Branch{{Name: "t", Head: "c"}},
@@ -27,7 +29,7 @@ func TestServeRepoBranches(t *testing.T) {
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBranches("git", cloneURL).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBranches("git", cloneURL, opt).String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +62,7 @@ type mockBranches struct {
 	called bool
 }
 
-func (m *mockBranches) Branches() ([]*vcs.Branch, error) {
+func (m *mockBranches) Branches(vcs.BranchesOptions) ([]*vcs.Branch, error) {
 	m.called = true
 	return m.branches, m.err
 }
