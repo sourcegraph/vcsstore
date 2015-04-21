@@ -25,7 +25,7 @@ func vcsTypeFromDir(cloneDir string) (vcsType string, err error) {
 		return "hg", nil
 	} else {
 		if _, err := os.Stat(cloneDir); os.IsNotExist(err) {
-			return "", fmt.Errorf("could not determine VCS, because dir %s does not exist", cloneDir)
+			return "", err
 		} else {
 			return "", fmt.Errorf("could not determine VCS from dir %s", cloneDir)
 		}
