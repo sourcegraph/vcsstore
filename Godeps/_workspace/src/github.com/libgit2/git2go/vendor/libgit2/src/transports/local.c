@@ -348,7 +348,7 @@ static int local_push_update_remote_ref(
 	if (lref[0] != '\0') {
 		/* Create or update a ref */
 		error = git_reference_create(NULL, remote_repo, rref, loid,
-					     !git_oid_iszero(roid), NULL, NULL);
+					     !git_oid_iszero(roid), NULL);
 	} else {
 		/* Delete a ref */
 		if ((error = git_reference_lookup(&remote_ref, remote_repo, rref)) < 0) {
@@ -420,7 +420,7 @@ static int local_push(
 		const git_error *last;
 		char *ref = spec->refspec.dst;
 
-		status = git__calloc(sizeof(push_status), 1);
+		status = git__calloc(1, sizeof(push_status));
 		if (!status)
 			goto on_error;
 
@@ -513,7 +513,6 @@ static int local_download_pack(
 	git_remote_head *rhead;
 	unsigned int i;
 	int error = -1;
-	git_oid oid;
 	git_packbuilder *pack = NULL;
 	git_odb_writepack *writepack = NULL;
 	git_odb *odb = NULL;
@@ -539,14 +538,22 @@ static int local_download_pack(
 		if (git_object_type(obj) == GIT_OBJ_COMMIT) {
 			/* Revwalker includes only wanted commits */
 			error = git_revwalk_push(walk, &rhead->oid);
-			if (!git_oid_iszero(&rhead->loid))
+			if (!error && !git_oid_iszero(&rhead->loid)) {
 				error = git_revwalk_hide(walk, &rhead->loid);
+				if (error == GIT_ENOTFOUND)
+					error = 0;
+			}
 		} else {
 			/* Tag or some other wanted object. Add it on its own */
-			error = git_packbuilder_insert(pack, &rhead->oid, rhead->name);
+			error = git_packbuilder_insert_recur(pack, &rhead->oid, rhead->name);
 		}
 		git_object_free(obj);
+		if (error < 0)
+			goto cleanup;
 	}
+
+	if ((error = git_packbuilder_insert_walk(pack, walk)))
+		goto cleanup;
 
 	if ((error = git_buf_printf(&progress_info, counting_objects_fmt, git_packbuilder_object_count(pack))) < 0)
 		goto cleanup;
@@ -558,35 +565,6 @@ static int local_download_pack(
 	/* Walk the objects, building a packfile */
 	if ((error = git_repository_odb__weakptr(&odb, repo)) < 0)
 		goto cleanup;
-
-	while ((error = git_revwalk_next(&oid, walk)) == 0) {
-		git_commit *commit;
-
-		/* Skip commits we already have */
-		if (git_odb_exists(odb, &oid)) continue;
-
-		if (!git_object_lookup((git_object**)&commit, t->repo, &oid, GIT_OBJ_COMMIT)) {
-			const git_oid *tree_oid = git_commit_tree_id(commit);
-
-			/* Add the commit and its tree */
-			if ((error = git_packbuilder_insert(pack, &oid, NULL)) < 0 ||
-				 (error = git_packbuilder_insert_tree(pack, tree_oid)) < 0) {
-				git_commit_free(commit);
-				goto cleanup;
-			}
-
-			git_commit_free(commit);
-
-			git_buf_clear(&progress_info);
-			if ((error = git_buf_printf(&progress_info, counting_objects_fmt, git_packbuilder_object_count(pack))) < 0)
-				goto cleanup;
-
-			if (t->progress_cb &&
-			    (error = t->progress_cb(git_buf_cstr(&progress_info), git_buf_len(&progress_info), t->message_cb_payload)) < 0)
-				goto cleanup;
-
-		}
-	}
 
 	/* One last one with the newline */
 	git_buf_clear(&progress_info);
@@ -609,9 +587,13 @@ static int local_download_pack(
 		data.progress_payload = progress_payload;
 		data.writepack = writepack;
 
+		/* autodetect */
+		git_packbuilder_set_threads(pack, 0);
+
 		if ((error = git_packbuilder_foreach(pack, foreach_cb, &data)) != 0)
 			goto cleanup;
 	}
+
 	error = writepack->commit(writepack, stats);
 
 cleanup:

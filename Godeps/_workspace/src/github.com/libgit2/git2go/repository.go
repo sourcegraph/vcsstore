@@ -206,55 +206,34 @@ func (v *Repository) Head() (*Reference, error) {
 	return newReferenceFromC(ptr, v), nil
 }
 
-func (v *Repository) SetHead(refname string, sig *Signature, msg string) error {
+func (v *Repository) SetHead(refname string) error {
 	cname := C.CString(refname)
 	defer C.free(unsafe.Pointer(cname))
 
-	csig := sig.toC()
-	defer C.free(unsafe.Pointer(csig))
-
-	var cmsg *C.char
-	if msg != "" {
-		cmsg = C.CString(msg)
-		defer C.free(unsafe.Pointer(cmsg))
-	}
-
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ecode := C.git_repository_set_head(v.ptr, cname, csig, cmsg)
+	ecode := C.git_repository_set_head(v.ptr, cname)
 	if ecode != 0 {
 		return MakeGitError(ecode)
 	}
 	return nil
 }
 
-func (v *Repository) SetHeadDetached(id *Oid, sig *Signature, msg string) error {
-	csig := sig.toC()
-	defer C.free(unsafe.Pointer(csig))
-
-	var cmsg *C.char
-	if msg != "" {
-		cmsg = C.CString(msg)
-		defer C.free(unsafe.Pointer(cmsg))
-	}
-
+func (v *Repository) SetHeadDetached(id *Oid) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ecode := C.git_repository_set_head_detached(v.ptr, id.toC(), csig, cmsg)
+	ecode := C.git_repository_set_head_detached(v.ptr, id.toC())
 	if ecode != 0 {
 		return MakeGitError(ecode)
 	}
 	return nil
 }
 
-func (v *Repository) CreateReference(name string, id *Oid, force bool, sig *Signature, msg string) (*Reference, error) {
+func (v *Repository) CreateReference(name string, id *Oid, force bool, msg string) (*Reference, error) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-
-	csig := sig.toC()
-	defer C.free(unsafe.Pointer(csig))
 
 	var cmsg *C.char
 	if msg == "" {
@@ -269,7 +248,7 @@ func (v *Repository) CreateReference(name string, id *Oid, force bool, sig *Sign
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ecode := C.git_reference_create(&ptr, v.ptr, cname, id.toC(), cbool(force), csig, cmsg)
+	ecode := C.git_reference_create(&ptr, v.ptr, cname, id.toC(), cbool(force), cmsg)
 	if ecode < 0 {
 		return nil, MakeGitError(ecode)
 	}
@@ -277,15 +256,12 @@ func (v *Repository) CreateReference(name string, id *Oid, force bool, sig *Sign
 	return newReferenceFromC(ptr, v), nil
 }
 
-func (v *Repository) CreateSymbolicReference(name, target string, force bool, sig *Signature, msg string) (*Reference, error) {
+func (v *Repository) CreateSymbolicReference(name, target string, force bool, msg string) (*Reference, error) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
 	ctarget := C.CString(target)
 	defer C.free(unsafe.Pointer(ctarget))
-
-	csig := sig.toC()
-	defer C.free(unsafe.Pointer(csig))
 
 	var cmsg *C.char
 	if msg == "" {
@@ -300,7 +276,7 @@ func (v *Repository) CreateSymbolicReference(name, target string, force bool, si
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ecode := C.git_reference_symbolic_create(&ptr, v.ptr, cname, ctarget, cbool(force), csig, cmsg)
+	ecode := C.git_reference_symbolic_create(&ptr, v.ptr, cname, ctarget, cbool(force), cmsg)
 	if ecode < 0 {
 		return nil, MakeGitError(ecode)
 	}
@@ -352,10 +328,16 @@ func (v *Repository) CreateCommit(
 		parentsarg = &cparents[0]
 	}
 
-	authorSig := author.toC()
+	authorSig, err := author.toC()
+	if err != nil {
+		return nil, err
+	}
 	defer C.git_signature_free(authorSig)
 
-	committerSig := committer.toC()
+	committerSig, err := committer.toC()
+	if err != nil {
+		return nil, err
+	}
 	defer C.git_signature_free(committerSig)
 
 	runtime.LockOSThread()
@@ -384,7 +366,10 @@ func (v *Repository) CreateTag(
 	cmessage := C.CString(message)
 	defer C.free(unsafe.Pointer(cmessage))
 
-	taggerSig := tagger.toC()
+	taggerSig, err := tagger.toC()
+	if err != nil {
+		return nil, err
+	}
 	defer C.git_signature_free(taggerSig)
 
 	ctarget := commit.gitObject.ptr
@@ -546,10 +531,16 @@ func (v *Repository) CreateNote(
 		defer C.free(unsafe.Pointer(cref))
 	}
 
-	authorSig := author.toC()
+	authorSig, err := author.toC()
+	if err != nil {
+		return nil, err
+	}
 	defer C.git_signature_free(authorSig)
 
-	committerSig := committer.toC()
+	committerSig, err := committer.toC()
+	if err != nil {
+		return nil, err
+	}
 	defer C.git_signature_free(committerSig)
 
 	cnote := C.CString(note)
@@ -601,10 +592,16 @@ func (v *Repository) RemoveNote(ref string, author, committer *Signature, id *Oi
 		defer C.free(unsafe.Pointer(cref))
 	}
 
-	authorSig := author.toC()
+	authorSig, err := author.toC()
+	if err != nil {
+		return err
+	}
 	defer C.git_signature_free(authorSig)
 
-	committerSig := committer.toC()
+	committerSig, err := committer.toC()
+	if err != nil {
+		return err
+	}
 	defer C.git_signature_free(committerSig)
 
 	runtime.LockOSThread()
@@ -619,14 +616,50 @@ func (v *Repository) RemoveNote(ref string, author, committer *Signature, id *Oi
 
 // DefaultNoteRef returns the default notes reference for a repository
 func (v *Repository) DefaultNoteRef() (string, error) {
-	var ptr *C.char
+	buf := C.git_buf{}
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if ret := C.git_note_default_ref(&ptr, v.ptr); ret < 0 {
+	if ret := C.git_note_default_ref(&buf, v.ptr); ret < 0 {
 		return "", MakeGitError(ret)
 	}
 
-	return C.GoString(ptr), nil
+	ret := C.GoString(buf.ptr)
+	C.git_buf_free(&buf)
+
+	return ret, nil
+}
+
+type RepositoryState int
+
+const (
+	RepositoryStateNone                 RepositoryState = C.GIT_REPOSITORY_STATE_NONE
+	RepositoryStateMerge                RepositoryState = C.GIT_REPOSITORY_STATE_MERGE
+	RepositoryStateRevert               RepositoryState = C.GIT_REPOSITORY_STATE_REVERT
+	RepositoryStateCherrypick           RepositoryState = C.GIT_REPOSITORY_STATE_CHERRYPICK
+	RepositoryStateBisect               RepositoryState = C.GIT_REPOSITORY_STATE_BISECT
+	RepositoryStateRebase               RepositoryState = C.GIT_REPOSITORY_STATE_REBASE
+	RepositoryStateRebaseInteractive    RepositoryState = C.GIT_REPOSITORY_STATE_REBASE_INTERACTIVE
+	RepositoryStateRebaseMerge          RepositoryState = C.GIT_REPOSITORY_STATE_REBASE_MERGE
+	RepositoryStateApplyMailbox         RepositoryState = C.GIT_REPOSITORY_STATE_APPLY_MAILBOX
+	RepositoryStateApplyMailboxOrRebase RepositoryState = C.GIT_REPOSITORY_STATE_APPLY_MAILBOX_OR_REBASE
+)
+
+func (r *Repository) State() RepositoryState {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	return RepositoryState(C.git_repository_state(r.ptr))
+}
+
+func (r *Repository) StateCleanup() error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	cErr := C.git_repository_state_cleanup(r.ptr)
+	if cErr < 0 {
+		return MakeGitError(cErr)
+	}
+	return nil
 }

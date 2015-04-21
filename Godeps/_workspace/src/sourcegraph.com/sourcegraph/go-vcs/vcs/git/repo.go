@@ -104,7 +104,7 @@ func (r *Repository) ResolveTag(name string) (vcs.CommitID, error) {
 	return "", vcs.ErrTagNotFound
 }
 
-func (r *Repository) Branches() ([]*vcs.Branch, error) {
+func (r *Repository) Branches(_ vcs.BranchesOptions) ([]*vcs.Branch, error) {
 	r.editLock.RLock()
 	defer r.editLock.RUnlock()
 
@@ -310,7 +310,7 @@ func (r *Repository) createAndFetchFromAnonRemote(repoDir string) (*git2go.Remot
 	if err != nil {
 		return nil, err
 	}
-	if err := rem.Fetch([]string{"+refs/heads/*:refs/remotes/" + name + "/*"}, nil, ""); err != nil {
+	if err := rem.Fetch([]string{"+refs/heads/*:refs/remotes/" + name + "/*"}, ""); err != nil {
 		rem.Free()
 		return nil, err
 	}

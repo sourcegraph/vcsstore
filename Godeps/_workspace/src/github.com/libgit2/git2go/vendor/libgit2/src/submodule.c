@@ -85,7 +85,7 @@ static kh_inline int str_equal_no_trailing_slash(const char *a, const char *b)
 
 __KHASH_IMPL(
 	str, static kh_inline, const char *, void *, 1,
-	str_hash_no_trailing_slash, str_equal_no_trailing_slash);
+	str_hash_no_trailing_slash, str_equal_no_trailing_slash)
 
 static int submodule_cache_init(git_repository *repo, int refresh);
 static void submodule_cache_free(git_submodule_cache *cache);
@@ -628,8 +628,17 @@ int git_submodule_save(git_submodule *submodule)
 		(error = git_config_file_set_string(mods, key.ptr, submodule->url)) < 0)
 		goto cleanup;
 
-	if ((error = submodule_config_key_trunc_puts(&key, "branch")) < 0 ||
-		(error = git_config_file_set_string(mods, key.ptr, submodule->branch)) < 0)
+	if ((error = submodule_config_key_trunc_puts(&key, "branch")) < 0)
+		goto cleanup;
+	if (submodule->branch == NULL)
+		error = git_config_file_delete(mods, key.ptr);
+	else
+		error = git_config_file_set_string(mods, key.ptr, submodule->branch);
+	if (error == GIT_ENOTFOUND) {
+		error = 0;
+		giterr_clear();
+	}
+	if (error < 0)
 		goto cleanup;
 
 	if (!(error = submodule_config_key_trunc_puts(&key, "update")) &&
@@ -713,6 +722,21 @@ const char *git_submodule_branch(git_submodule *submodule)
 {
 	assert(submodule);
 	return submodule->branch;
+}
+
+int git_submodule_set_branch(git_submodule *submodule, const char *branch)
+{
+	assert(submodule);
+
+	git__free(submodule->branch);
+	submodule->branch = NULL;
+
+	if (branch != NULL) {
+		submodule->branch = git__strdup(branch);
+		GITERR_CHECK_ALLOC(submodule->branch);
+	}
+
+	return 0;
 }
 
 int git_submodule_set_url(git_submodule *submodule, const char *url)
@@ -927,7 +951,6 @@ int git_submodule_update(git_submodule *sm, int init, git_submodule_update_optio
 
 	/* Copy over the remote callbacks */
 	clone_options.remote_callbacks = update_options.remote_callbacks;
-	clone_options.signature = update_options.signature;
 
 	/* Get the status of the submodule to determine if it is already initialized  */
 	if ((error = git_submodule_status(&submodule_status, sm)) < 0)
@@ -985,7 +1008,7 @@ int git_submodule_update(git_submodule *sm, int init, git_submodule_update_optio
 		update_options.checkout_opts.checkout_strategy = update_options.clone_checkout_strategy;
 
 		if ((error = git_clone(&sub_repo, submodule_url, sm->path, &clone_options)) < 0 ||
-			(error = git_repository_set_head_detached(sub_repo, git_submodule_index_id(sm), update_options.signature, NULL)) < 0 ||
+			(error = git_repository_set_head_detached(sub_repo, git_submodule_index_id(sm))) < 0 ||
 			(error = git_checkout_head(sub_repo, &update_options.checkout_opts)) != 0)
 			goto done;
 	} else {
@@ -997,7 +1020,7 @@ int git_submodule_update(git_submodule *sm, int init, git_submodule_update_optio
 		if ((error = git_submodule_open(&sub_repo, sm)) < 0 ||
 			(error = git_object_lookup(&target_commit, sub_repo, git_submodule_index_id(sm), GIT_OBJ_COMMIT)) < 0 ||
 			(error = git_checkout_tree(sub_repo, target_commit, &update_options.checkout_opts)) != 0 ||
-			(error = git_repository_set_head_detached(sub_repo, git_submodule_index_id(sm), update_options.signature, NULL)) < 0)
+			(error = git_repository_set_head_detached(sub_repo, git_submodule_index_id(sm))) < 0)
 			goto done;
 
 		/* Invalidate the wd flags as the workdir has been updated. */
@@ -1092,10 +1115,10 @@ int git_submodule_sync(git_submodule *sm)
 			/* return error from reading submodule config */;
 		else if ((error = lookup_head_remote_key(&remote_name, smrepo)) < 0) {
 			giterr_clear();
-			error = git_buf_sets(&key, "branch.origin.remote");
+			error = git_buf_sets(&key, "remote.origin.url");
 		} else {
 			error = git_buf_join3(
-				&key, '.', "branch", remote_name.ptr, "remote");
+				&key, '.', "remote", remote_name.ptr, "url");
 			git_buf_free(&remote_name);
 		}
 

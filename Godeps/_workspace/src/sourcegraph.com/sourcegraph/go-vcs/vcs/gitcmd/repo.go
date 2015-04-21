@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -44,6 +45,20 @@ func (r *Repository) String() string {
 }
 
 func Open(dir string) (*Repository, error) {
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
+		// --resolve-git-dir checks to see if a path is a git directory
+		// (the directory with the actual git data files).
+		cmd := exec.Command("git", "rev-parse", "--resolve-git-dir", dir)
+		if err := cmd.Run(); err != nil {
+			// dir does not contain ".git" and it is not a git data
+			// directory.
+			return nil, &os.PathError{
+				Op:   "Open",
+				Path: filepath.Join(dir, ".git"),
+				Err:  errors.New("Git repository not found."),
+			}
+		}
+	}
 	return &Repository{Dir: dir}, nil
 }
 
@@ -135,7 +150,34 @@ func (r *Repository) ResolveTag(name string) (vcs.CommitID, error) {
 	return commitID, nil
 }
 
-func (r *Repository) Branches() ([]*vcs.Branch, error) {
+// branchCounts returns the behind/ahead commit counts information for branch, against base branch.
+func (r *Repository) branchCounts(branch, base string) (behind, ahead uint, err error) {
+	if err := checkSpecArgSafety(branch); err != nil {
+		return 0, 0, err
+	}
+	if err := checkSpecArgSafety(base); err != nil {
+		return 0, 0, err
+	}
+
+	cmd := exec.Command("git", "rev-list", "--count", "--left-right", fmt.Sprintf("refs/heads/%s...refs/heads/%s", base, branch))
+	cmd.Dir = r.Dir
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, 0, err
+	}
+	behindAhead := strings.Split(strings.TrimSuffix(string(out), "\n"), "\t")
+	b, err := strconv.ParseUint(behindAhead[0], 10, 0)
+	if err != nil {
+		return 0, 0, err
+	}
+	a, err := strconv.ParseUint(behindAhead[1], 10, 0)
+	if err != nil {
+		return 0, 0, err
+	}
+	return uint(b), uint(a), nil
+}
+
+func (r *Repository) Branches(opt vcs.BranchesOptions) ([]*vcs.Branch, error) {
 	r.editLock.RLock()
 	defer r.editLock.RUnlock()
 
@@ -151,6 +193,18 @@ func (r *Repository) Branches() ([]*vcs.Branch, error) {
 			Head: vcs.CommitID(ref[0]),
 		}
 	}
+
+	// Fetch behind/ahead counts for each branch.
+	if opt.BehindAheadBranch != "" {
+		for i, branch := range branches {
+			behind, ahead, err := r.branchCounts(branch.Name, opt.BehindAheadBranch)
+			if err != nil {
+				return nil, err
+			}
+			branches[i].Counts = &vcs.BehindAhead{Behind: behind, Ahead: ahead}
+		}
+	}
+
 	return branches, nil
 }
 
@@ -657,7 +711,7 @@ func (r *Repository) Search(at vcs.CommitID, opt vcs.SearchOptions) ([]*vcs.Sear
 	errc := make(chan error)
 	var res []*vcs.SearchResult
 	go func() {
-		sc := bufio.NewScanner(out)
+		rd := bufio.NewReader(out)
 		var r *vcs.SearchResult
 		addResult := func(rr *vcs.SearchResult) bool {
 			if rr != nil {
@@ -671,8 +725,19 @@ func (r *Repository) Search(at vcs.CommitID, opt vcs.SearchOptions) ([]*vcs.Sear
 			// Return true if no more need to be added.
 			return len(res) == opt.N
 		}
-		for sc.Scan() {
-			line := sc.Bytes()
+		for {
+			line, err := rd.ReadBytes('\n')
+			if err == io.EOF {
+				// git-grep output ends with a newline, so if we hit EOF, there's nothing left to
+				// read
+				break
+			} else if err != nil {
+				errc <- err
+				return
+			}
+			// line is guaranteed to be '\n' terminated according to the contract of ReadBytes
+			line = line[0 : len(line)-1]
+
 			if bytes.Equal(line, []byte("--")) {
 				// Match separator.
 				if addResult(r) {
@@ -705,10 +770,6 @@ func (r *Repository) Search(at vcs.CommitID, opt vcs.SearchOptions) ([]*vcs.Sear
 		addResult(r)
 
 		if err := cmd.Process.Kill(); err != nil {
-			errc <- err
-			return
-		}
-		if err := sc.Err(); err != nil {
 			errc <- err
 			return
 		}

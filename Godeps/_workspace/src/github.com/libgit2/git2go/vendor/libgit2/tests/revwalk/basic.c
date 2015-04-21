@@ -177,7 +177,7 @@ void test_revwalk_basic__glob_heads_with_invalid(void)
 		/* walking */;
 
 	/* git log --branches --oneline | wc -l => 16 */
-	cl_assert_equal_i(17, i);
+	cl_assert_equal_i(18, i);
 }
 
 void test_revwalk_basic__push_head(void)
@@ -312,6 +312,23 @@ void test_revwalk_basic__disallow_non_commit(void)
 
 	cl_git_pass(git_oid_fromstr(&oid, "521d87c1ec3aef9824daf6d96cc0ae3710766d91"));
 	cl_git_fail(git_revwalk_push(_walk, &oid));
+}
+
+void test_revwalk_basic__hide_then_push(void)
+{
+	git_oid oid;
+	int i = 0;
+
+	revwalk_basic_setup_walk(NULL);
+	cl_git_pass(git_oid_fromstr(&oid, "5b5b025afb0b4c913b4c338a42934a3863bf3644"));
+
+	cl_git_pass(git_revwalk_hide(_walk, &oid));
+	cl_git_pass(git_revwalk_push(_walk, &oid));
+
+	while (git_revwalk_next(&oid, _walk) == 0)
+		i++;
+
+	cl_assert_equal_i(i, 0);
 }
 
 void test_revwalk_basic__push_range(void)

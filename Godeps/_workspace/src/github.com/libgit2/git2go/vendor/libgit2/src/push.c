@@ -167,10 +167,7 @@ int git_push_add_refspec(git_push *push, const char *refspec)
 	return 0;
 }
 
-int git_push_update_tips(
-		git_push *push,
-		const git_signature *signature,
-		const char *reflog_message)
+int git_push_update_tips(git_push *push)
 {
 	git_buf remote_ref_name = GIT_BUF_INIT;
 	size_t i, j;
@@ -182,6 +179,10 @@ int git_push_update_tips(
 
 	git_vector_foreach(&push->status, i, status) {
 		int fire_callback = 1;
+
+		/* Skip unsuccessful updates which have non-empty messages */
+		if (status->msg)
+			continue;
 
 		/* Find the corresponding remote ref */
 		fetch_spec = git_remote__matching_refspec(push->remote, status->ref);
@@ -201,21 +202,18 @@ int git_push_update_tips(
 		if (j == push->specs.length)
 			continue;
 
-		/* If this ref update was successful (ok, not ng), it will have an empty message */
-		if (status->msg == NULL) {
-			/* Update the remote ref */
-			if (git_oid_iszero(&push_spec->loid)) {
-				error = git_reference_lookup(&remote_ref, push->remote->repo, git_buf_cstr(&remote_ref_name));
+		/* Update the remote ref */
+		if (git_oid_iszero(&push_spec->loid)) {
+			error = git_reference_lookup(&remote_ref, push->remote->repo, git_buf_cstr(&remote_ref_name));
 
-				if (error >= 0) {
-					error = git_reference_delete(remote_ref);
-					git_reference_free(remote_ref);
-				}
-			} else {
-				error = git_reference_create(NULL, push->remote->repo,
-							git_buf_cstr(&remote_ref_name), &push_spec->loid, 1, signature,
-							reflog_message ? reflog_message : "update by push");
+			if (error >= 0) {
+				error = git_reference_delete(remote_ref);
+				git_reference_free(remote_ref);
 			}
+		} else {
+			error = git_reference_create(NULL, push->remote->repo,
+						git_buf_cstr(&remote_ref_name), &push_spec->loid, 1,
+						"update by push");
 		}
 
 		if (error < 0) {

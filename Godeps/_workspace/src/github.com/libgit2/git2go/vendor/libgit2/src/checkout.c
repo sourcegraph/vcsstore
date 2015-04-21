@@ -17,6 +17,7 @@
 #include "git2/diff.h"
 #include "git2/submodule.h"
 #include "git2/sys/index.h"
+#include "git2/sys/filter.h"
 
 #include "refs.h"
 #include "repository.h"
@@ -28,6 +29,11 @@
 #include "buf_text.h"
 #include "merge_file.h"
 #include "path.h"
+#include "attr.h"
+#include "pool.h"
+#include "strmap.h"
+
+GIT__USE_STRMAP
 
 /* See docs/checkout-internals.md for more information */
 
@@ -67,6 +73,9 @@ typedef struct {
 	bool reload_submodules;
 	size_t total_steps;
 	size_t completed_steps;
+	git_checkout_perfdata perfdata;
+	git_strmap *mkdir_map;
+	git_attr_session attr_session;
 } checkout_data;
 
 typedef struct {
@@ -246,13 +255,13 @@ static int checkout_action_no_wd(
 		error = checkout_notify(data, GIT_CHECKOUT_NOTIFY_DIRTY, delta, NULL);
 		if (error)
 			return error;
-		*action = CHECKOUT_ACTION_IF(SAFE_CREATE, UPDATE_BLOB, NONE);
+		*action = CHECKOUT_ACTION_IF(RECREATE_MISSING, UPDATE_BLOB, NONE);
 		break;
 	case GIT_DELTA_ADDED:    /* case 2 or 28 (and 5 but not really) */
 		*action = CHECKOUT_ACTION_IF(SAFE, UPDATE_BLOB, NONE);
 		break;
 	case GIT_DELTA_MODIFIED: /* case 13 (and 35 but not really) */
-		*action = CHECKOUT_ACTION_IF(SAFE_CREATE, UPDATE_BLOB, CONFLICT);
+		*action = CHECKOUT_ACTION_IF(RECREATE_MISSING, UPDATE_BLOB, CONFLICT);
 		break;
 	case GIT_DELTA_TYPECHANGE: /* case 21 (B->T) and 28 (T->B)*/
 		if (delta->new_file.mode == GIT_FILEMODE_TREE)
@@ -1101,7 +1110,7 @@ static int checkout_conflicts_mark_directoryfile(
 				goto done;
 			}
 
-			prefixed = git_path_equal_or_prefixed(path, entry->path);
+			prefixed = git_path_equal_or_prefixed(path, entry->path, NULL);
 
 			if (prefixed == GIT_PATH_EQUAL)
 				continue;
@@ -1188,7 +1197,7 @@ static int checkout_verify_paths(
 
 	if (action & ~CHECKOUT_ACTION__REMOVE) {
 		if (!git_path_isvalid(repo, delta->new_file.path, flags)) {
-			giterr_set(GITERR_CHECKOUT, "Cannot checkout to invalid path '%s'", delta->old_file.path);
+			giterr_set(GITERR_CHECKOUT, "Cannot checkout to invalid path '%s'", delta->new_file.path);
 			return -1;
 		}
 	}
@@ -1289,95 +1298,222 @@ fail:
 	return error;
 }
 
-static int buffer_to_file(
-	struct stat *st,
-	git_buf *buf,
-	const char *path,
-	mode_t dir_mode,
-	int file_open_flags,
-	mode_t file_mode)
+static bool should_remove_existing(checkout_data *data)
 {
+	int ignorecase = 0;
+
+	git_repository__cvar(&ignorecase, data->repo, GIT_CVAR_IGNORECASE);
+
+	return (ignorecase &&
+		(data->strategy & GIT_CHECKOUT_DONT_REMOVE_EXISTING) == 0);
+}
+
+#define MKDIR_NORMAL \
+	GIT_MKDIR_PATH | GIT_MKDIR_VERIFY_DIR
+#define MKDIR_REMOVE_EXISTING \
+	MKDIR_NORMAL | GIT_MKDIR_REMOVE_FILES | GIT_MKDIR_REMOVE_SYMLINKS
+
+static int checkout_mkdir(
+	checkout_data *data,
+	const char *path,
+	const char *base,
+	mode_t mode,
+	unsigned int flags)
+{
+	struct git_futils_mkdir_options mkdir_opts = {0};
 	int error;
 
-	if ((error = git_futils_mkpath2file(path, dir_mode)) < 0)
-		return error;
+	mkdir_opts.dir_map = data->mkdir_map;
+	mkdir_opts.pool = &data->pool;
 
-	if ((error = git_futils_writebuffer(
-			buf, path, file_open_flags, file_mode)) < 0)
-		return error;
+	error = git_futils_mkdir_ext(
+		path, base, mode, flags, &mkdir_opts);
 
-	if (st != NULL && (error = p_stat(path, st)) < 0)
-		giterr_set(GITERR_OS, "Error statting '%s'", path);
-
-	else if (GIT_PERMS_IS_EXEC(file_mode) &&
-			(error = p_chmod(path, file_mode)) < 0)
-		giterr_set(GITERR_OS, "Failed to set permissions on '%s'", path);
+	data->perfdata.mkdir_calls += mkdir_opts.perfdata.mkdir_calls;
+	data->perfdata.stat_calls += mkdir_opts.perfdata.stat_calls;
+	data->perfdata.chmod_calls += mkdir_opts.perfdata.chmod_calls;
 
 	return error;
 }
 
-static int blob_content_to_file(
-	struct stat *st,
-	git_blob *blob,
-	const char *path,
-	const char * hint_path,
-	mode_t entry_filemode,
-	git_checkout_options *opts)
+static int mkpath2file(
+	checkout_data *data, const char *path, unsigned int mode)
 {
-	int error = 0;
-	mode_t file_mode = opts->file_mode ? opts->file_mode : entry_filemode;
-	git_buf out = GIT_BUF_INIT;
-	git_filter_list *fl = NULL;
+	struct stat st;
+	bool remove_existing = should_remove_existing(data);
+	unsigned int flags =
+		(remove_existing ? MKDIR_REMOVE_EXISTING : MKDIR_NORMAL) |
+		GIT_MKDIR_SKIP_LAST;
+	int error;
 
-	if (hint_path == NULL)
-		hint_path = path;
+	if ((error = checkout_mkdir(
+			data, path, data->opts.target_directory, mode, flags)) < 0)
+		return error;
 
-	if (!opts->disable_filters)
-		error = git_filter_list_load(
-			&fl, git_blob_owner(blob), blob, hint_path,
-			GIT_FILTER_TO_WORKTREE, GIT_FILTER_OPT_DEFAULT);
+	if (remove_existing) {
+		data->perfdata.stat_calls++;
 
-	if (!error)
-		error = git_filter_list_apply_to_blob(&out, fl, blob);
+		if (p_lstat(path, &st) == 0) {
 
-	git_filter_list_free(fl);
-
-	if (!error) {
-		error = buffer_to_file(
-			st, &out, path, opts->dir_mode, opts->file_open_flags, file_mode);
-
-		st->st_mode = entry_filemode;
-
-		git_buf_free(&out);
+			/* Some file, symlink or folder already exists at this name.
+			 * We would have removed it in remove_the_old unless we're on
+			 * a case inensitive filesystem (or the user has asked us not
+			 * to).  Remove the similarly named file to write the new.
+			 */
+			error = git_futils_rmdir_r(path, NULL, GIT_RMDIR_REMOVE_FILES);
+		} else if (errno != ENOENT) {
+			giterr_set(GITERR_OS, "Failed to stat file '%s'", path);
+			return GIT_EEXISTS;
+		} else {
+			giterr_clear();
+		}
 	}
 
 	return error;
 }
 
-static int blob_content_to_link(
+struct checkout_stream {
+	git_writestream base;
+	const char *path;
+	int fd;
+	int open;
+};
+
+static int checkout_stream_write(
+	git_writestream *s, const char *buffer, size_t len)
+{
+	struct checkout_stream *stream = (struct checkout_stream *)s;
+	int ret;
+
+	if ((ret = p_write(stream->fd, buffer, len)) < 0)
+		giterr_set(GITERR_OS, "Could not write to '%s'", stream->path);
+
+	return ret;
+}
+
+static int checkout_stream_close(git_writestream *s)
+{
+	struct checkout_stream *stream = (struct checkout_stream *)s;
+	assert(stream && stream->open);
+
+	stream->open = 0;
+	return p_close(stream->fd);
+}
+
+static void checkout_stream_free(git_writestream *s)
+{
+	GIT_UNUSED(s);
+}
+
+static int blob_content_to_file(
+	checkout_data *data,
 	struct stat *st,
 	git_blob *blob,
 	const char *path,
-	mode_t dir_mode,
-	int can_symlink)
+	const char *hint_path,
+	mode_t entry_filemode)
+{
+	int flags = data->opts.file_open_flags;
+	mode_t file_mode = data->opts.file_mode ?
+		data->opts.file_mode : entry_filemode;
+	git_filter_options filter_opts = GIT_FILTER_OPTIONS_INIT;
+	struct checkout_stream writer;
+	mode_t mode;
+	git_filter_list *fl = NULL;
+	int fd;
+	int error = 0;
+
+	if (hint_path == NULL)
+		hint_path = path;
+
+	if ((error = mkpath2file(data, path, data->opts.dir_mode)) < 0)
+		return error;
+
+	if (flags <= 0)
+		flags = O_CREAT | O_TRUNC | O_WRONLY;
+	if (!(mode = file_mode))
+		mode = GIT_FILEMODE_BLOB;
+
+	if ((fd = p_open(path, flags, mode)) < 0) {
+		giterr_set(GITERR_OS, "Could not open '%s' for writing", path);
+		return fd;
+	}
+
+	filter_opts.attr_session = &data->attr_session;
+	filter_opts.temp_buf = &data->tmp;
+
+	if (!data->opts.disable_filters &&
+		(error = git_filter_list__load_ext(
+			&fl, data->repo, blob, hint_path,
+			GIT_FILTER_TO_WORKTREE, &filter_opts)))
+		return error;
+
+	/* setup the writer */
+	memset(&writer, 0, sizeof(struct checkout_stream));
+	writer.base.write = checkout_stream_write;
+	writer.base.close = checkout_stream_close;
+	writer.base.free = checkout_stream_free;
+	writer.path = path;
+	writer.fd = fd;
+	writer.open = 1;
+
+	error = git_filter_list_stream_blob(fl, blob, (git_writestream *)&writer);
+
+	assert(writer.open == 0);
+
+	git_filter_list_free(fl);
+
+	if (error < 0)
+		return error;
+
+	if (GIT_PERMS_IS_EXEC(mode)) {
+		data->perfdata.chmod_calls++;
+
+		if ((error = p_chmod(path, mode)) < 0) {
+			giterr_set(GITERR_OS, "Failed to set permissions on '%s'", path);
+			return error;
+		}
+	}
+
+	if (st) {
+		data->perfdata.stat_calls++;
+
+		if ((error = p_stat(path, st)) < 0) {
+			giterr_set(GITERR_OS, "Error statting '%s'", path);
+			return error;
+		}
+
+		st->st_mode = entry_filemode;
+	}
+
+	return 0;
+}
+
+static int blob_content_to_link(
+	checkout_data *data,
+	struct stat *st,
+	git_blob *blob,
+	const char *path)
 {
 	git_buf linktarget = GIT_BUF_INIT;
 	int error;
 
-	if ((error = git_futils_mkpath2file(path, dir_mode)) < 0)
+	if ((error = mkpath2file(data, path, data->opts.dir_mode)) < 0)
 		return error;
 
 	if ((error = git_blob__getbuf(&linktarget, blob)) < 0)
 		return error;
 
-	if (can_symlink) {
+	if (data->can_symlink) {
 		if ((error = p_symlink(git_buf_cstr(&linktarget), path)) < 0)
-			giterr_set(GITERR_OS, "Could not create symlink %s\n", path);
+			giterr_set(GITERR_OS, "Could not create symlink %s", path);
 	} else {
 		error = git_futils_fake_symlink(git_buf_cstr(&linktarget), path);
 	}
 
 	if (!error) {
+		data->perfdata.stat_calls++;
+
 		if ((error = p_lstat(path, st)) < 0)
 			giterr_set(GITERR_CHECKOUT, "Could not stat symlink %s", path);
 
@@ -1421,6 +1557,7 @@ static int checkout_submodule_update_index(
 	if (git_buf_puts(&data->path, file->path) < 0)
 		return -1;
 
+	data->perfdata.stat_calls++;
 	if (p_stat(git_buf_cstr(&data->path), &st) < 0) {
 		giterr_set(
 			GITERR_CHECKOUT, "Could not stat submodule %s\n", file->path);
@@ -1436,15 +1573,17 @@ static int checkout_submodule(
 	checkout_data *data,
 	const git_diff_file *file)
 {
+	bool remove_existing = should_remove_existing(data);
 	int error = 0;
 
 	/* Until submodules are supported, UPDATE_ONLY means do nothing here */
 	if ((data->strategy & GIT_CHECKOUT_UPDATE_ONLY) != 0)
 		return 0;
 
-	if ((error = git_futils_mkdir(
-			file->path, data->opts.target_directory,
-			data->opts.dir_mode, GIT_MKDIR_PATH)) < 0)
+	if ((error = checkout_mkdir(
+			data,
+			file->path, data->opts.target_directory, data->opts.dir_mode,
+			remove_existing ? MKDIR_REMOVE_EXISTING : MKDIR_NORMAL)) < 0)
 		return error;
 
 	if ((error = git_submodule_lookup(NULL, data->repo, file->path)) < 0) {
@@ -1481,9 +1620,12 @@ static void report_progress(
 			data->opts.progress_payload);
 }
 
-static int checkout_safe_for_update_only(const char *path, mode_t expected_mode)
+static int checkout_safe_for_update_only(
+	checkout_data *data, const char *path, mode_t expected_mode)
 {
 	struct stat st;
+
+	data->perfdata.stat_calls++;
 
 	if (p_lstat(path, &st) < 0) {
 		/* if doesn't exist, then no error and no update */
@@ -1517,11 +1659,9 @@ static int checkout_write_content(
 		return error;
 
 	if (S_ISLNK(mode))
-		error = blob_content_to_link(
-			st, blob, full_path, data->opts.dir_mode, data->can_symlink);
+		error = blob_content_to_link(data, st, blob, full_path);
 	else
-		error = blob_content_to_file(
-			st, blob, full_path, hint_path, mode, &data->opts);
+		error = blob_content_to_file(data, st, blob, full_path, hint_path, mode);
 
 	git_blob_free(blob);
 
@@ -1552,7 +1692,7 @@ static int checkout_blob(
 
 	if ((data->strategy & GIT_CHECKOUT_UPDATE_ONLY) != 0) {
 		int rval = checkout_safe_for_update_only(
-			git_buf_cstr(&data->path), file->mode);
+			data, git_buf_cstr(&data->path), file->mode);
 		if (rval <= 0)
 			return rval;
 	}
@@ -1807,7 +1947,7 @@ static int checkout_write_entry(
 	}
 
 	if ((data->strategy & GIT_CHECKOUT_UPDATE_ONLY) != 0 &&
-		(error = checkout_safe_for_update_only(git_buf_cstr(&data->path), side->mode)) <= 0)
+		(error = checkout_safe_for_update_only(data, git_buf_cstr(&data->path), side->mode)) <= 0)
 		return error;
 
 	return checkout_write_content(data,
@@ -1864,6 +2004,7 @@ static int checkout_write_merge(
 	git_merge_file_result result = {0};
 	git_filebuf output = GIT_FILEBUF_INIT;
 	git_filter_list *fl = NULL;
+	git_filter_options filter_opts = GIT_FILTER_OPTIONS_INIT;
 	int error = 0;
 
 	if (data->opts.checkout_strategy & GIT_CHECKOUT_CONFLICT_STYLE_DIFF3)
@@ -1906,15 +2047,19 @@ static int checkout_write_merge(
 		goto done;
 
 	if ((data->strategy & GIT_CHECKOUT_UPDATE_ONLY) != 0 &&
-		(error = checkout_safe_for_update_only(git_buf_cstr(&path_workdir), result.mode)) <= 0)
+		(error = checkout_safe_for_update_only(data, git_buf_cstr(&path_workdir), result.mode)) <= 0)
 		goto done;
 
 	if (!data->opts.disable_filters) {
 		in_data.ptr = (char *)result.ptr;
 		in_data.size = result.len;
 
-		if ((error = git_filter_list_load(&fl, data->repo, NULL, git_buf_cstr(&path_workdir),
-				GIT_FILTER_TO_WORKTREE, GIT_FILTER_OPT_DEFAULT)) < 0 ||
+		filter_opts.attr_session = &data->attr_session;
+		filter_opts.temp_buf = &data->tmp;
+
+		if ((error = git_filter_list__load_ext(
+				&fl, data->repo, NULL, git_buf_cstr(&path_workdir),
+				GIT_FILTER_TO_WORKTREE, &filter_opts)) < 0 ||
 			(error = git_filter_list_apply_to_data(&out_data, fl, &in_data)) < 0)
 			goto done;
 	} else {
@@ -1922,7 +2067,7 @@ static int checkout_write_merge(
 		out_data.size = result.len;
 	}
 
-	if ((error = git_futils_mkpath2file(path_workdir.ptr, 0755)) < 0 ||
+	if ((error = mkpath2file(data, path_workdir.ptr, data->opts.dir_mode)) < 0 ||
 		(error = git_filebuf_open(&output, git_buf_cstr(&path_workdir), GIT_FILEBUF_DO_NOT_BUFFER, result.mode)) < 0 ||
 		(error = git_filebuf_write(&output, out_data.ptr, out_data.size)) < 0 ||
 		(error = git_filebuf_commit(&output)) < 0)
@@ -2117,11 +2262,17 @@ static void checkout_data_clear(checkout_data *data)
 	git__free(data->pfx);
 	data->pfx = NULL;
 
+	git_strmap_free(data->mkdir_map);
+
 	git_buf_free(&data->path);
 	git_buf_free(&data->tmp);
 
 	git_index_free(data->index);
 	data->index = NULL;
+
+	git_strmap_free(data->mkdir_map);
+
+	git_attr_session__free(&data->attr_session);
 }
 
 static int checkout_data_init(
@@ -2157,8 +2308,9 @@ static int checkout_data_init(
 	if (!data->opts.target_directory)
 		data->opts.target_directory = git_repository_workdir(repo);
 	else if (!git_path_isdir(data->opts.target_directory) &&
-			 (error = git_futils_mkdir(data->opts.target_directory, NULL,
-					GIT_DIR_MODE, GIT_MKDIR_VERIFY_DIR)) < 0)
+			 (error = checkout_mkdir(data,
+				data->opts.target_directory, NULL,
+				GIT_DIR_MODE, GIT_MKDIR_VERIFY_DIR)) < 0)
 		goto cleanup;
 
 	/* refresh config and index content unless NO_REFRESH is given */
@@ -2194,11 +2346,17 @@ static int checkout_data_init(
 		}
 	}
 
-	/* if you are forcing, definitely allow safe updates */
+	/* if you are forcing, allow all safe updates, plus recreate missing */
 	if ((data->opts.checkout_strategy & GIT_CHECKOUT_FORCE) != 0)
-		data->opts.checkout_strategy |= GIT_CHECKOUT_SAFE_CREATE;
-	if ((data->opts.checkout_strategy & GIT_CHECKOUT_SAFE_CREATE) != 0)
-		data->opts.checkout_strategy |= GIT_CHECKOUT_SAFE;
+		data->opts.checkout_strategy |= GIT_CHECKOUT_SAFE |
+			GIT_CHECKOUT_RECREATE_MISSING;
+
+	/* if the repository does not actually have an index file, then this
+	 * is an initial checkout (perhaps from clone), so we allow safe updates
+	 */
+	if (!data->index->on_disk &&
+		(data->opts.checkout_strategy & GIT_CHECKOUT_SAFE) != 0)
+		data->opts.checkout_strategy |= GIT_CHECKOUT_RECREATE_MISSING;
 
 	data->strategy = data->opts.checkout_strategy;
 
@@ -2232,25 +2390,27 @@ static int checkout_data_init(
 
 	if ((data->opts.checkout_strategy &
 		(GIT_CHECKOUT_CONFLICT_STYLE_MERGE | GIT_CHECKOUT_CONFLICT_STYLE_DIFF3)) == 0) {
-		const char *conflict_style;
+		git_config_entry *conflict_style = NULL;
 		git_config *cfg = NULL;
 
 		if ((error = git_repository_config__weakptr(&cfg, repo)) < 0 ||
-			(error = git_config_get_string(&conflict_style, cfg, "merge.conflictstyle")) < 0 ||
+			(error = git_config_get_entry(&conflict_style, cfg, "merge.conflictstyle")) < 0 ||
 			error == GIT_ENOTFOUND)
 			;
 		else if (error)
 			goto cleanup;
-		else if (strcmp(conflict_style, "merge") == 0)
+		else if (strcmp(conflict_style->value, "merge") == 0)
 			data->opts.checkout_strategy |= GIT_CHECKOUT_CONFLICT_STYLE_MERGE;
-		else if (strcmp(conflict_style, "diff3") == 0)
+		else if (strcmp(conflict_style->value, "diff3") == 0)
 			data->opts.checkout_strategy |= GIT_CHECKOUT_CONFLICT_STYLE_DIFF3;
 		else {
 			giterr_set(GITERR_CHECKOUT, "unknown style '%s' given for 'merge.conflictstyle'",
 				conflict_style);
 			error = -1;
+			git_config_entry_free(conflict_style);
 			goto cleanup;
 		}
+		git_config_entry_free(conflict_style);
 	}
 
 	if ((error = git_vector_init(&data->removes, 0, git__strcmp_cb)) < 0 ||
@@ -2258,10 +2418,13 @@ static int checkout_data_init(
 		(error = git_vector_init(&data->update_conflicts, 0, NULL)) < 0 ||
 		(error = git_pool_init(&data->pool, 1, 0)) < 0 ||
 		(error = git_buf_puts(&data->path, data->opts.target_directory)) < 0 ||
-		(error = git_path_to_dir(&data->path)) < 0)
+		(error = git_path_to_dir(&data->path)) < 0 ||
+		(error = git_strmap_alloc(&data->mkdir_map)) < 0)
 		goto cleanup;
 
 	data->workdir_len = git_buf_len(&data->path);
+
+	git_attr_session__init(&data->attr_session, data->repo);
 
 cleanup:
 	if (error < 0)
@@ -2269,6 +2432,9 @@ cleanup:
 
 	return error;
 }
+
+#define CHECKOUT_INDEX_DONT_WRITE_MASK \
+	(GIT_CHECKOUT_DONT_UPDATE_INDEX | GIT_CHECKOUT_DONT_WRITE_INDEX)
 
 int git_checkout_iterator(
 	git_iterator *target,
@@ -2371,9 +2537,12 @@ int git_checkout_iterator(
 
 	assert(data.completed_steps == data.total_steps);
 
+	if (data.opts.perfdata_cb)
+		data.opts.perfdata_cb(&data.perfdata, data.opts.perfdata_payload);
+
 cleanup:
 	if (!error && data.index != NULL &&
-		(data.strategy & GIT_CHECKOUT_DONT_UPDATE_INDEX) == 0)
+		(data.strategy & CHECKOUT_INDEX_DONT_WRITE_MASK) == 0)
 		error = git_index_write(data.index);
 
 	git_diff_free(data.diff);
