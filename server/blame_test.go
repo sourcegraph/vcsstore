@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,7 +17,7 @@ func TestServeRepoBlameFile(t *testing.T) {
 
 	commitID := vcs.CommitID(strings.Repeat("a", 40))
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoID := "a.b/c"
 	path := "f"
 	opt := vcs.BlameOptions{NewestCommit: commitID, OldestCommit: "oc", StartLine: 1, EndLine: 2}
 
@@ -29,14 +28,13 @@ func TestServeRepoBlameFile(t *testing.T) {
 		hunks: []*vcs.Hunk{{StartLine: 1, EndLine: 2, CommitID: "c"}},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		repo:     rm,
+		t:      t,
+		repoID: repoID,
+		repo:   rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBlameFile("git", cloneURL, path, &opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBlameFile(repoID, path, &opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}

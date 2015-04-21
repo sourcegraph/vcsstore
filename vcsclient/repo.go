@@ -50,13 +50,13 @@ type RepositoryCloneUpdater interface {
 // CloneInfo is the information needed to clone a repository.
 type CloneInfo struct {
 	// VCS is the type of VCS (e.g., "git")
-	VCS string
+	VCS string `json:",omitempty"`
 
 	// CloneURL is the remote URL from which to clone.
-	CloneURL *url.URL
+	CloneURL *url.URL `json:",omitempty"`
 
 	// Additional options
-	vcs.RemoteOpts
+	vcs.RemoteOpts `json:",omitempty"`
 }
 
 func (r *repository) CloneOrUpdate(cloneInfo *CloneInfo) error {

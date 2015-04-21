@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestServeRepoDiff(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoID := "a.b/c"
 	opt := vcs.DiffOptions{}
 
 	rm := &mockDiff{
@@ -28,14 +27,13 @@ func TestServeRepoDiff(t *testing.T) {
 		diff: &vcs.Diff{Raw: "diff"},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		repo:     rm,
+		t:      t,
+		repoID: repoID,
+		repo:   rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoDiff("git", cloneURL, rm.base, rm.head, &opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoDiff(repoID, rm.base, rm.head, &opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -90,8 +88,8 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	baseCloneURL, _ := url.Parse("git://a.b/c")
-	headCloneURL, _ := url.Parse("git://x.y/z")
+	baseRepoID := "a.b/c"
+	headRepoID := "x.y/z"
 	mockHeadRepo := vcs_testing.MockRepository{}
 	opt := vcs.DiffOptions{}
 
@@ -105,20 +103,21 @@ func TestServeRepoCrossRepoDiff(t *testing.T) {
 	}
 	sm := &mockService{
 		t: t,
-		open: func(vcs string, cloneURL *url.URL) (interface{}, error) {
-			switch cloneURL.String() {
-			case baseCloneURL.String():
+		// repoID: baseRepoID,
+		open: func(repoID string) (interface{}, error) {
+			switch repoID {
+			case baseRepoID:
 				return rm, nil
-			case headCloneURL.String():
+			case headRepoID:
 				return mockHeadRepo, nil
 			default:
-				panic("unexpected repo clone: " + cloneURL.String())
+				panic("unexpected repo clone: " + repoID)
 			}
 		},
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCrossRepoDiff("git", baseCloneURL, rm.base, "git", headCloneURL, rm.head, &opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCrossRepoDiff(baseRepoID, rm.base, headRepoID, rm.head, &opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -142,12 +141,11 @@ type mockCrossRepoDiff struct {
 	t *testing.T
 
 	// expected args
-	base         vcs.CommitID
-	headRepo     vcs.Repository
-	headVCS      string
-	headCloneURL *url.URL
-	head         vcs.CommitID
-	opt          vcs.DiffOptions
+	base       vcs.CommitID
+	headRepo   vcs.Repository
+	headRepoID string
+	head       vcs.CommitID
+	opt        vcs.DiffOptions
 
 	// return values
 	diff *vcs.Diff

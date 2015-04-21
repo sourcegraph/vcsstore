@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,21 +16,20 @@ func TestServeRepoCommit(t *testing.T) {
 
 	commitID := vcs.CommitID(strings.Repeat("a", 40))
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoID := "a.b/c"
 	rm := &mockGetCommit{
 		t:      t,
 		id:     commitID,
 		commit: &vcs.Commit{ID: commitID},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		repo:     rm,
+		t:      t,
+		repoID: repoID,
+		repo:   rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommit("git", cloneURL, commitID).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoCommit(repoID, commitID).String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,21 +61,20 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoID := "a.b/c"
 	rm := &mockGetCommit{
 		t:      t,
 		id:     "ab",
 		commit: &vcs.Commit{ID: "abcd"},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		repo:     rm,
+		t:      t,
+		repoID: repoID,
+		repo:   rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoCommit("git", cloneURL, "ab").String())
+	resp, err := ignoreRedirectsClient.Get(server.URL + testHandler.router.URLToRepoCommit(repoID, "ab").String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}
@@ -89,7 +86,7 @@ func TestServeRepoCommit_RedirectToFull(t *testing.T) {
 	if !rm.called {
 		t.Errorf("!called")
 	}
-	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit("git", cloneURL, "abcd"))
+	testRedirectedTo(t, resp, http.StatusFound, testHandler.router.URLToRepoCommit(repoID, "abcd"))
 
 	if cc := resp.Header.Get("cache-control"); cc != shortCacheControl {
 		t.Errorf("got cache-control %q, want %q", cc, shortCacheControl)

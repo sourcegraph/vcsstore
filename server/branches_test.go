@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -14,7 +13,7 @@ func TestServeRepoBranches(t *testing.T) {
 	setupHandlerTest()
 	defer teardownHandlerTest()
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoID := "a.b/c"
 	opt := vcs.BranchesOptions{}
 
 	rm := &mockBranches{
@@ -22,14 +21,13 @@ func TestServeRepoBranches(t *testing.T) {
 		branches: []*vcs.Branch{{Name: "t", Head: "c"}},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		repo:     rm,
+		t:      t,
+		repoID: repoID,
+		repo:   rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBranches("git", cloneURL, opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoBranches(repoID, opt).String())
 	if err != nil {
 		t.Fatal(err)
 	}

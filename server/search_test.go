@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,7 +16,7 @@ func TestServeRepoSearch(t *testing.T) {
 
 	const rev = "c"
 
-	cloneURL, _ := url.Parse("git://a.b/c")
+	repoID := "a.b/c"
 	opt := vcs.SearchOptions{Query: "q", QueryType: "t"}
 
 	rm := &mockSearch{
@@ -28,14 +27,13 @@ func TestServeRepoSearch(t *testing.T) {
 		res: []*vcs.SearchResult{{File: "f", Match: []byte("abc"), StartLine: 1, EndLine: 2}},
 	}
 	sm := &mockServiceForExistingRepo{
-		t:        t,
-		vcs:      "git",
-		cloneURL: cloneURL,
-		repo:     rm,
+		t:      t,
+		repoID: repoID,
+		repo:   rm,
 	}
 	testHandler.Service = sm
 
-	resp, err := http.Get(server.URL + testHandler.router.URLToRepoSearch("git", cloneURL, rev, opt).String())
+	resp, err := http.Get(server.URL + testHandler.router.URLToRepoSearch(repoID, rev, opt).String())
 	if err != nil && !isIgnoredRedirectErr(err) {
 		t.Fatal(err)
 	}

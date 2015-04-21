@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 type Service interface {
@@ -26,7 +26,7 @@ type Service interface {
 	// Clone clones the repository if a clone doesn't yet exist locally.
 	// Otherwise, it opens the repository. If no errors occur, the repository is
 	// returned.
-	Clone(repoID string, vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error)
+	Clone(repoID string, cloneInfo *vcsclient.CloneInfo) (interface{}, error)
 }
 
 type Config struct {
@@ -148,7 +148,7 @@ func (s *service) Close(repoID string) {
 	}
 }
 
-func (s *service) Clone(repoID string, vcsType string, cloneURL *url.URL, opt vcs.RemoteOpts) (interface{}, error) {
+func (s *service) Clone(repoID string, cloneInfo *vcsclient.CloneInfo) (interface{}, error) {
 	cloneDir, err := s.CloneDir(repoID)
 	if err != nil {
 		return nil, err
@@ -203,15 +203,15 @@ func (s *service) Clone(repoID string, vcsType string, cloneURL *url.URL, opt vc
 	s.debugLogf("Clone(%s, %s): cloning to temporary sibling dir %s", repoID, cloneTmpDir)
 	defer os.RemoveAll(cloneTmpDir)
 
-	cloneOpt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: opt}
-	_, err = vcs.Clone(vcsType, cloneURL.String(), cloneTmpDir, cloneOpt)
+	cloneOpt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: cloneInfo.RemoteOpts}
+	_, err = vcs.Clone(cloneInfo.VCS, cloneInfo.CloneURL.String(), cloneTmpDir, cloneOpt)
 	if err != nil {
 		return nil, err
 	}
-	s.debugLogf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+	s.debugLogf("Clone(%s, %s): cloned to temporary sibling dir %s; now renaming to intended clone dir %s", cloneInfo.VCS, cloneInfo.CloneURL.String(), cloneTmpDir, cloneDir)
 
 	if err := os.Rename(cloneTmpDir, cloneDir); err != nil {
-		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", vcsType, cloneURL, cloneTmpDir, cloneDir)
+		s.debugLogf("Clone(%s, %s): Rename(%s -> %s) failed: %s", cloneInfo.VCS, cloneInfo.CloneURL.String(), cloneTmpDir, cloneDir)
 		return nil, err
 	}
 
