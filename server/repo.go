@@ -96,7 +96,7 @@ func (h *Handler) getRepo(r *http.Request) (repo interface{}, repoID string, don
 // getRepoLabel allows either getting the main repo in the URL or
 // another one, such as the head repo for cross-repo diffs.
 func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{}, repoID string, done func(), err error) {
-	repoID, err = h.getRepoCloneURL(r, label)
+	repoID, err = h.getRepoID(r, label)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -116,8 +116,7 @@ func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{
 	return repo, repoID, done, nil
 }
 
-// TODO(beyang): rename getRepoID
-func (h *Handler) getRepoCloneURL(r *http.Request, label string) (repoID string, err error) {
+func (h *Handler) getRepoID(r *http.Request, label string) (repoID string, err error) {
 	v := mux.Vars(r)
 	repoID = v[label+"RepoID"]
 	if repoID == "" {
