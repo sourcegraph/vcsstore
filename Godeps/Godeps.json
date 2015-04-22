@@ -178,8 +178,8 @@
 			"Rev": "10f3e44c050b12c13981908678e43c81bcfc7c54"
 		},
 		{
-			"ImportPath": "github.com/sourcegraph/go-git-http",
-			"Rev": "c60458df83221cfdd4c70869a4b3b93429678d4f"
+			"ImportPath": "github.com/AaronO/go-git-http",
+			"Rev": "54b176fe59ef82e61a9365f1159f1fff44699532"
 		},
 		{
 			"ImportPath": "github.com/sourcegraph/mux",

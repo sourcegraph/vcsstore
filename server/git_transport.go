@@ -12,7 +12,7 @@ import (
 	"sourcegraph.com/sourcegraph/vcsstore"
 	"sourcegraph.com/sourcegraph/vcsstore/git"
 
-	githttp "github.com/sourcegraph/go-git-http"
+	githttp "github.com/AaronO/go-git-http"
 )
 
 func NewGitTransporter(conf *vcsstore.Config) git.GitTransporter {
