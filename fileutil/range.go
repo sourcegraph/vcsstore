@@ -20,7 +20,7 @@ func ComputeFileRange(data []byte, opt vcsclient.GetFileOptions) (*vcsclient.Fil
 
 	if opt.EntireFile || (fr.StartLine == 0 && fr.EndLine == 0 && fr.StartByte == 0 && fr.EndByte == 0) {
 		fr.StartLine, fr.EndLine = 0, 0
-		fr.StartByte, fr.EndByte = 0, len(data)
+		fr.StartByte, fr.EndByte = 0, int64(len(data))
 	}
 
 	lines := fr.StartLine != 0 || fr.EndLine != 0
@@ -28,6 +28,8 @@ func ComputeFileRange(data []byte, opt vcsclient.GetFileOptions) (*vcsclient.Fil
 	if lines && bytes {
 		return nil, nil, fmt.Errorf("must specify a line range OR a byte range, not both (%+v)", fr)
 	}
+
+	// TODO(sqs): fix up the sketchy int conversions
 
 	if lines {
 		// Given line range, validate it and return byte range.
@@ -38,34 +40,34 @@ func ComputeFileRange(data []byte, opt vcsclient.GetFileOptions) (*vcsclient.Fil
 			// Empty file.
 			return &fr, f, nil
 		}
-		if fr.StartLine < 0 || fr.StartLine > f.LineCount() {
+		if fr.StartLine < 0 || fr.StartLine > int64(f.LineCount()) {
 			return nil, nil, fmt.Errorf("start line %d out of bounds (%d lines total)", fr.StartLine, f.LineCount())
 		}
-		if fr.EndLine <= 0 || fr.EndLine > f.LineCount() {
+		if fr.EndLine <= 0 || fr.EndLine > int64(f.LineCount()) {
 			return nil, nil, fmt.Errorf("end line %d out of bounds (%d lines total)", fr.EndLine, f.LineCount())
 		}
-		fr.StartByte, fr.EndByte = f.LineOffset(fr.StartLine), f.LineEndOffset(fr.EndLine)
+		fr.StartByte, fr.EndByte = int64(f.LineOffset(int(fr.StartLine))), int64(f.LineEndOffset(int(fr.EndLine)))
 	} else if bytes {
-		if fr.StartByte < 0 || fr.StartByte > len(data)-1 {
+		if fr.StartByte < 0 || fr.StartByte > int64(len(data)-1) {
 			return nil, nil, fmt.Errorf("start byte %d out of bounds (%d bytes total)", fr.StartByte, len(data))
 		}
-		if fr.EndByte < 0 || fr.EndByte > len(data) {
+		if fr.EndByte < 0 || fr.EndByte > int64(len(data)) {
 			return nil, nil, fmt.Errorf("end byte %d out of bounds (%d bytes total)", fr.EndByte, len(data))
 		}
 
-		fr.StartLine, fr.EndLine = f.Line(f.Pos(fr.StartByte)), f.Line(f.Pos(fr.EndByte))
+		fr.StartLine, fr.EndLine = int64(f.Line(f.Pos(int(fr.StartByte)))), int64(f.Line(f.Pos(int(fr.EndByte))))
 		if opt.ExpandContextLines > 0 {
-			fr.StartLine -= opt.ExpandContextLines
+			fr.StartLine -= int64(opt.ExpandContextLines)
 			if fr.StartLine < 1 {
 				fr.StartLine = 1
 			}
-			fr.EndLine += opt.ExpandContextLines
-			if fr.EndLine > f.LineCount() {
-				fr.EndLine = f.LineCount()
+			fr.EndLine += int64(opt.ExpandContextLines)
+			if fr.EndLine > int64(f.LineCount()) {
+				fr.EndLine = int64(f.LineCount())
 			}
 		}
 		if opt.ExpandContextLines > 0 || opt.FullLines {
-			fr.StartByte, fr.EndByte = f.LineOffset(fr.StartLine), f.LineEndOffset(fr.EndLine)
+			fr.StartByte, fr.EndByte = int64(f.LineOffset(int(fr.StartLine))), int64(f.LineEndOffset(int(fr.EndLine)))
 		}
 	}
 

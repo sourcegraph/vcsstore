@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
-	"time"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
@@ -53,9 +52,6 @@ func TestServeRepoCommits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, c := range rm.commits {
-		normalizeCommit(c)
-	}
 	if !reflect.DeepEqual(commits, rm.commits) {
 		t.Errorf("got commits %+v, want %+v", commits, rm.commits)
 	}
@@ -81,11 +77,4 @@ func (m *mockCommits) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, erro
 	}
 	m.called = true
 	return m.commits, m.total, m.err
-}
-
-func normalizeCommit(c *vcs.Commit) {
-	c.Author.Date = c.Author.Date.In(time.UTC)
-	if c.Committer != nil {
-		c.Committer.Date = c.Committer.Date.In(time.UTC)
-	}
 }

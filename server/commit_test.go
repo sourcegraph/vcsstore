@@ -47,7 +47,6 @@ func TestServeRepoCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	normalizeCommit(rm.commit)
 	if !reflect.DeepEqual(commit, rm.commit) {
 		t.Errorf("got commit %+v, want %+v", commit, rm.commit)
 	}

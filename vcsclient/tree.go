@@ -5,23 +5,6 @@ import (
 	"time"
 )
 
-type TreeEntryType string
-
-const (
-	FileEntry    TreeEntryType = "file"
-	DirEntry     TreeEntryType = "dir"
-	SymlinkEntry TreeEntryType = "symlink"
-)
-
-type TreeEntry struct {
-	Name     string
-	Type     TreeEntryType
-	Size     int
-	ModTime  time.Time
-	Contents []byte       `json:",omitempty"`
-	Entries  []*TreeEntry `json:",omitempty"`
-}
-
 // Stat returns the FileInfo structure describing the tree entry.
 func (e *TreeEntry) Stat() (os.FileInfo, error) {
 	// We can't just make TreeEntry implement os.FileInfo, because then we'd
@@ -40,7 +23,7 @@ func (e *TreeEntry) Stat() (os.FileInfo, error) {
 		name:  e.Name,
 		mode:  mode,
 		size:  int64(e.Size),
-		mtime: e.ModTime,
+		mtime: e.ModTime.Time(),
 	}, nil
 }
 

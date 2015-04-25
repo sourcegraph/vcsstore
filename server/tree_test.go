@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
+	"sourcegraph.com/sqs/pbtypes"
 )
 
 func TestServeRepoTreeEntry_File(t *testing.T) {
@@ -59,9 +60,9 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 		Name:     "myfile",
 		Type:     vcsclient.FileEntry,
 		Size:     6,
+		ModTime:  pbtypes.NewTimestamp(time.Time{}),
 		Contents: []byte("mydata"),
 	}
-	normalizeTreeEntry(wantEntry)
 
 	if !reflect.DeepEqual(e, wantEntry) {
 		t.Errorf("got tree entry %+v, want %+v", e, wantEntry)
@@ -112,21 +113,23 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 	}
 
 	wantEntry := &vcsclient.TreeEntry{
-		Name: ".",
-		Type: vcsclient.DirEntry,
+		Name:    ".",
+		Type:    vcsclient.DirEntry,
+		ModTime: pbtypes.NewTimestamp(time.Time{}),
 		Entries: []*vcsclient.TreeEntry{
 			{
-				Name: "mydir",
-				Type: vcsclient.DirEntry,
+				Name:    "myfile",
+				Type:    vcsclient.FileEntry,
+				Size:    6,
+				ModTime: pbtypes.NewTimestamp(time.Time{}),
 			},
 			{
-				Name: "myfile",
-				Type: vcsclient.FileEntry,
-				Size: 6,
+				Name:    "mydir",
+				Type:    vcsclient.DirEntry,
+				ModTime: pbtypes.NewTimestamp(time.Time{}),
 			},
 		},
 	}
-	normalizeTreeEntry(wantEntry)
 
 	if !reflect.DeepEqual(e, wantEntry) {
 		t.Errorf("got tree entry %+v, want %+v", e, wantEntry)
@@ -183,6 +186,7 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 			Name:     "myfile",
 			Type:     vcsclient.FileEntry,
 			Size:     6,
+			ModTime:  pbtypes.NewTimestamp(time.Time{}),
 			Contents: []byte("da"),
 		},
 		FileRange: vcsclient.FileRange{
@@ -190,7 +194,6 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 			StartLine: 1, EndLine: 1,
 		},
 	}
-	normalizeTreeEntry(want.TreeEntry)
 
 	if !reflect.DeepEqual(f, want) {
 		t.Errorf("got file with range %+v, want %+v", f, want)
@@ -221,13 +224,6 @@ func (m *mockFileSystem) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
 	}
 	m.called = true
 	return m.fs, m.err
-}
-
-func normalizeTreeEntry(e *vcsclient.TreeEntry) {
-	e.ModTime = e.ModTime.In(time.UTC)
-	for _, e := range e.Entries {
-		normalizeTreeEntry(e)
-	}
 }
 
 // mapFS creates a compatible vfs.FileSystem from a map.

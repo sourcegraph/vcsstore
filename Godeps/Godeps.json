@@ -1,6 +1,6 @@
 {
 	"ImportPath": "sourcegraph.com/sourcegraph/vcsstore",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.4.1",
 	"Packages": [
 		"./..."
 	],
@@ -144,6 +144,14 @@
 			"Rev": "362b626337a53744d1f571d5d70d66294c82d429"
 		},
 		{
+			"ImportPath": "github.com/gogo/protobuf/proto",
+			"Rev": "812040f479913133343efa948c965e3eacb54c6e"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "655cdfa588ea190e901bc5590e65d5621688847c"
+		},
+		{
 			"ImportPath": "github.com/google/go-querystring/query",
 			"Rev": "ec0a78e0f4db229b7897be36596a8944230b857a"
 		},
@@ -213,7 +221,11 @@
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/go-vcs/vcs",
-			"Rev": "8865fc6329affb266d200277964af142935c48ca"
+			"Rev": "6ebe9697b19bdd7bac3b281158d9288270f9a777"
+		},
+		{
+			"ImportPath": "sourcegraph.com/sqs/pbtypes",
+			"Rev": "5411ce44b34771f337f0fc6921ed08d49c8068ad"
 		}
 	]
 }
