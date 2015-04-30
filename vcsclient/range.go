@@ -1,17 +1,16 @@
-package fileutil
+package vcsclient
 
 import (
 	"fmt"
 
 	"github.com/sqs/fileset"
-	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 // ComputeFileRange determines the actual file range according to the
 // input range parameter. For example, if input has a line range set,
 // the returned FileRange will contain the byte range that corresponds
 // to the input line range.
-func ComputeFileRange(data []byte, opt vcsclient.GetFileOptions) (*vcsclient.FileRange, *fileset.File, error) {
+func ComputeFileRange(data []byte, opt GetFileOptions) (*FileRange, *fileset.File, error) {
 	fr := opt.FileRange // alias for brevity
 
 	fset := fileset.NewFileSet()

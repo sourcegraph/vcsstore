@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 
+	"sort"
+
 	"golang.org/x/tools/godoc/vfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sqs/pbtypes"
 )
 
 type FileSystem interface {
@@ -129,8 +133,87 @@ func (fs *repositoryFS) GetFileWithOptions(path string, opt GetFileOptions) (*Fi
 
 // A FileGetter is a repository FileSystem that can get files with
 // extended range options (GetFileWithOptions).
+//
+// It's generally more efficient to use the client's implementation of
+// the GetFileWithOptions method instead of calling the
+// vcsclient.GetFileWithOptions func because the former causes only
+// the requested range to be sent over the network, while the latter
+// requests the whole file and narrows the range on the client side.
 type FileGetter interface {
 	GetFileWithOptions(path string, opt GetFileOptions) (*FileWithRange, error)
+}
+
+// GetFileWithOptions gets a file and observes the options specified
+// in opt. If fs implements FileGetter, fs.GetFileWithOptions is
+// called; otherwise the options are applied on the client side after
+// fetching the whole file.
+func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*FileWithRange, error) {
+	if fg, ok := fs.(FileGetter); ok {
+		return fg.GetFileWithOptions(path, opt)
+	}
+
+	fi, err := fs.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	e := newTreeEntry(fi)
+	fwr := FileWithRange{TreeEntry: e}
+
+	if fi.Mode().IsDir() {
+		entries, err := fs.ReadDir(path)
+		if err != nil {
+			return nil, err
+		}
+
+		e.Entries = make([]*TreeEntry, len(entries))
+		for i, fi := range entries {
+			e.Entries[i] = newTreeEntry(fi)
+		}
+		sort.Sort(TreeEntriesByTypeByName(e.Entries))
+	} else if fi.Mode().IsRegular() {
+		f, err := fs.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		contents, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+
+		e.Contents = contents
+
+		if empty := (GetFileOptions{}); opt != empty {
+			fr, _, err := ComputeFileRange(contents, opt)
+			if err != nil {
+				return nil, err
+			}
+
+			// Trim to only requested range.
+			e.Contents = e.Contents[fr.StartByte:fr.EndByte]
+			fwr.FileRange = *fr
+		}
+	}
+
+	return &fwr, nil
+}
+
+func newTreeEntry(fi os.FileInfo) *TreeEntry {
+	e := &TreeEntry{
+		Name:    fi.Name(),
+		Size:    fi.Size(),
+		ModTime: pbtypes.NewTimestamp(fi.ModTime()),
+	}
+	if fi.Mode().IsDir() {
+		e.Type = DirEntry
+	} else if fi.Mode().IsRegular() {
+		e.Type = FileEntry
+	} else if fi.Mode()&os.ModeSymlink != 0 {
+		e.Type = SymlinkEntry
+	}
+	return e
 }
 
 // url generates the URL to RouteRepoTreeEntry for the given path (all other
