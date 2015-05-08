@@ -26,9 +26,9 @@ var _ = proto.Marshal
 type TreeEntryType int32
 
 const (
-	TreeEntryType_FileEntry    TreeEntryType = 0
-	TreeEntryType_DirEntry     TreeEntryType = 1
-	TreeEntryType_SymlinkEntry TreeEntryType = 2
+	FileEntry    TreeEntryType = 0
+	DirEntry     TreeEntryType = 1
+	SymlinkEntry TreeEntryType = 2
 )
 
 var TreeEntryType_name = map[int32]string{
