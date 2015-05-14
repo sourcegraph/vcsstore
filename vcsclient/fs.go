@@ -209,7 +209,7 @@ func readDir(fs vfs.FileSystem, base string, shouldRecurse bool) ([]*TreeEntry, 
 	for i, fi := range entries {
 		te[i] = newTreeEntry(fi)
 		if fi.Mode().IsDir() && shouldRecurse {
-			ee, err := readDir(fs, path.Join(base, fi.Name()), shouldRecurse)
+			ee, err := readDir(fs, path.Join(base, fi.Name()), true)
 			if err != nil {
 				return nil, err
 			}
