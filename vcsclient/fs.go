@@ -162,7 +162,7 @@ func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*Fi
 	fwr := FileWithRange{TreeEntry: e}
 
 	if fi.Mode().IsDir() {
-		ee, err := readDir(fs, path, opt.FullTree)
+		ee, err := readDir(fs, path, opt.Recursive)
 		if err != nil {
 			return nil, err
 		}

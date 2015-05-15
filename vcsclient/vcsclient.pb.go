@@ -78,11 +78,10 @@ type GetFileOptions struct {
 	// the nearest line boundaries on both sides. It is only valid if StartByte and
 	// EndByte are specified.
 	FullLines bool `protobuf:"varint,4,opt,name=full_lines,proto3" json:"full_lines,omitempty" url:",omitempty"`
-	// FullTree only applies if the returned entry is a directory. It will
+	// Recursive only applies if the returned entry is a directory. It will
 	// return the full file tree of the host repository, recursing into all
-	// sub-directories. The base path will be the root of the repository,
-	// not the requested path!
-	FullTree bool `protobuf:"varint,5,opt,name=full_tree,proto3" json:"full_tree,omitempty" url:",omitempty"`
+	// sub-directories.
+	Recursive bool `protobuf:"varint,5,opt,name=recursive,proto3" json:"recursive,omitempty" url:",omitempty"`
 }
 
 func (m *GetFileOptions) Reset()         { *m = GetFileOptions{} }

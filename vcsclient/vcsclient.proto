@@ -39,11 +39,10 @@ message GetFileOptions {
 	// EndByte are specified.
 	bool full_lines = 4 [(gogoproto.moretags) = "url:\",omitempty\""];
 
-	// FullTree only applies if the returned entry is a directory. It will
+	// Recursive only applies if the returned entry is a directory. It will
 	// return the full file tree of the host repository, recursing into all
-	// sub-directories. The base path will be the root of the repository,
-	// not the requested path!
-	bool full_tree = 5 [(gogoproto.moretags) = "url:\",omitempty\""];
+	// sub-directories.
+	bool recursive = 5 [(gogoproto.moretags) = "url:\",omitempty\""];
 }
 
 enum TreeEntryType {
