@@ -29,12 +29,14 @@ type Handler struct {
 	// IMPORTANT NOTE: This should be set to false in publicly available
 	// servers, as internal error messages may reveal sensitive information.
 	Debug bool
+
+	middleware []Middleware
 }
 
-// NewHandler adds routes and handlers to an existing parent router (or creates
-// one if parent is nil). If wrap is non-nil, it is called on each internal
-// handler before being registered as the handler for a router.
-func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.Router) *Handler {
+// NewHandler adds routes and handlers to an existing parent router (or
+// creates one if parent is nil). Middleware is injected between mux and the
+// handler functions (so you have access to gorilla/context for example)
+func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.Router, mw ...Middleware) *Handler {
 	router := vcsclient.NewRouter(parent)
 	r := (*mux.Router)(router)
 
@@ -43,6 +45,7 @@ func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.R
 		GitTransporter: gitTrans,
 		router:         router,
 		Log:            log.New(ioutil.Discard, "", 0),
+		middleware:     mw,
 	}
 
 	handler := func(handlerFunc robustHandlerFunc) robustHandler {
@@ -88,13 +91,16 @@ type robustHandler struct {
 
 // robust handler wraps f to handle errors it returns.
 func (h robustHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := h.handlerFunc(w, r)
-	if err != nil {
-		c := errorHTTPStatusCode(err)
-		h.h.Log.Printf("HTTP %d error serving %q: %s.", c, r.URL.RequestURI(), err)
-		w.Header().Set("cache-control", "no-cache, max-age=0") // don't cache errors
-		http.Error(w, errorBody(h.h.Debug, err), c)
+	innerHandler := func (w http.ResponseWriter, r *http.Request) {
+		err := h.handlerFunc(w, r)
+		if err != nil {
+			c := errorHTTPStatusCode(err)
+			h.h.Log.Printf("HTTP %d error serving %q: %s.", c, r.URL.RequestURI(), err)
+			w.Header().Set("cache-control", "no-cache, max-age=0") // don't cache errors
+			http.Error(w, errorBody(h.h.Debug, err), c)
+		}
 	}
+	FuncWithMiddleware(innerHandler, h.h.middleware...)(w, r)
 }
 
 // errorBody formats an error message for the HTTP response.
