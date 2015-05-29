@@ -29,12 +29,14 @@ type Handler struct {
 	// IMPORTANT NOTE: This should be set to false in publicly available
 	// servers, as internal error messages may reveal sensitive information.
 	Debug bool
+
+	middleware []Middleware
 }
 
-// NewHandler adds routes and handlers to an existing parent router (or creates
-// one if parent is nil). If wrap is non-nil, it is called on each internal
-// handler before being registered as the handler for a router.
-func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.Router) *Handler {
+// NewHandler adds routes and handlers to an existing parent router (or
+// creates one if parent is nil). Middleware is injected between mux and the
+// handler functions (so you have access to gorilla/context for example)
+func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.Router, mw ...Middleware) *Handler {
 	router := vcsclient.NewRouter(parent)
 	r := (*mux.Router)(router)
 
@@ -43,29 +45,34 @@ func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.R
 		GitTransporter: gitTrans,
 		router:         router,
 		Log:            log.New(ioutil.Discard, "", 0),
+		middleware:     mw,
 	}
 
-	r.Get(git.RouteGitInfoRefs).Handler(handler{h, h.serveInfoRefs})
-	r.Get(git.RouteGitUploadPack).Handler(handler{h, h.serveUploadPack})
-	r.Get(git.RouteGitReceivePack).Handler(handler{h, h.serveReceivePack})
+	handler := func(handlerFunc robustHandlerFunc) robustHandler {
+		return robustHandler{h, handlerFunc}
+	}
 
-	r.Get(vcsclient.RouteRoot).Handler(handler{h, h.serveRoot})
-	r.Get(vcsclient.RouteRepo).Handler(handler{h, h.serveRepo})
-	r.Get(vcsclient.RouteRepoCreateOrUpdate).Handler(handler{h, h.serveRepoCreateOrUpdate})
-	r.Get(vcsclient.RouteRepoBlameFile).Handler(handler{h, h.serveRepoBlameFile})
-	r.Get(vcsclient.RouteRepoBranch).Handler(handler{h, h.serveRepoBranch})
-	r.Get(vcsclient.RouteRepoBranches).Handler(handler{h, h.serveRepoBranches})
-	r.Get(vcsclient.RouteRepoCommit).Handler(handler{h, h.serveRepoCommit})
-	r.Get(vcsclient.RouteRepoCommits).Handler(handler{h, h.serveRepoCommits})
-	r.Get(vcsclient.RouteRepoDiff).Handler(handler{h, h.serveRepoDiff})
-	r.Get(vcsclient.RouteRepoCrossRepoDiff).Handler(handler{h, h.serveRepoCrossRepoDiff})
-	r.Get(vcsclient.RouteRepoMergeBase).Handler(handler{h, h.serveRepoMergeBase})
-	r.Get(vcsclient.RouteRepoCrossRepoMergeBase).Handler(handler{h, h.serveRepoCrossRepoMergeBase})
-	r.Get(vcsclient.RouteRepoSearch).Handler(handler{h, h.serveRepoSearch})
-	r.Get(vcsclient.RouteRepoRevision).Handler(handler{h, h.serveRepoRevision})
-	r.Get(vcsclient.RouteRepoTag).Handler(handler{h, h.serveRepoTag})
-	r.Get(vcsclient.RouteRepoTags).Handler(handler{h, h.serveRepoTags})
-	r.Get(vcsclient.RouteRepoTreeEntry).Handler(handler{h, h.serveRepoTreeEntry})
+	r.Get(git.RouteGitInfoRefs).Handler(handler(h.serveInfoRefs))
+	r.Get(git.RouteGitUploadPack).Handler(handler(h.serveUploadPack))
+	r.Get(git.RouteGitReceivePack).Handler(handler(h.serveReceivePack))
+
+	r.Get(vcsclient.RouteRoot).Handler(handler(h.serveRoot))
+	r.Get(vcsclient.RouteRepo).Handler(handler(h.serveRepo))
+	r.Get(vcsclient.RouteRepoCreateOrUpdate).Handler(handler(h.serveRepoCreateOrUpdate))
+	r.Get(vcsclient.RouteRepoBlameFile).Handler(handler(h.serveRepoBlameFile))
+	r.Get(vcsclient.RouteRepoBranch).Handler(handler(h.serveRepoBranch))
+	r.Get(vcsclient.RouteRepoBranches).Handler(handler(h.serveRepoBranches))
+	r.Get(vcsclient.RouteRepoCommit).Handler(handler(h.serveRepoCommit))
+	r.Get(vcsclient.RouteRepoCommits).Handler(handler(h.serveRepoCommits))
+	r.Get(vcsclient.RouteRepoDiff).Handler(handler(h.serveRepoDiff))
+	r.Get(vcsclient.RouteRepoCrossRepoDiff).Handler(handler(h.serveRepoCrossRepoDiff))
+	r.Get(vcsclient.RouteRepoMergeBase).Handler(handler(h.serveRepoMergeBase))
+	r.Get(vcsclient.RouteRepoCrossRepoMergeBase).Handler(handler(h.serveRepoCrossRepoMergeBase))
+	r.Get(vcsclient.RouteRepoSearch).Handler(handler(h.serveRepoSearch))
+	r.Get(vcsclient.RouteRepoRevision).Handler(handler(h.serveRepoRevision))
+	r.Get(vcsclient.RouteRepoTag).Handler(handler(h.serveRepoTag))
+	r.Get(vcsclient.RouteRepoTags).Handler(handler(h.serveRepoTags))
+	r.Get(vcsclient.RouteRepoTreeEntry).Handler(handler(h.serveRepoTreeEntry))
 
 	return h
 }
@@ -75,20 +82,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	(*mux.Router)(h.router).ServeHTTP(w, r)
 }
 
-type handler struct {
+type robustHandlerFunc func(w http.ResponseWriter, r *http.Request) error
+
+type robustHandler struct {
 	h           *Handler
-	handlerFunc func(w http.ResponseWriter, r *http.Request) error
+	handlerFunc robustHandlerFunc
 }
 
-// handler wraps f to handle errors it returns.
-func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := h.handlerFunc(w, r)
-	if err != nil {
-		c := errorHTTPStatusCode(err)
-		h.h.Log.Printf("HTTP %d error serving %q: %s.", c, r.URL.RequestURI(), err)
-		w.Header().Set("cache-control", "no-cache, max-age=0") // don't cache errors
-		http.Error(w, errorBody(h.h.Debug, err), c)
+// robust handler wraps f to handle errors it returns.
+func (h robustHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	innerHandler := func (w http.ResponseWriter, r *http.Request) {
+		err := h.handlerFunc(w, r)
+		if err != nil {
+			c := errorHTTPStatusCode(err)
+			h.h.Log.Printf("HTTP %d error serving %q: %s.", c, r.URL.RequestURI(), err)
+			w.Header().Set("cache-control", "no-cache, max-age=0") // don't cache errors
+			http.Error(w, errorBody(h.h.Debug, err), c)
+		}
 	}
+	FuncWithMiddleware(innerHandler, h.h.middleware...)(w, r)
 }
 
 // errorBody formats an error message for the HTTP response.
