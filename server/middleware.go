@@ -4,6 +4,7 @@ import "net/http"
 
 type Middleware func(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 
+// FuncWithMiddleware returns an HTTP Handler function which wraps a handler function h with middlewares mw.
 func FuncWithMiddleware(h http.HandlerFunc, mw ...Middleware) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if len(mw) >= 2 {
