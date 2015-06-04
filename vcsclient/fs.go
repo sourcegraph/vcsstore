@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 
 	"sort"
 
@@ -161,16 +162,12 @@ func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*Fi
 	fwr := FileWithRange{TreeEntry: e}
 
 	if fi.Mode().IsDir() {
-		entries, err := fs.ReadDir(path)
+		ee, err := readDir(fs, path, opt.Recursive)
 		if err != nil {
 			return nil, err
 		}
-
-		e.Entries = make([]*TreeEntry, len(entries))
-		for i, fi := range entries {
-			e.Entries[i] = newTreeEntry(fi)
-		}
-		sort.Sort(TreeEntriesByTypeByName(e.Entries))
+		sort.Sort(TreeEntriesByTypeByName(ee))
+		e.Entries = ee
 	} else if fi.Mode().IsRegular() {
 		f, err := fs.Open(path)
 		if err != nil {
@@ -198,6 +195,28 @@ func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*Fi
 	}
 
 	return &fwr, nil
+}
+
+// readDir uses the passed vfs.FileSystem to read from starting at the base path. If
+// shouldRecurse is set to true, it will recurse into all sub-folders and return the
+// full sub-tree.
+func readDir(fs vfs.FileSystem, base string, shouldRecurse bool) ([]*TreeEntry, error) {
+	entries, err := fs.ReadDir(base)
+	if err != nil {
+		return nil, err
+	}
+	te := make([]*TreeEntry, len(entries))
+	for i, fi := range entries {
+		te[i] = newTreeEntry(fi)
+		if fi.Mode().IsDir() && shouldRecurse {
+			ee, err := readDir(fs, path.Join(base, fi.Name()), true)
+			if err != nil {
+				return nil, err
+			}
+			te[i].Entries = ee
+		}
+	}
+	return te, nil
 }
 
 func newTreeEntry(fi os.FileInfo) *TreeEntry {

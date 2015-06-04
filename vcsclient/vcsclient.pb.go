@@ -31,19 +31,19 @@ const (
 	SymlinkEntry TreeEntryType = 2
 )
 
-var TreeEntryType_name = map[int32]string{
+var name = map[int32]string{
 	0: "FileEntry",
 	1: "DirEntry",
 	2: "SymlinkEntry",
 }
-var TreeEntryType_value = map[string]int32{
+var value = map[string]int32{
 	"FileEntry":    0,
 	"DirEntry":     1,
 	"SymlinkEntry": 2,
 }
 
 func (x TreeEntryType) String() string {
-	return proto.EnumName(TreeEntryType_name, int32(x))
+	return proto.EnumName(name, int32(x))
 }
 
 // FileRange is a line and byte range in a file.
@@ -78,6 +78,10 @@ type GetFileOptions struct {
 	// the nearest line boundaries on both sides. It is only valid if StartByte and
 	// EndByte are specified.
 	FullLines bool `protobuf:"varint,4,opt,name=full_lines,proto3" json:"full_lines,omitempty" url:",omitempty"`
+	// Recursive only applies if the returned entry is a directory. It will
+	// return the full file tree of the host repository, recursing into all
+	// sub-directories.
+	Recursive bool `protobuf:"varint,5,opt,name=recursive,proto3" json:"recursive,omitempty" url:",omitempty"`
 }
 
 func (m *GetFileOptions) Reset()         { *m = GetFileOptions{} }
@@ -112,5 +116,5 @@ func (m *TreeEntry) GetEntries() []*TreeEntry {
 }
 
 func init() {
-	proto.RegisterEnum("vcsclient.TreeEntryType", TreeEntryType_name, TreeEntryType_value)
+	proto.RegisterEnum("vcsclient.TreeEntryType", name, value)
 }

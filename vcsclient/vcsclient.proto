@@ -38,6 +38,11 @@ message GetFileOptions {
 	// the nearest line boundaries on both sides. It is only valid if StartByte and
 	// EndByte are specified.
 	bool full_lines = 4 [(gogoproto.moretags) = "url:\",omitempty\""];
+
+	// Recursive only applies if the returned entry is a directory. It will
+	// return the full file tree of the host repository, recursing into all
+	// sub-directories.
+	bool recursive = 5 [(gogoproto.moretags) = "url:\",omitempty\""];
 }
 
 enum TreeEntryType {
