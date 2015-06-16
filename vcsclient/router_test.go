@@ -37,6 +37,11 @@ func TestMatch(t *testing.T) {
 			wantRouteName: RouteRepo,
 			wantVars:      map[string]string{"RepoPath": repoPath},
 		},
+		{
+			path:          "/myrepo",
+			wantRouteName: RouteRepo,
+			wantVars:      map[string]string{"RepoPath": "myrepo"},
+		},
 
 		// Repo revisions
 		{

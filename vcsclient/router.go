@@ -44,7 +44,7 @@ func NewRouter(parent *muxpkg.Router) *Router {
 
 	parent.Path("/").Methods("GET").Name(RouteRoot)
 
-	const repoURIPattern = "(?:[^./][^/]*)(?:/[^./][^/]*){1,}"
+	const repoURIPattern = "(?:[^./][^/]*)(?:/[^./][^/]*)*"
 
 	repoPath := "/{RepoPath:" + repoURIPattern + "}"
 	parent.Path(repoPath).Methods("GET").Name(RouteRepo)
