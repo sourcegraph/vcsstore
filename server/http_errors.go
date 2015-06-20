@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"os"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
@@ -31,6 +32,9 @@ func errorHTTPStatusCode(err error) int {
 	}
 	if err, ok := err.(httpStatusCoder); ok {
 		return err.httpStatusCode()
+	}
+	if os.IsNotExist(err) {
+		return http.StatusNotFound
 	}
 	return http.StatusInternalServerError
 }
