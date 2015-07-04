@@ -2,12 +2,14 @@ package vcsclient
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
+	"time"
 
 	"sort"
 
@@ -162,12 +164,37 @@ func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*Fi
 	fwr := FileWithRange{TreeEntry: e}
 
 	if fi.Mode().IsDir() {
-		ee, err := readDir(fs, path, opt.Recursive)
-		if err != nil {
-			return nil, err
+		var (
+			fis []os.FileInfo
+			ee  []*TreeEntry
+			err error
+		)
+		if !opt.Recursive {
+			fis, err = fs.ReadDir(path)
+			if err != nil {
+				return nil, err
+			}
+			sort.Sort(TreeEntriesByTypeByName(ee))
+			e.Entries = ee
+		} else {
+			fr, ok := fs.(interface {
+				ReadFiles(path string) ([]string, error)
+			})
+			if !ok {
+				return nil, errors.New("git ls-files unsupported by filesystem")
+			}
+			list, err := fr.ReadFiles(path)
+			if err != nil {
+				return nil, err
+			}
+			for _, l := range list {
+				fis = append(fis, blankFile(l))
+			}
 		}
-		sort.Sort(TreeEntriesByTypeByName(ee))
-		e.Entries = ee
+		ee = make([]*TreeEntry, len(fis))
+		for i, fi := range fis {
+			ee[i] = newTreeEntry(fi)
+		}
 	} else if fi.Mode().IsRegular() {
 		f, err := fs.Open(path)
 		if err != nil {
@@ -196,6 +223,17 @@ func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*Fi
 
 	return &fwr, nil
 }
+
+type blankFile string
+
+var _ os.FileInfo = (*blankFile)(nil)
+
+func (b blankFile) Name() string       { return string(b) }
+func (b blankFile) Size() int64        { return 0 }
+func (b blankFile) Mode() os.FileMode  { return os.ModePerm }
+func (b blankFile) ModTime() time.Time { return time.Now() }
+func (b blankFile) IsDir() bool        { return false }
+func (b blankFile) Sys() interface{}   { return nil }
 
 // readDir uses the passed vfs.FileSystem to read from starting at the base path. If
 // shouldRecurse is set to true, it will recurse into all sub-folders and return the
