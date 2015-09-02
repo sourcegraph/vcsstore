@@ -20,6 +20,7 @@ const (
 	RouteRepoBranches           = "vcs:repo.branches"
 	RouteRepoCommit             = "vcs:repo.commit"
 	RouteRepoCommits            = "vcs:repo.commits"
+	RouteRepoCommitters         = "vcs:repo.committers"
 	RouteRepoCreateOrUpdate     = "vcs:repo.create-or-update"
 	RouteRepoDiff               = "vcs:repo.diff"
 	RouteRepoCrossRepoDiff      = "vcs:repo.cross-repo-diff"
@@ -66,6 +67,7 @@ func NewRouter(parent *muxpkg.Router) *Router {
 	repo.Path("/.tags/{Tag:.+}").Methods("GET").Name(RouteRepoTag)
 	repo.Path("/.merge-base/{CommitIDA}/{CommitIDB}").Methods("GET").Name(RouteRepoMergeBase)
 	repo.Path("/.cross-repo-merge-base/{CommitIDA}/{BRepoPath:" + repoURIPattern + "}/{CommitIDB}").Methods("GET").Name(RouteRepoCrossRepoMergeBase)
+	repo.Path("/.committers").Methods("GET").Name(RouteRepoCommitters)
 	repo.Path("/.commits").Methods("GET").Name(RouteRepoCommits)
 	commitPath := "/.commits/{CommitID}"
 	repo.Path(commitPath).Methods("GET").Name(RouteRepoCommit)
@@ -174,6 +176,10 @@ func (r *Router) URLToRepoCommits(repoPath string, opt vcs.CommitsOptions) *url.
 	}
 	u.RawQuery = q.Encode()
 	return u
+}
+
+func (r *Router) URLToRepoCommitters(repoPath string) *url.URL {
+	return r.URLTo(RouteRepoCommitters, "RepoPath", repoPath)
 }
 
 func (r *Router) URLToRepoTreeEntry(repoPath string, commitID vcs.CommitID, path string) *url.URL {

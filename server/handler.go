@@ -64,6 +64,7 @@ func NewHandler(svc vcsstore.Service, gitTrans git.GitTransporter, parent *mux.R
 	r.Get(vcsclient.RouteRepoBranches).Handler(handler(h.serveRepoBranches))
 	r.Get(vcsclient.RouteRepoCommit).Handler(handler(h.serveRepoCommit))
 	r.Get(vcsclient.RouteRepoCommits).Handler(handler(h.serveRepoCommits))
+	r.Get(vcsclient.RouteRepoCommitters).Handler(handler(h.serveRepoCommitters))
 	r.Get(vcsclient.RouteRepoDiff).Handler(handler(h.serveRepoDiff))
 	r.Get(vcsclient.RouteRepoCrossRepoDiff).Handler(handler(h.serveRepoCrossRepoDiff))
 	r.Get(vcsclient.RouteRepoMergeBase).Handler(handler(h.serveRepoMergeBase))
@@ -91,7 +92,7 @@ type robustHandler struct {
 
 // robust handler wraps f to handle errors it returns.
 func (h robustHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	innerHandler := func (w http.ResponseWriter, r *http.Request) {
+	innerHandler := func(w http.ResponseWriter, r *http.Request) {
 		err := h.handlerFunc(w, r)
 		if err != nil {
 			c := errorHTTPStatusCode(err)

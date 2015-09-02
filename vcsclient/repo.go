@@ -240,6 +240,26 @@ func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 	return commits, uint(total), nil
 }
 
+func (r *repository) Committers() ([]*vcs.Committer, error) {
+	url, err := r.url(RouteRepoCommitters, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := r.client.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var committers []*vcs.Committer
+	_, err = r.client.Do(req, &committers)
+	if err != nil {
+		return nil, err
+	}
+
+	return committers, nil
+}
+
 // FileSystem returns a vfs.FileSystem that accesses the repository tree. The
 // returned interface also satisfies vcsclient.FileSystem, which has an
 // additional Get method that is useful for fetching all information about an
