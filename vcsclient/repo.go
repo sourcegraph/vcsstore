@@ -240,7 +240,7 @@ func (r *repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 	return commits, uint(total), nil
 }
 
-func (r *repository) Committers() ([]*vcs.Committer, error) {
+func (r *repository) Committers(opt vcs.CommittersOptions) ([]*vcs.Committer, error) {
 	url, err := r.url(RouteRepoCommitters, nil, nil)
 	if err != nil {
 		return nil, err

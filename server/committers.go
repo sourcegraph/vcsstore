@@ -14,8 +14,11 @@ func (h *Handler) serveRepoCommitters(w http.ResponseWriter, r *http.Request) er
 	}
 	defer done()
 
+	// TODO: implement fetching CommittersOptions from the URL query string.
+	var opt vcs.CommittersOptions
+
 	type committers interface {
-		Committers() ([]*vcs.Committer, error)
+		Committers(vcs.CommittersOptions) ([]*vcs.Committer, error)
 	}
 	if repo, ok := repo.(committers); ok {
 		committers, err := repo.Committers(opt)
