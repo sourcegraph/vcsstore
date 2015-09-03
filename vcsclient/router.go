@@ -178,8 +178,14 @@ func (r *Router) URLToRepoCommits(repoPath string, opt vcs.CommitsOptions) *url.
 	return u
 }
 
-func (r *Router) URLToRepoCommitters(repoPath string) *url.URL {
-	return r.URLTo(RouteRepoCommitters, "RepoPath", repoPath)
+func (r *Router) URLToRepoCommitters(repoPath string, opt vcs.CommittersOptions) *url.URL {
+	u := r.URLTo(RouteRepoCommitters, "RepoPath", repoPath)
+	q, err := query.Values(opt)
+	if err != nil {
+		panic(err.Error())
+	}
+	u.RawQuery = q.Encode()
+	return u
 }
 
 func (r *Router) URLToRepoTreeEntry(repoPath string, commitID vcs.CommitID, path string) *url.URL {

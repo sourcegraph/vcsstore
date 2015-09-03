@@ -14,8 +14,10 @@ func (h *Handler) serveRepoCommitters(w http.ResponseWriter, r *http.Request) er
 	}
 	defer done()
 
-	// TODO: implement fetching CommittersOptions from the URL query string.
 	var opt vcs.CommittersOptions
+	if err := schemaDecoder.Decode(&opt, r.URL.Query()); err != nil {
+		return err
+	}
 
 	type committers interface {
 		Committers(vcs.CommittersOptions) ([]*vcs.Committer, error)
@@ -31,5 +33,5 @@ func (h *Handler) serveRepoCommitters(w http.ResponseWriter, r *http.Request) er
 		return writeJSON(w, committers)
 	}
 
-	return &httpError{http.StatusNotImplemented, fmt.Errorf("GetShortLog not yet implemented for %T", repo)}
+	return &httpError{http.StatusNotImplemented, fmt.Errorf("Committers not yet implemented for %T", repo)}
 }
