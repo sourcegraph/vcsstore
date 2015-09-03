@@ -39,7 +39,13 @@ type Repository interface {
 	// Commits returns all commits matching the options, as well as
 	// the total number of commits (the count of which is not subject
 	// to the N/Skip options).
+	//
+	// Optionally, the caller can request the total not to be computed,
+	// as this can be expensive for large branches.
 	Commits(CommitsOptions) (commits []*Commit, total uint, err error)
+
+	// Committers returns the per-author commit statistics of the repo.
+	Committers(CommittersOptions) ([]*Committer, error)
 
 	// FileSystem opens the repository file tree at a given commit ID.
 	//
@@ -93,6 +99,7 @@ type CrossRepoDiffer interface {
 }
 
 var (
+	ErrRefNotFound      = errors.New("ref not found")
 	ErrBranchNotFound   = errors.New("branch not found")
 	ErrCommitNotFound   = errors.New("commit not found")
 	ErrRevisionNotFound = errors.New("revision not found")
@@ -120,6 +127,18 @@ type CommitsOptions struct {
 
 	N    uint // limit the number of returned commits to this many (0 means no limit)
 	Skip uint // skip this many commits at the beginning
+
+	Path string // only commits modifying the given path are selected (optional)
+
+	NoTotal bool // avoid counting the total number of commits
+}
+
+// CommittersOptions specifies limits on the list of committers returned by
+// (Repository).Committers.
+type CommittersOptions struct {
+	N int // limit the number of returned committers, ordered by decreasing number of commits (0 means no limit)
+
+	Rev string // the rev for which committer stats will be fetched ("" means use the current revision)
 }
 
 // DiffOptions configures a diff.
@@ -141,6 +160,15 @@ type Branches []*Branch
 func (p Branches) Len() int           { return len(p) }
 func (p Branches) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p Branches) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// ByAuthorDate sorts by author date. Requires full commit information to be included.
+type ByAuthorDate []*Branch
+
+func (p ByAuthorDate) Len() int { return len(p) }
+func (p ByAuthorDate) Less(i, j int) bool {
+	return p[i].Commit.Author.Date.Time().Before(p[j].Commit.Author.Date.Time())
+}
+func (p ByAuthorDate) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
 type Tags []*Tag
 

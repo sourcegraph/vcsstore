@@ -7,7 +7,7 @@ import "sourcegraph.com/sqs/pbtypes/timestamp.proto";
 message Commit {
 	string id = 1 [(gogoproto.customname) = "ID", (gogoproto.customtype) = "CommitID"];
 	Signature author = 2 [(gogoproto.nullable) = false];
-	optional Signature committer = 3;
+	Signature committer = 3;
 	string message = 4;
 
 	// Parents are the commit IDs of this commit's parent commits.
@@ -28,8 +28,12 @@ message Branch {
 	// Head is the commit ID of this branch's head commit.
 	string head = 2 [(gogoproto.customtype) = "CommitID"];
 
+	// Commit optionally contains commit information for this branch's head commit.
+	// It is populated if IncludeCommit option is set.
+	Commit commit = 4;
+
 	// Counts optionally contains the commit counts relative to specified branch.
-	optional BehindAhead counts = 3;
+	BehindAhead counts = 3;
 }
 
 // BehindAhead is a set of behind/ahead counts.
@@ -41,11 +45,22 @@ message BehindAhead {
 // BranchesOptions specifies options for the list of branches returned by
 // (Repository).Branches.
 message BranchesOptions {
+	// MergedInto will cause the returned list to be restricted to only
+	// branches that were merged into this branch name.
+	string merged_into = 4 [(gogoproto.moretags) = "url:\",omitempty\""];
+
+	// IncludeCommit controls whether complete commit information is included.
+	bool include_commit = 2 [(gogoproto.moretags) = "url:\",omitempty\""];
+
 	// BehindAheadBranch specifies a branch name. If set to something other than blank
 	// string, then each returned branch will include a behind/ahead commit counts
 	// information against the specified base branch. If left blank, then branches will
 	// not include that information and their Counts will be nil.
 	string behind_ahead_branch = 1 [(gogoproto.moretags) = "url:\",omitempty\""];
+
+	// ContainsCommit filters the list of branches to only those that
+	// contain a specific commit ID (if set).
+	string contains_commit = 3 [(gogoproto.moretags) = "url:\",omitempty\""];
 }
 
 // A Tag is a VCS tag.
@@ -94,3 +109,9 @@ message SearchResult {
 	bytes match = 6;
 }
 
+// A Committer is a contributor to a repository.
+message Committer {
+	string name = 1;
+	string email = 2;
+	int32 commits = 3;
+}

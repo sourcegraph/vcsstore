@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,10 +21,17 @@ import (
 	"time"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs/internal"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs/util"
 	"sourcegraph.com/sqs/pbtypes"
 
 	"golang.org/x/tools/godoc/vfs"
+)
+
+var (
+	// logEntryPattern is the regexp pattern that matches entries in the output of
+	// the `git shortlog -sne` command.
+	logEntryPattern = regexp.MustCompile(`^\s*([0-9]+)\s+([A-Za-z]+(?:\s[A-Za-z]+)*)\s+<([A-Za-z@.]+)>\s*$`)
 )
 
 func init() {
@@ -49,14 +57,15 @@ func Open(dir string) (*Repository, error) {
 	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
 		// --resolve-git-dir checks to see if a path is a git directory
 		// (the directory with the actual git data files).
-		cmd := exec.Command("git", "rev-parse", "--resolve-git-dir", dir)
+		cmd := exec.Command("git", "rev-parse", "--resolve-git-dir", ".")
+		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
 			// dir does not contain ".git" and it is not a git data
 			// directory.
 			return nil, &os.PathError{
-				Op:   "Open",
-				Path: filepath.Join(dir, ".git"),
-				Err:  errors.New("Git repository not found."),
+				Op:   "Open git repo",
+				Path: dir,
+				Err:  os.ErrNotExist,
 			}
 		}
 	}
@@ -135,6 +144,14 @@ func (r *Repository) ResolveRevision(spec string) (vcs.CommitID, error) {
 	return vcs.CommitID(bytes.TrimSpace(stdout)), nil
 }
 
+func (r *Repository) ResolveRef(name string) (vcs.CommitID, error) {
+	commitID, err := r.ResolveRevision(name)
+	if err == vcs.ErrRevisionNotFound {
+		return "", vcs.ErrRefNotFound
+	}
+	return commitID, nil
+}
+
 func (r *Repository) ResolveBranch(name string) (vcs.CommitID, error) {
 	commitID, err := r.ResolveRevision(name)
 	if err == vcs.ErrRevisionNotFound {
@@ -151,62 +168,122 @@ func (r *Repository) ResolveTag(name string) (vcs.CommitID, error) {
 	return commitID, nil
 }
 
-// branchCounts returns the behind/ahead commit counts information for branch, against base branch.
-func (r *Repository) branchCounts(branch, base string) (behind, ahead uint, err error) {
-	if err := checkSpecArgSafety(branch); err != nil {
-		return 0, 0, err
-	}
-	if err := checkSpecArgSafety(base); err != nil {
-		return 0, 0, err
-	}
+// branchFilter is a filter for branch names.
+// If not empty, only contained branch names are allowed. If empty, all names are allowed.
+// The map should be made so it's not nil.
+type branchFilter map[string]struct{}
 
-	cmd := exec.Command("git", "rev-list", "--count", "--left-right", fmt.Sprintf("refs/heads/%s...refs/heads/%s", base, branch))
-	cmd.Dir = r.Dir
-	out, err := cmd.Output()
-	if err != nil {
-		return 0, 0, err
+// allows will return true if the current filter set-up validates against
+// the passed string. If there are no filters, all strings pass.
+func (f branchFilter) allows(name string) bool {
+	if len(f) == 0 {
+		return true
 	}
-	behindAhead := strings.Split(strings.TrimSuffix(string(out), "\n"), "\t")
-	b, err := strconv.ParseUint(behindAhead[0], 10, 0)
-	if err != nil {
-		return 0, 0, err
+	_, ok := f[name]
+	return ok
+}
+
+// add adds a slice of strings to the filter.
+func (f branchFilter) add(list []string) {
+	for _, l := range list {
+		f[l] = struct{}{}
 	}
-	a, err := strconv.ParseUint(behindAhead[1], 10, 0)
-	if err != nil {
-		return 0, 0, err
-	}
-	return uint(b), uint(a), nil
 }
 
 func (r *Repository) Branches(opt vcs.BranchesOptions) ([]*vcs.Branch, error) {
 	r.editLock.RLock()
 	defer r.editLock.RUnlock()
 
+	f := make(branchFilter)
+	if opt.MergedInto != "" {
+		b, err := r.branches("--merged", opt.MergedInto)
+		if err != nil {
+			return nil, err
+		}
+		f.add(b)
+	}
+	if opt.ContainsCommit != "" {
+		b, err := r.branches("--contains=" + opt.ContainsCommit)
+		if err != nil {
+			return nil, err
+		}
+		f.add(b)
+	}
+
 	refs, err := r.showRef("--heads")
 	if err != nil {
 		return nil, err
 	}
 
-	branches := make([]*vcs.Branch, len(refs))
-	for i, ref := range refs {
-		branches[i] = &vcs.Branch{
-			Name: strings.TrimPrefix(ref[1], "refs/heads/"),
-			Head: vcs.CommitID(ref[0]),
+	var branches []*vcs.Branch
+	for _, ref := range refs {
+		name := strings.TrimPrefix(ref[1], "refs/heads/")
+		id := vcs.CommitID(ref[0])
+		if !f.allows(name) {
+			continue
 		}
-	}
 
-	// Fetch behind/ahead counts for each branch.
-	if opt.BehindAheadBranch != "" {
-		for i, branch := range branches {
-			behind, ahead, err := r.branchCounts(branch.Name, opt.BehindAheadBranch)
+		branch := &vcs.Branch{Name: name, Head: id}
+		if opt.IncludeCommit {
+			branch.Commit, err = r.getCommit(id)
 			if err != nil {
 				return nil, err
 			}
-			branches[i].Counts = &vcs.BehindAhead{Behind: uint32(behind), Ahead: uint32(ahead)}
 		}
+		if opt.BehindAheadBranch != "" {
+			branch.Counts, err = r.branchesBehindAhead(name, opt.BehindAheadBranch)
+			if err != nil {
+				return nil, err
+			}
+		}
+		branches = append(branches, branch)
+	}
+	return branches, nil
+}
+
+// branches runs the `git branch` command followed by the given arguments and
+// returns the list of branches if successful.
+func (r *Repository) branches(args ...string) ([]string, error) {
+	cmd := exec.Command("git", append([]string{"branch"}, args...)...)
+	cmd.Dir = r.Dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("exec %v in %s failed: %v (output follows)\n\n%s", cmd.Args, cmd.Dir, err, out)
+	}
+	lines := strings.Split(string(out), "\n")
+	lines = lines[:len(lines)-1]
+	branches := make([]string, len(lines))
+	for i, line := range lines {
+		branches[i] = line[2:]
+	}
+	return branches, nil
+}
+
+// branchesBehindAhead returns the behind/ahead commit counts information for branch, against base branch.
+func (r *Repository) branchesBehindAhead(branch, base string) (*vcs.BehindAhead, error) {
+	if err := checkSpecArgSafety(branch); err != nil {
+		return nil, err
+	}
+	if err := checkSpecArgSafety(base); err != nil {
+		return nil, err
 	}
 
-	return branches, nil
+	cmd := exec.Command("git", "rev-list", "--count", "--left-right", fmt.Sprintf("refs/heads/%s...refs/heads/%s", base, branch))
+	cmd.Dir = r.Dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	behindAhead := strings.Split(strings.TrimSuffix(string(out), "\n"), "\t")
+	b, err := strconv.ParseUint(behindAhead[0], 10, 0)
+	if err != nil {
+		return nil, err
+	}
+	a, err := strconv.ParseUint(behindAhead[1], 10, 0)
+	if err != nil {
+		return nil, err
+	}
+	return &vcs.BehindAhead{Behind: uint32(b), Ahead: uint32(a)}, nil
 }
 
 func (r *Repository) Tags() ([]*vcs.Tag, error) {
@@ -276,15 +353,13 @@ func exitStatus(err error) int {
 	return 0
 }
 
-func (r *Repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
-	r.editLock.RLock()
-	defer r.editLock.RUnlock()
-
+// getCommit returns the commit with the given id. The caller must be holding r.editLock.
+func (r *Repository) getCommit(id vcs.CommitID) (*vcs.Commit, error) {
 	if err := checkSpecArgSafety(string(id)); err != nil {
 		return nil, err
 	}
 
-	commits, _, err := r.commitLog(vcs.CommitsOptions{Head: id, N: 1})
+	commits, _, err := r.commitLog(vcs.CommitsOptions{Head: id, N: 1, NoTotal: true})
 	if err != nil {
 		return nil, err
 	}
@@ -294,6 +369,13 @@ func (r *Repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
 	}
 
 	return commits[0], nil
+}
+
+func (r *Repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
+	r.editLock.RLock()
+	defer r.editLock.RUnlock()
+
+	return r.getCommit(id)
 }
 
 func (r *Repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error) {
@@ -318,6 +400,10 @@ func isInvalidRevisionRangeError(output, obj string) bool {
 	return strings.HasPrefix(output, "fatal: Invalid revision range "+obj)
 }
 
+// commitLog returns a list of commits, and total number of commits
+// starting from Head until Base or beginning of branch (unless NoTotal is true).
+//
+// The caller is responsible for doing checkSpecArgSafety on opt.Head and opt.Base.
 func (r *Repository) commitLog(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error) {
 	args := []string{"log", `--format=format:%H%x00%aN%x00%aE%x00%at%x00%cN%x00%cE%x00%ct%x00%B%x00%P%x00`}
 	if opt.N != 0 {
@@ -327,12 +413,20 @@ func (r *Repository) commitLog(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, err
 		args = append(args, "--skip="+strconv.FormatUint(uint64(opt.Skip), 10))
 	}
 
+	if opt.Path != "" {
+		args = append(args, "--follow")
+	}
+
 	// Range
 	rng := string(opt.Head)
 	if opt.Base != "" {
 		rng += "..." + string(opt.Base)
 	}
 	args = append(args, rng)
+
+	if opt.Path != "" {
+		args = append(args, "--", opt.Path)
+	}
 
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
@@ -384,19 +478,31 @@ func (r *Repository) commitLog(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, err
 	}
 
 	// Count commits.
-	cmd = exec.Command("git", "rev-list", "--count", rng)
-	cmd.Dir = r.Dir
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		return nil, 0, fmt.Errorf("exec `git rev-list --count` failed: %s. Output was:\n\n%s", err, out)
-	}
-	out = bytes.TrimSpace(out)
-	total, err := strconv.ParseUint(string(out), 10, 64)
-	if err != nil {
-		return nil, 0, err
+	var total uint
+	if !opt.NoTotal {
+		cmd = exec.Command("git", "rev-list", "--count", rng)
+		if opt.Path != "" {
+			// This doesn't include --follow flag because rev-list doesn't support it, so the number may be slightly off.
+			cmd.Args = append(cmd.Args, "--", opt.Path)
+		}
+		cmd.Dir = r.Dir
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			return nil, 0, fmt.Errorf("exec `git rev-list --count` failed: %s. Output was:\n\n%s", err, out)
+		}
+		out = bytes.TrimSpace(out)
+		total, err = parseUint(string(out))
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
-	return commits, uint(total), nil
+	return commits, total, nil
+}
+
+func parseUint(s string) (uint, error) {
+	n, err := strconv.ParseUint(s, 10, 64)
+	return uint(n), err
 }
 
 func (r *Repository) Diff(base, head vcs.CommitID, opt *vcs.DiffOptions) (*vcs.Diff, error) {
@@ -500,21 +606,19 @@ func (r *Repository) UpdateEverything(opt vcs.RemoteOpts) error {
 	cmd.Dir = r.Dir
 
 	if opt.SSH != nil {
-		if opt.SSH != nil {
-			gitSSHWrapper, keyFile, err := makeGitSSHWrapper(opt.SSH.PrivateKey)
-			defer func() {
-				if keyFile != "" {
-					if err := os.Remove(keyFile); err != nil {
-						log.Fatalf("Error removing SSH key file %s: %s.", keyFile, err)
-					}
+		gitSSHWrapper, keyFile, err := makeGitSSHWrapper(opt.SSH.PrivateKey)
+		defer func() {
+			if keyFile != "" {
+				if err := os.Remove(keyFile); err != nil {
+					log.Fatalf("Error removing SSH key file %s: %s.", keyFile, err)
 				}
-			}()
-			if err != nil {
-				return err
 			}
-			defer os.Remove(gitSSHWrapper)
-			cmd.Env = []string{"GIT_SSH=" + gitSSHWrapper}
+		}()
+		if err != nil {
+			return err
 		}
+		defer os.Remove(gitSSHWrapper)
+		cmd.Env = []string{"GIT_SSH=" + gitSSHWrapper}
 	}
 
 	out, err := cmd.CombinedOutput()
@@ -697,7 +801,7 @@ func (r *Repository) Search(at vcs.CommitID, opt vcs.SearchOptions) ([]*vcs.Sear
 		return nil, fmt.Errorf("unrecognized QueryType: %q", opt.QueryType)
 	}
 
-	cmd := exec.Command("git", "grep", "--null", "--line-number", "--no-color", "--context", strconv.Itoa(int(opt.ContextLines)), queryType, "-e", opt.Query, string(at))
+	cmd := exec.Command("git", "grep", "--null", "--line-number", "-I", "--no-color", "--context", strconv.Itoa(int(opt.ContextLines)), queryType, "-e", opt.Query, string(at))
 	cmd.Dir = r.Dir
 	cmd.Stderr = os.Stderr
 	out, err := cmd.StdoutPipe()
@@ -791,6 +895,45 @@ func (r *Repository) Search(at vcs.CommitID, opt vcs.SearchOptions) ([]*vcs.Sear
 	return res, err
 }
 
+func (r *Repository) Committers(opt vcs.CommittersOptions) ([]*vcs.Committer, error) {
+	r.editLock.RLock()
+	defer r.editLock.RUnlock()
+
+	if opt.Rev == "" {
+		opt.Rev = "HEAD"
+	}
+
+	cmd := exec.Command("git", "shortlog", "-sne", opt.Rev)
+	cmd.Dir = r.Dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("exec `git shortlog -sne` failed: %v", err)
+	}
+	out = bytes.TrimSpace(out)
+
+	allEntries := bytes.Split(out, []byte{'\n'})
+	numEntries := len(allEntries)
+	if opt.N > 0 && numEntries > opt.N {
+		numEntries = opt.N
+	}
+	var committers []*vcs.Committer
+	for i := 0; i < numEntries; i++ {
+		line := string(allEntries[i])
+		if match := logEntryPattern.FindStringSubmatch(line); match != nil {
+			commits, err2 := strconv.Atoi(match[1])
+			if err2 != nil {
+				continue
+			}
+			committers = append(committers, &vcs.Committer{
+				Commits: int32(commits),
+				Name:    match[2],
+				Email:   match[3],
+			})
+		}
+	}
+	return committers, nil
+}
+
 func (r *Repository) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
 	if err := checkSpecArgSafety(string(at)); err != nil {
 		return nil, err
@@ -812,6 +955,7 @@ type gitFSCmd struct {
 }
 
 func (fs *gitFSCmd) Open(name string) (vfs.ReadSeekCloser, error) {
+	name = internal.Rel(name)
 	fs.repoEditLock.RLock()
 	defer fs.repoEditLock.RUnlock()
 	b, err := fs.readFileBytes(name)
@@ -826,7 +970,7 @@ func (fs *gitFSCmd) readFileBytes(name string) ([]byte, error) {
 	cmd.Dir = fs.dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if bytes.Contains(out, []byte("exists on disk, but not in")) {
+		if bytes.Contains(out, []byte("exists on disk, but not in")) || bytes.Contains(out, []byte("does not exist")) {
 			return nil, &os.PathError{Op: "open", Path: name, Err: os.ErrNotExist}
 		}
 		if bytes.HasPrefix(out, []byte("fatal: bad object ")) {
@@ -850,7 +994,7 @@ func (fs *gitFSCmd) Lstat(path string) (os.FileInfo, error) {
 	fs.repoEditLock.RLock()
 	defer fs.repoEditLock.RUnlock()
 
-	path = filepath.Clean(path)
+	path = filepath.Clean(internal.Rel(path))
 
 	if path == "." {
 		// Special case root, which is not returned by `git ls-tree`.
@@ -895,6 +1039,8 @@ func (fs *gitFSCmd) getModTimeFromGitLog(path string) (time.Time, error) {
 }
 
 func (fs *gitFSCmd) Stat(path string) (os.FileInfo, error) {
+	path = internal.Rel(path)
+
 	fs.repoEditLock.RLock()
 	defer fs.repoEditLock.RUnlock()
 
@@ -922,13 +1068,11 @@ func (fs *gitFSCmd) ReadDir(path string) ([]os.FileInfo, error) {
 	defer fs.repoEditLock.RUnlock()
 	// Trailing slash is necessary to ls-tree under the dir (not just
 	// to list the dir's tree entry in its parent dir).
-	return fs.lsTree(filepath.Clean(path) + "/")
+	return fs.lsTree(filepath.Clean(internal.Rel(path)) + "/")
 }
 
+// lsTree returns ls of tree at path. The caller must be holding fs.repoEditLock.RLock().
 func (fs *gitFSCmd) lsTree(path string) ([]os.FileInfo, error) {
-	fs.repoEditLock.RLock()
-	defer fs.repoEditLock.RUnlock()
-
 	// Don't call filepath.Clean(path) because ReadDir needs to pass
 	// path with a trailing slash.
 
@@ -1013,12 +1157,12 @@ func (fs *gitFSCmd) lsTree(path string) ([]os.FileInfo, error) {
 			mode = mode | vcs.ModeSubmodule
 			cmd := exec.Command("git", "config", "--get", "submodule."+name+".url")
 			cmd.Dir = fs.dir
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				return nil, fmt.Errorf("invalid `git config` output: %q", out)
+			url := "" // url is not available if submodules are not initialized
+			if out, err := cmd.Output(); err == nil {
+				url = string(bytes.TrimSpace(out))
 			}
 			sys = vcs.SubmoduleInfo{
-				URL:      string(bytes.TrimSpace(out)),
+				URL:      url,
 				CommitID: vcs.CommitID(oid),
 			}
 		case "tree":

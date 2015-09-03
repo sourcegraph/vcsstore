@@ -54,7 +54,9 @@ func Clone(url, dir string, opt vcs.CloneOpt) (vcs.Repository, error) {
 	if cfs != nil {
 		defer cfs.run()
 	}
-	clopt.RemoteCallbacks = rc
+	if rc != nil {
+		clopt.FetchOptions = &git2go.FetchOptions{RemoteCallbacks: *rc}
+	}
 
 	u, err := git2go.Clone(url, dir, &clopt)
 	if err != nil {
@@ -73,7 +75,7 @@ func Clone(url, dir string, opt vcs.CloneOpt) (vcs.Repository, error) {
 
 func (r *Repository) UpdateEverything(opt vcs.RemoteOpts) error {
 	// TODO(sqs): allow use of a remote other than "origin"
-	rm, err := r.u.LookupRemote("origin")
+	rm, err := r.u.Remotes.Lookup("origin")
 	if err != nil {
 		return err
 	}
@@ -85,11 +87,12 @@ func (r *Repository) UpdateEverything(opt vcs.RemoteOpts) error {
 	if cfs != nil {
 		defer cfs.run()
 	}
+	var opts git2go.FetchOptions
 	if rc != nil {
-		rm.SetCallbacks(rc)
+		opts.RemoteCallbacks = *rc
 	}
 
-	if err := rm.Fetch([]string{"+refs/*:refs/*"}, ""); err != nil {
+	if err := rm.Fetch([]string{"+refs/*:refs/*"}, &opts, ""); err != nil {
 		return err
 	}
 

@@ -427,7 +427,91 @@ func TestRepository_Branches(t *testing.T) {
 	}
 }
 
-func TestRepository_BranchesCounts(t *testing.T) {
+func TestRepository_Branches_MergedInto(t *testing.T) {
+	t.Parallel()
+
+	gitCommands := []string{
+		"git checkout -b b0",
+		"echo 123 > some_other_file",
+		"git add some_other_file",
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -am foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -am foo --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+
+		"git checkout HEAD^ -b b1",
+		"git merge b0",
+	}
+
+	for label, test := range map[string]struct {
+		repo interface {
+			Branches(vcs.BranchesOptions) ([]*vcs.Branch, error)
+		}
+		wantBranches map[string][]*vcs.Branch
+	}{
+		"git cmd": {
+			repo: makeGitRepositoryCmd(t, gitCommands...),
+			wantBranches: map[string][]*vcs.Branch{
+				"b1": []*vcs.Branch{
+					{Name: "b0", Head: "6520a4539a4cb664537c712216a53d80dd79bbdc"},
+					{Name: "b1", Head: "6520a4539a4cb664537c712216a53d80dd79bbdc"},
+				},
+			},
+		},
+	} {
+		for branch, mergedInto := range test.wantBranches {
+			branches, err := test.repo.Branches(vcs.BranchesOptions{MergedInto: branch})
+			if err != nil {
+				t.Errorf("%s: Branches: %s", label, err)
+				continue
+			}
+			if !reflect.DeepEqual(branches, mergedInto) {
+				t.Errorf("%s: got branches == %v, want %v", label, asJSON(branches), asJSON(test.wantBranches))
+			}
+		}
+	}
+}
+
+func TestRepository_Branches_ContainsCommit(t *testing.T) {
+	t.Parallel()
+
+	gitCommands := []string{
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m base --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m master --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+		"git checkout HEAD^ -b branch2",
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m branch2 --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+	}
+
+	tests := map[string]struct {
+		repo interface {
+			Branches(vcs.BranchesOptions) ([]*vcs.Branch, error)
+		}
+		commitToWantBranches map[string][]*vcs.Branch
+	}{
+		"git cmd": {
+			repo: makeGitRepositoryCmd(t, gitCommands...),
+			commitToWantBranches: map[string][]*vcs.Branch{
+				"920c0e9d7b287b030ac9770fd7ba3ee9dc1760d9": []*vcs.Branch{{Name: "branch2", Head: "920c0e9d7b287b030ac9770fd7ba3ee9dc1760d9"}},
+				"1224d334dfe08f4693968ea618ad63ae86ec16ca": []*vcs.Branch{{Name: "master", Head: "1224d334dfe08f4693968ea618ad63ae86ec16ca"}},
+				"2816a72df28f699722156e545d038a5203b959de": []*vcs.Branch{{Name: "master", Head: "1224d334dfe08f4693968ea618ad63ae86ec16ca"}, {Name: "branch2", Head: "920c0e9d7b287b030ac9770fd7ba3ee9dc1760d9"}},
+			},
+		},
+	}
+
+	for label, test := range tests {
+		for commit, wantBranches := range test.commitToWantBranches {
+			branches, err := test.repo.Branches(vcs.BranchesOptions{ContainsCommit: commit})
+			if err != nil {
+				t.Errorf("%s: Branches: %s", label, err)
+				continue
+			}
+
+			if !reflect.DeepEqual(branches, wantBranches) {
+				t.Errorf("%s: got branches == %v, want %v", label, asJSON(branches), asJSON(wantBranches))
+			}
+		}
+	}
+}
+
+func TestRepository_Branches_BehindAheadCounts(t *testing.T) {
 	t.Parallel()
 
 	gitCommands := []string{
@@ -463,6 +547,60 @@ func TestRepository_BranchesCounts(t *testing.T) {
 
 	for label, test := range tests {
 		branches, err := test.repo.Branches(vcs.BranchesOptions{BehindAheadBranch: "master"})
+		if err != nil {
+			t.Errorf("%s: Branches: %s", label, err)
+			continue
+		}
+
+		if !reflect.DeepEqual(branches, test.wantBranches) {
+			t.Errorf("%s: got branches == %v, want %v", label, asJSON(branches), asJSON(test.wantBranches))
+		}
+	}
+}
+
+func TestRepository_Branches_IncludeCommit(t *testing.T) {
+	t.Parallel()
+
+	gitCommands := []string{
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m foo0 --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+		"git checkout -b b0",
+		"GIT_COMMITTER_NAME=b GIT_COMMITTER_EMAIL=b@b.com GIT_COMMITTER_DATE=2006-01-02T15:04:06Z git commit --allow-empty -m foo1 --author='b <b@b.com>' --date 2006-01-02T15:04:06Z",
+	}
+	tests := map[string]struct {
+		repo interface {
+			Branches(vcs.BranchesOptions) ([]*vcs.Branch, error)
+		}
+		wantBranches []*vcs.Branch
+	}{
+		"git cmd": {
+			repo: makeGitRepositoryCmd(t, gitCommands...),
+			wantBranches: []*vcs.Branch{
+				{
+					Name: "master", Head: "a3c1537db9797215208eec56f8e7c9c37f8358ca",
+					Commit: &vcs.Commit{
+						ID:        "a3c1537db9797215208eec56f8e7c9c37f8358ca",
+						Author:    vcs.Signature{"a", "a@a.com", mustParseTime(time.RFC3339, "2006-01-02T15:04:05Z")},
+						Committer: &vcs.Signature{"a", "a@a.com", mustParseTime(time.RFC3339, "2006-01-02T15:04:05Z")},
+						Message:   "foo0",
+						Parents:   nil,
+					},
+				},
+				{
+					Name: "b0", Head: "c4a53701494d1d788b1ceeb8bf32e90224962473",
+					Commit: &vcs.Commit{
+						ID:        "c4a53701494d1d788b1ceeb8bf32e90224962473",
+						Author:    vcs.Signature{"b", "b@b.com", mustParseTime(time.RFC3339, "2006-01-02T15:04:06Z")},
+						Committer: &vcs.Signature{"b", "b@b.com", mustParseTime(time.RFC3339, "2006-01-02T15:04:06Z")},
+						Message:   "foo1",
+						Parents:   []vcs.CommitID{"a3c1537db9797215208eec56f8e7c9c37f8358ca"},
+					},
+				},
+			},
+		},
+	}
+
+	for label, test := range tests {
+		branches, err := test.repo.Branches(vcs.BranchesOptions{IncludeCommit: true})
 		if err != nil {
 			t.Errorf("%s: Branches: %s", label, err)
 			continue
@@ -811,6 +949,84 @@ func TestRepository_Commits_options(t *testing.T) {
 			opt:         vcs.CommitsOptions{Head: "443def46748a0c02c312bb4fdc6231d6ede45f49", N: 1, Skip: 1},
 			wantCommits: wantHgCommits,
 			wantTotal:   3,
+		},
+	}
+
+	for label, test := range tests {
+		commits, total, err := test.repo.Commits(test.opt)
+		if err != nil {
+			t.Errorf("%s: Commits(): %s", label, err)
+			continue
+		}
+
+		if total != test.wantTotal {
+			t.Errorf("%s: got %d total commits, want %d", label, total, test.wantTotal)
+		}
+
+		if len(commits) != len(test.wantCommits) {
+			t.Errorf("%s: got %d commits, want %d", label, len(commits), len(test.wantCommits))
+		}
+
+		for i := 0; i < len(commits) || i < len(test.wantCommits); i++ {
+			var gotC, wantC *vcs.Commit
+			if i < len(commits) {
+				gotC = commits[i]
+			}
+			if i < len(test.wantCommits) {
+				wantC = test.wantCommits[i]
+			}
+			if !commitsEqual(gotC, wantC) {
+				t.Errorf("%s: got commit %d == %+v, want %+v", label, i, gotC, wantC)
+			}
+		}
+	}
+}
+
+func TestRepository_Commits_options_path(t *testing.T) {
+	t.Parallel()
+
+	gitCommands := []string{
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit --allow-empty -m commit1 --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+		"touch file1",
+		"touch --date=2006-01-02T15:04:05Z file1 || touch -t " + times[0] + " file1",
+		"git add file1",
+		"GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@a.com GIT_COMMITTER_DATE=2006-01-02T15:04:05Z git commit -m commit2 --author='a <a@a.com>' --date 2006-01-02T15:04:05Z",
+		"GIT_COMMITTER_NAME=c GIT_COMMITTER_EMAIL=c@c.com GIT_COMMITTER_DATE=2006-01-02T15:04:07Z git commit --allow-empty -m commit3 --author='a <a@a.com>' --date 2006-01-02T15:04:06Z",
+	}
+	wantGitCommits := []*vcs.Commit{
+		{
+			ID:        "546a3ef26e581624ef997cb8c0ba01ee475fc1dc",
+			Author:    vcs.Signature{"a", "a@a.com", mustParseTime(time.RFC3339, "2006-01-02T15:04:05Z")},
+			Committer: &vcs.Signature{"a", "a@a.com", mustParseTime(time.RFC3339, "2006-01-02T15:04:05Z")},
+			Message:   "commit2",
+			Parents:   []vcs.CommitID{"a04652fa1998a0a7d2f2f77ecb7021de943d3aab"},
+		},
+	}
+	tests := map[string]struct {
+		repo interface {
+			Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error)
+		}
+		opt         vcs.CommitsOptions
+		wantCommits []*vcs.Commit
+		wantTotal   uint
+	}{
+		"git cmd Path 0": {
+			repo: makeGitRepositoryCmd(t, gitCommands...),
+			opt: vcs.CommitsOptions{
+				Head: "master",
+				Path: "doesnt-exist",
+			},
+			wantCommits: nil,
+			wantTotal:   0,
+		},
+		"git cmd Path 1": {
+			repo: makeGitRepositoryCmd(t, gitCommands...),
+			opt: vcs.CommitsOptions{
+				Head: "master",
+				Path: "file1",
+			},
+			wantCommits: wantGitCommits,
+			wantTotal:   1,
 		},
 	}
 

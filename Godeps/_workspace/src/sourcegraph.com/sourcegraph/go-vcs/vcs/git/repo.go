@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/godoc/vfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs/gitcmd"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs/internal"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs/util"
 	"sourcegraph.com/sqs/pbtypes"
 )
@@ -67,6 +68,25 @@ func (r *Repository) ResolveRevision(spec string) (vcs.CommitID, error) {
 	return vcs.CommitID(o.Id().String()), nil
 }
 
+func (r *Repository) ResolveRef(name string) (vcs.CommitID, error) {
+	r.editLock.RLock()
+	defer r.editLock.RUnlock()
+
+	ref, err := r.u.References.Lookup(name)
+	if err != nil {
+		if e, ok := err.(*git2go.GitError); ok && e.Code == git2go.ErrNotFound {
+			return "", vcs.ErrRefNotFound
+		}
+		return "", err
+	}
+	commit, err := r.u.LookupCommit(ref.Target())
+	if err != nil {
+		return "", err
+	}
+	defer commit.Free()
+	return vcs.CommitID(commit.Id().String()), nil
+}
+
 func (r *Repository) ResolveBranch(name string) (vcs.CommitID, error) {
 	r.editLock.RLock()
 	defer r.editLock.RUnlock()
@@ -105,7 +125,11 @@ func (r *Repository) ResolveTag(name string) (vcs.CommitID, error) {
 	return "", vcs.ErrTagNotFound
 }
 
-func (r *Repository) Branches(_ vcs.BranchesOptions) ([]*vcs.Branch, error) {
+func (r *Repository) Branches(opt vcs.BranchesOptions) ([]*vcs.Branch, error) {
+	if opt.ContainsCommit != "" {
+		return nil, fmt.Errorf("vcs.BranchesOptions.ContainsCommit option not implemented")
+	}
+
 	r.editLock.RLock()
 	defer r.editLock.RUnlock()
 
@@ -189,8 +213,6 @@ func (r *Repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
 	return r.makeCommit(c), nil
 }
 
-var MaxCommits = 250
-
 func (r *Repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error) {
 	r.editLock.RLock()
 	defer r.editLock.RUnlock()
@@ -201,7 +223,7 @@ func (r *Repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 	}
 	defer walk.Free()
 
-	walk.Sorting(git2go.SortTopological)
+	walk.Sorting(git2go.SortTime)
 
 	oid, err := git2go.NewOid(string(opt.Head))
 	if err != nil {
@@ -234,10 +256,18 @@ func (r *Repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error
 			commits = append(commits, r.makeCommit(c))
 		}
 		total++
-		return total < uint(MaxCommits)
+		// If we want total, keep going until the end.
+		if !opt.NoTotal {
+			return true
+		}
+		// Otherwise return once N has been satisfied.
+		return (opt.N == 0 || uint(len(commits)) < opt.N)
 	})
 	if err != nil {
 		return nil, 0, err
+	}
+	if opt.NoTotal {
+		total = 0
 	}
 
 	return commits, total, nil
@@ -307,11 +337,11 @@ func (r *Repository) CrossRepoDiff(base vcs.CommitID, headRepo vcs.Repository, h
 // Callers must hold the r.editLock write lock.
 func (r *Repository) createAndFetchFromAnonRemote(repoDir string) (*git2go.Remote, error) {
 	name := base64.URLEncoding.EncodeToString([]byte(repoDir))
-	rem, err := r.u.CreateAnonymousRemote(repoDir, name)
+	rem, err := r.u.Remotes.CreateAnonymous(repoDir)
 	if err != nil {
 		return nil, err
 	}
-	if err := rem.Fetch([]string{"+refs/heads/*:refs/remotes/" + name + "/*"}, ""); err != nil {
+	if err := rem.Fetch([]string{"+refs/heads/*:refs/remotes/" + name + "/*"}, nil, ""); err != nil {
 		rem.Free()
 		return nil, err
 	}
@@ -593,6 +623,8 @@ func (fs *gitFSLibGit2) readFileBytes(name string) ([]byte, error) {
 }
 
 func (fs *gitFSLibGit2) Open(name string) (vfs.ReadSeekCloser, error) {
+	name = internal.Rel(name)
+
 	fs.repoEditLock.RLock()
 	defer fs.repoEditLock.RUnlock()
 
@@ -607,7 +639,7 @@ func (fs *gitFSLibGit2) Lstat(path string) (os.FileInfo, error) {
 	fs.repoEditLock.RLock()
 	defer fs.repoEditLock.RUnlock()
 
-	path = filepath.Clean(path)
+	path = filepath.Clean(internal.Rel(path))
 
 	mtime, err := fs.getModTime()
 	if err != nil {
@@ -636,7 +668,7 @@ func (fs *gitFSLibGit2) Stat(path string) (os.FileInfo, error) {
 	fs.repoEditLock.RLock()
 	defer fs.repoEditLock.RUnlock()
 
-	path = filepath.Clean(path)
+	path = filepath.Clean(internal.Rel(path))
 
 	mtime, err := fs.getModTime()
 	if err != nil {
@@ -695,7 +727,7 @@ func (fs *gitFSLibGit2) makeFileInfo(path string, e *git2go.TreeEntry) (*util.Fi
 	case git2go.ObjectTree:
 		return fs.dirInfo(e), nil
 	case git2go.ObjectCommit:
-		submod, err := fs.repo.LookupSubmodule(path)
+		submod, err := fs.repo.Submodules.Lookup(path)
 		if err != nil {
 			return nil, err
 		}
@@ -761,7 +793,7 @@ func (fs *gitFSLibGit2) ReadDir(path string) ([]os.FileInfo, error) {
 	fs.repoEditLock.RLock()
 	defer fs.repoEditLock.RUnlock()
 
-	path = filepath.Clean(path)
+	path = filepath.Clean(internal.Rel(path))
 
 	var subtree *git2go.Tree
 	if path == "." {

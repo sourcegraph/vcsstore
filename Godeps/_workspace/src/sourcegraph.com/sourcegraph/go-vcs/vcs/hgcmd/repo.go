@@ -18,6 +18,7 @@ import (
 
 	"sourcegraph.com/sourcegraph/go-diff/diff"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs/internal"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs/util"
 	"sourcegraph.com/sqs/pbtypes"
 
@@ -96,7 +97,11 @@ func (r *Repository) ResolveBranch(name string) (vcs.CommitID, error) {
 	return commitID, nil
 }
 
-func (r *Repository) Branches(_ vcs.BranchesOptions) ([]*vcs.Branch, error) {
+func (r *Repository) Branches(opt vcs.BranchesOptions) ([]*vcs.Branch, error) {
+	if opt.ContainsCommit != "" {
+		return nil, fmt.Errorf("vcs.BranchesOptions.ContainsCommit option not implemented")
+	}
+
 	refs, err := r.execAndParseCols("branches")
 	if err != nil {
 		return nil, err
@@ -167,7 +172,7 @@ func (r *Repository) execAndParseCols(subcmd string) ([][2]string, error) {
 }
 
 func (r *Repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
-	commits, _, err := r.commitLog(string(id), 1)
+	commits, _, err := r.commitLog(vcs.CommitsOptions{Head: id, N: 1, NoTotal: true})
 	if err != nil {
 		return nil, err
 	}
@@ -180,16 +185,7 @@ func (r *Repository) GetCommit(id vcs.CommitID) (*vcs.Commit, error) {
 }
 
 func (r *Repository) Commits(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error) {
-	head := string(opt.Head)
-	if opt.Skip != 0 {
-		head += "~" + strconv.FormatUint(uint64(opt.N), 10)
-	}
-	commits, total, err := r.commitLog(head, opt.N)
-
-	// Add back however many we skipped.
-	total += opt.Skip
-
-	return commits, total, err
+	return r.commitLog(opt)
 }
 
 var hgNullParentNodeID = []byte("0000000000000000000000000000000000000000")
@@ -198,10 +194,15 @@ func isUnknownRevisionError(output, revSpec string) bool {
 	return output == "abort: unknown revision '"+string(revSpec)+"'!"
 }
 
-func (r *Repository) commitLog(revSpec string, n uint) ([]*vcs.Commit, uint, error) {
+func (r *Repository) commitLog(opt vcs.CommitsOptions) ([]*vcs.Commit, uint, error) {
+	revSpec := string(opt.Head)
+	if opt.Skip != 0 {
+		revSpec += "~" + strconv.FormatUint(uint64(opt.N), 10)
+	}
+
 	args := []string{"log", `--template={node}\x00{author|person}\x00{author|email}\x00{date|rfc3339date}\x00{desc}\x00{p1node}\x00{p2node}\x00`}
-	if n != 0 {
-		args = append(args, "--limit", strconv.FormatUint(uint64(n), 10))
+	if opt.N != 0 {
+		args = append(args, "--limit", strconv.FormatUint(uint64(opt.N), 10))
 	}
 	args = append(args, "--rev="+revSpec+":0")
 
@@ -243,21 +244,32 @@ func (r *Repository) commitLog(revSpec string, n uint) ([]*vcs.Commit, uint, err
 		}
 	}
 
-	// Count.
-	cmd = exec.Command("hg", "id", "--num", "--rev="+revSpec)
-	cmd.Dir = r.Dir
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		return nil, 0, fmt.Errorf("exec `hg id --num` failed: %s. Output was:\n\n%s", err, out)
-	}
-	out = bytes.TrimSpace(out)
-	total, err := strconv.ParseUint(string(out), 10, 64)
-	if err != nil {
-		return nil, 0, err
-	}
-	total++ // sequence number is 1 less than total number of commits
+	// Count commits.
+	var total uint
+	if !opt.NoTotal {
+		cmd = exec.Command("hg", "id", "--num", "--rev="+revSpec)
+		cmd.Dir = r.Dir
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			return nil, 0, fmt.Errorf("exec `hg id --num` failed: %s. Output was:\n\n%s", err, out)
+		}
+		out = bytes.TrimSpace(out)
+		total, err = parseUint(string(out))
+		if err != nil {
+			return nil, 0, err
+		}
+		total++ // sequence number is 1 less than total number of commits
 
-	return commits, uint(total), nil
+		// Add back however many we skipped.
+		total += opt.Skip
+	}
+
+	return commits, total, nil
+}
+
+func parseUint(s string) (uint, error) {
+	n, err := strconv.ParseUint(s, 10, 64)
+	return uint(n), err
 }
 
 func (r *Repository) getParents(revSpec vcs.CommitID) ([]vcs.CommitID, error) {
@@ -408,6 +420,10 @@ func (r *Repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk,
 	return hunks, nil
 }
 
+func (r *Repository) Committers(opt vcs.CommittersOptions) ([]*vcs.Committer, error) {
+	return nil, fmt.Errorf("Committers() not implemented for vcs type: hg")
+}
+
 func (r *Repository) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
 	return &hgFSCmd{
 		dir: r.Dir,
@@ -421,6 +437,7 @@ type hgFSCmd struct {
 }
 
 func (fs *hgFSCmd) Open(name string) (vfs.ReadSeekCloser, error) {
+	name = internal.Rel(name)
 	cmd := exec.Command("hg", "cat", "--rev="+string(fs.at), "--", name)
 	cmd.Dir = fs.dir
 	out, err := cmd.CombinedOutput()
@@ -434,12 +451,13 @@ func (fs *hgFSCmd) Open(name string) (vfs.ReadSeekCloser, error) {
 }
 
 func (fs *hgFSCmd) Lstat(path string) (os.FileInfo, error) {
-	return fs.Stat(path)
+	return fs.Stat(internal.Rel(path))
 }
 
 func (fs *hgFSCmd) Stat(path string) (os.FileInfo, error) {
 	// TODO(sqs): follow symlinks (as Stat is required to do)
 
+	path = internal.Rel(path)
 	var mtime time.Time
 
 	cmd := exec.Command("hg", "log", "-l1", `--template={date|date}`,
@@ -483,7 +501,7 @@ func (fs *hgFSCmd) Stat(path string) (os.FileInfo, error) {
 }
 
 func (fs *hgFSCmd) ReadDir(path string) ([]os.FileInfo, error) {
-	path = filepath.Clean(path)
+	path = filepath.Clean(internal.Rel(path))
 	// This combination of --include and --exclude opts gets all the files in
 	// the dir specified by path, plus all files one level deeper (but no
 	// deeper). This lets us list the files *and* subdirs in the dir without
