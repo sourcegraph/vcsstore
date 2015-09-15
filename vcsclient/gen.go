@@ -1,4 +1,4 @@
 package vcsclient
 
-//go:generate protoc -I../../../.. -I../../../../github.com/gogo/protobuf/protobuf -I. --gogo_out=. vcsclient.proto
-//go:generate sed -i "s#\tTreeEntryType_#\t#g" vcsclient.pb.go
+//go:generate gopathexec protoc -I$GOPATH/src -I$GOPATH/src/github.com/gogo/protobuf/protobuf -I. --gogo_out=. vcsclient.proto
+//go:generate go run gen/goreplace.go -from "TreeEntryType_" -to "" vcsclient.pb.go
