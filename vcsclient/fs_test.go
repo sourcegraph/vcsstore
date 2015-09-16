@@ -5,8 +5,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
+
+	"golang.org/x/tools/godoc/vfs"
+	"sourcegraph.com/sqs/pbtypes"
 )
 
 func TestRepository_FileSystem_Open(t *testing.T) {
@@ -251,5 +255,179 @@ func TestRepository_FileSystem_GetFileWithOptions(t *testing.T) {
 
 	if !reflect.DeepEqual(e, want) {
 		t.Errorf("FileSystem.Get returned %+v, want %+v", e, want)
+	}
+}
+
+func TestGetFileWithOptions(t *testing.T) {
+	want := []*TreeEntry{
+		{
+			Name:    "a",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+		{
+			Name:    "d",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+		{
+			Name:    "g",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+		{
+			Name:    "f.txt",
+			Type:    FileEntry,
+			Size:    1,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+	}
+
+	fs := vfs.OS(filepath.Join("testdata", "fs_GetFileWithOptions"))
+
+	e, err := GetFileWithOptions(fs, "/", GetFileOptions{})
+	if err != nil {
+		t.Errorf("GetFileWithOptions returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(e.Entries, want) {
+		t.Errorf("GetFileWithOptions returned:\n%+v\nwant:\n%+v", e.Entries, want)
+	}
+}
+
+func TestGetFileWithOptions_recursive(t *testing.T) {
+	want := []*TreeEntry{
+		{
+			Name:    "a",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: []*TreeEntry{{
+				Name:    "b",
+				Type:    DirEntry,
+				Size:    102,
+				ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+				Entries: []*TreeEntry{{
+					Name:    "c",
+					Type:    DirEntry,
+					Size:    102,
+					ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+					Entries: []*TreeEntry{{
+						Name:    "z.txt",
+						Type:    FileEntry,
+						Size:    13,
+						ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+						Entries: nil,
+					}},
+				}},
+			}},
+		},
+		{
+			Name:    "d",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: []*TreeEntry{{
+				Name:    "e.txt",
+				Type:    FileEntry,
+				Size:    13,
+				ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+				Entries: nil,
+			}},
+		},
+		{
+			Name:    "g",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: []*TreeEntry{{
+				Name:    "h.txt",
+				Type:    FileEntry,
+				Size:    13,
+				ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+				Entries: nil,
+			}},
+		},
+		{
+			Name:    "f.txt",
+			Type:    FileEntry,
+			Size:    1,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+	}
+
+	fs := vfs.OS(filepath.Join("testdata", "fs_GetFileWithOptions"))
+
+	e, err := GetFileWithOptions(fs, "/", GetFileOptions{Recursive: true})
+	if err != nil {
+		t.Errorf("GetFileWithOptions returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(e.Entries, want) {
+		t.Errorf("GetFileWithOptions returned:\n%+v\nwant:\n%+v", e.Entries, want)
+	}
+}
+
+func TestGetFileWithOptions_recurseSingleSubfolder(t *testing.T) {
+	want := []*TreeEntry{
+		{
+			Name:    "a",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: []*TreeEntry{{
+				Name:    "b",
+				Type:    DirEntry,
+				Size:    102,
+				ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+				Entries: []*TreeEntry{{
+					Name:    "c",
+					Type:    DirEntry,
+					Size:    102,
+					ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+					Entries: nil,
+				}},
+			}},
+		},
+		{
+			Name:    "d",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+		{
+			Name:    "g",
+			Type:    DirEntry,
+			Size:    102,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+		{
+			Name:    "f.txt",
+			Type:    FileEntry,
+			Size:    1,
+			ModTime: pbtypes.Timestamp{Seconds: 1442377784},
+			Entries: nil,
+		},
+	}
+
+	fs := vfs.OS(filepath.Join("testdata", "fs_GetFileWithOptions"))
+
+	e, err := GetFileWithOptions(fs, "/", GetFileOptions{RecurseSingleSubfolder: true})
+	if err != nil {
+		t.Errorf("GetFileWithOptions returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(e.Entries, want) {
+		t.Errorf("GetFileWithOptions returned:\n%+v\nwant:\n%+v", e.Entries, want)
 	}
 }
