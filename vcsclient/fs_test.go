@@ -7,6 +7,9 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"golang.org/x/tools/godoc/vfs/mapfs"
+	"sourcegraph.com/sqs/pbtypes"
 )
 
 func TestRepository_FileSystem_Open(t *testing.T) {
@@ -251,5 +254,168 @@ func TestRepository_FileSystem_GetFileWithOptions(t *testing.T) {
 
 	if !reflect.DeepEqual(e, want) {
 		t.Errorf("FileSystem.Get returned %+v, want %+v", e, want)
+	}
+}
+
+var testGetFileWithOptionsFS = mapfs.New(map[string]string{
+	"a/b/c/z.txt": "file z.txt in a/b/c",
+	"d/e.txt":     "e in folder d",
+	"f.txt":       "f",
+	"g/h.txt":     "h in folder g",
+})
+var zeroTimestamp = pbtypes.Timestamp{Seconds: -62135596800} // Equivalent to time.Time{}.
+
+func TestGetFileWithOptions(t *testing.T) {
+	want := []*TreeEntry{
+		{
+			Name:    "a",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+		{
+			Name:    "d",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+		{
+			Name:    "g",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+		{
+			Name:    "f.txt",
+			Type:    FileEntry,
+			Size:    1,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+	}
+
+	e, err := GetFileWithOptions(testGetFileWithOptionsFS, "/", GetFileOptions{})
+	if err != nil {
+		t.Errorf("GetFileWithOptions returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(e.Entries, want) {
+		t.Errorf("GetFileWithOptions returned:\n%+v\nwant:\n%+v", e.Entries, want)
+	}
+}
+
+func TestGetFileWithOptions_recursive(t *testing.T) {
+	want := []*TreeEntry{
+		{
+			Name:    "a",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: []*TreeEntry{{
+				Name:    "b",
+				Type:    DirEntry,
+				ModTime: zeroTimestamp,
+				Entries: []*TreeEntry{{
+					Name:    "c",
+					Type:    DirEntry,
+					ModTime: zeroTimestamp,
+					Entries: []*TreeEntry{{
+						Name:    "z.txt",
+						Type:    FileEntry,
+						Size:    19,
+						ModTime: zeroTimestamp,
+						Entries: nil,
+					}},
+				}},
+			}},
+		},
+		{
+			Name:    "d",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: []*TreeEntry{{
+				Name:    "e.txt",
+				Type:    FileEntry,
+				Size:    13,
+				ModTime: zeroTimestamp,
+				Entries: nil,
+			}},
+		},
+		{
+			Name:    "g",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: []*TreeEntry{{
+				Name:    "h.txt",
+				Type:    FileEntry,
+				Size:    13,
+				ModTime: zeroTimestamp,
+				Entries: nil,
+			}},
+		},
+		{
+			Name:    "f.txt",
+			Type:    FileEntry,
+			Size:    1,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+	}
+
+	e, err := GetFileWithOptions(testGetFileWithOptionsFS, "/", GetFileOptions{Recursive: true})
+	if err != nil {
+		t.Errorf("GetFileWithOptions returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(e.Entries, want) {
+		t.Errorf("GetFileWithOptions returned:\n%+v\nwant:\n%+v", e.Entries, want)
+	}
+}
+
+func TestGetFileWithOptions_recurseSingleSubfolder(t *testing.T) {
+	want := []*TreeEntry{
+		{
+			Name:    "a",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: []*TreeEntry{{
+				Name:    "b",
+				Type:    DirEntry,
+				ModTime: zeroTimestamp,
+				Entries: []*TreeEntry{{
+					Name:    "c",
+					Type:    DirEntry,
+					ModTime: zeroTimestamp,
+					Entries: nil,
+				}},
+			}},
+		},
+		{
+			Name:    "d",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+		{
+			Name:    "g",
+			Type:    DirEntry,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+		{
+			Name:    "f.txt",
+			Type:    FileEntry,
+			Size:    1,
+			ModTime: zeroTimestamp,
+			Entries: nil,
+		},
+	}
+
+	e, err := GetFileWithOptions(testGetFileWithOptionsFS, "/", GetFileOptions{RecurseSingleSubfolder: true})
+	if err != nil {
+		t.Errorf("GetFileWithOptions returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(e.Entries, want) {
+		t.Errorf("GetFileWithOptions returned:\n%+v\nwant:\n%+v", e.Entries, want)
 	}
 }
