@@ -80,6 +80,7 @@ static int does_negate_rule(int *out, git_vector *rules, git_attr_fnmatch *match
 	git_vector_foreach(rules, i, rule) {
 		if (!(rule->flags & GIT_ATTR_FNMATCH_HASWILD)) {
 			if (does_negate_pattern(rule, match)) {
+				error = 0;
 				*out = 1;
 				goto out;
 			}
@@ -388,7 +389,7 @@ static bool ignore_lookup_in_rules(
 }
 
 int git_ignore__lookup(
-	int *out, git_ignores *ignores, const char *pathname)
+	int *out, git_ignores *ignores, const char *pathname, git_dir_flag dir_flag)
 {
 	unsigned int i;
 	git_attr_file *file;
@@ -397,7 +398,7 @@ int git_ignore__lookup(
 	*out = GIT_IGNORE_NOTFOUND;
 
 	if (git_attr_path__init(
-		&path, pathname, git_repository_workdir(ignores->repo)) < 0)
+		&path, pathname, git_repository_workdir(ignores->repo), dir_flag) < 0)
 		return -1;
 
 	/* first process builtins - success means path was found */
@@ -470,7 +471,7 @@ int git_ignore_path_is_ignored(
 	memset(&path, 0, sizeof(path));
 	memset(&ignores, 0, sizeof(ignores));
 
-	if ((error = git_attr_path__init(&path, pathname, workdir)) < 0 ||
+	if ((error = git_attr_path__init(&path, pathname, workdir, GIT_DIR_FLAG_UNKNOWN)) < 0 ||
 		(error = git_ignore__for_path(repo, path.path, &ignores)) < 0)
 		goto cleanup;
 

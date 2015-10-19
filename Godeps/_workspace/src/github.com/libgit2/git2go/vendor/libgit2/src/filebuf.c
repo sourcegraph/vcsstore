@@ -68,7 +68,7 @@ static int lock_file(git_filebuf *file, int flags, mode_t mode)
 
 	if ((flags & GIT_FILEBUF_APPEND) && git_path_exists(file->path_original) == true) {
 		git_file source;
-		char buffer[2048];
+		char buffer[FILEIO_BUFSIZE];
 		ssize_t read_bytes;
 
 		source = p_open(file->path_original, O_RDONLY);
@@ -101,7 +101,7 @@ void git_filebuf_cleanup(git_filebuf *file)
 	if (file->fd_is_open && file->fd >= 0)
 		p_close(file->fd);
 
-	if (file->fd_is_open && file->path_lock && git_path_exists(file->path_lock))
+	if (file->created_lock && !file->did_rename && file->path_lock && git_path_exists(file->path_lock))
 		p_unlink(file->path_lock);
 
 	if (file->compute_digest) {
@@ -258,6 +258,7 @@ int git_filebuf_open(git_filebuf *file, const char *path, int flags, mode_t mode
 			goto cleanup;
 		}
 		file->fd_is_open = true;
+		file->created_lock = true;
 
 		/* No original path */
 		file->path_original = NULL;
@@ -281,6 +282,8 @@ int git_filebuf_open(git_filebuf *file, const char *path, int flags, mode_t mode
 		/* open the file for locking */
 		if ((error = lock_file(file, flags, mode)) < 0)
 			goto cleanup;
+
+		file->created_lock = true;
 	}
 
 	return 0;
@@ -339,6 +342,8 @@ int git_filebuf_commit(git_filebuf *file)
 		giterr_set(GITERR_OS, "Failed to rename lockfile to '%s'", file->path_original);
 		goto on_error;
 	}
+
+	file->did_rename = true;
 
 	git_filebuf_cleanup(file);
 	return 0;

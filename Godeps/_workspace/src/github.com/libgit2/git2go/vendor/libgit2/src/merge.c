@@ -79,7 +79,7 @@ int merge_bases_many(git_commit_list **out, git_revwalk **walk_out, git_reposito
 	unsigned int i;
 
 	if (length < 2) {
-		giterr_set(GITERR_INVALID, "At least two commits are required to find an ancestor. Provided 'length' was %u.", length);
+		giterr_set(GITERR_INVALID, "At least two commits are required to find an ancestor. Provided 'length' was %" PRIuZ ".", length);
 		return -1;
 	}
 
@@ -185,7 +185,7 @@ int git_merge_base_octopus(git_oid *out, git_repository *repo, size_t length, co
 	assert(out && repo && input_array);
 
 	if (length < 2) {
-		giterr_set(GITERR_INVALID, "At least two commits are required to find an ancestor. Provided 'length' was %u.", length);
+		giterr_set(GITERR_INVALID, "At least two commits are required to find an ancestor. Provided 'length' was %" PRIuZ ".", length);
 		return -1;
 	}
 
@@ -1143,9 +1143,9 @@ static void merge_diff_list_count_candidates(
 		if (GIT_MERGE_INDEX_ENTRY_EXISTS(entry->ancestor_entry) &&
 			(!GIT_MERGE_INDEX_ENTRY_EXISTS(entry->our_entry) ||
 			!GIT_MERGE_INDEX_ENTRY_EXISTS(entry->their_entry)))
-			src_count++;
+			(*src_count)++;
 		else if (!GIT_MERGE_INDEX_ENTRY_EXISTS(entry->ancestor_entry))
-			tgt_count++;
+			(*tgt_count)++;
 	}
 }
 
@@ -1449,108 +1449,44 @@ static int merge_diff_list_insert_unmodified(
 	return error;
 }
 
+struct merge_diff_find_data {
+	git_merge_diff_list *diff_list;
+	struct merge_diff_df_data df_data;
+};
+
+static int queue_difference(const git_index_entry **entries, void *data)
+{
+	struct merge_diff_find_data *find_data = data;
+	bool item_modified = false;
+	size_t i;
+
+	if (!entries[0] || !entries[1] || !entries[2]) {
+		item_modified = true;
+	} else {
+		for (i = 1; i < 3; i++) {
+			if (index_entry_cmp(entries[0], entries[i]) != 0) {
+				item_modified = true;
+				break;
+			}
+		}
+	}
+
+	return item_modified ?
+		merge_diff_list_insert_conflict(
+			find_data->diff_list, &find_data->df_data, entries) :
+		merge_diff_list_insert_unmodified(find_data->diff_list, entries);
+}
+
 int git_merge_diff_list__find_differences(
 	git_merge_diff_list *diff_list,
-	const git_tree *ancestor_tree,
-	const git_tree *our_tree,
-	const git_tree *their_tree)
+	git_iterator *ancestor_iter,
+	git_iterator *our_iter,
+	git_iterator *their_iter)
 {
-	git_iterator *iterators[3] = {0};
-	const git_index_entry *items[3] = {0}, *best_cur_item, *cur_items[3];
-	git_vector_cmp entry_compare = git_index_entry_cmp;
-	struct merge_diff_df_data df_data = {0};
-	int cur_item_modified;
-	size_t i, j;
-	int error = 0;
+	git_iterator *iterators[3] = { ancestor_iter, our_iter, their_iter };
+	struct merge_diff_find_data find_data = { diff_list };
 
-	assert(diff_list && (our_tree || their_tree));
-
-	if ((error = git_iterator_for_tree(&iterators[TREE_IDX_ANCESTOR], (git_tree *)ancestor_tree, GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0 ||
-		(error = git_iterator_for_tree(&iterators[TREE_IDX_OURS], (git_tree *)our_tree, GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0 ||
-		(error = git_iterator_for_tree(&iterators[TREE_IDX_THEIRS], (git_tree *)their_tree, GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0)
-		goto done;
-
-	/* Set up the iterators */
-	for (i = 0; i < 3; i++) {
-		error = git_iterator_current(&items[i], iterators[i]);
-
-		if (error < 0 && error != GIT_ITEROVER)
-			goto done;
-	}
-
-	while (true) {
-		for (i = 0; i < 3; i++)
-			cur_items[i] = NULL;
-
-		best_cur_item = NULL;
-		cur_item_modified = 0;
-
-		/* Find the next path(s) to consume from each iterator */
-		for (i = 0; i < 3; i++) {
-			if (items[i] == NULL) {
-				cur_item_modified = 1;
-				continue;
-			}
-
-			if (best_cur_item == NULL) {
-				best_cur_item = items[i];
-				cur_items[i] = items[i];
-			} else {
-				int path_diff = entry_compare(items[i], best_cur_item);
-
-				if (path_diff < 0) {
-					/*
-					 * Found an item that sorts before our current item, make
-					 * our current item this one.
-					 */
-					for (j = 0; j < i; j++)
-						cur_items[j] = NULL;
-
-					cur_item_modified = 1;
-					best_cur_item = items[i];
-					cur_items[i] = items[i];
-				} else if (path_diff > 0) {
-					/* No entry for the current item, this is modified */
-					cur_item_modified = 1;
-				} else if (path_diff == 0) {
-					cur_items[i] = items[i];
-
-					if (!cur_item_modified)
-						cur_item_modified = index_entry_cmp(best_cur_item, items[i]);
-				}
-			}
-		}
-
-		if (best_cur_item == NULL)
-			break;
-
-		if (cur_item_modified)
-			error = merge_diff_list_insert_conflict(diff_list, &df_data, cur_items);
-		else
-			error = merge_diff_list_insert_unmodified(diff_list, cur_items);
-		if (error < 0)
-			goto done;
-
-		/* Advance each iterator that participated */
-		for (i = 0; i < 3; i++) {
-			if (cur_items[i] == NULL)
-				continue;
-
-			error = git_iterator_advance(&items[i], iterators[i]);
-
-			if (error < 0 && error != GIT_ITEROVER)
-				goto done;
-		}
-	}
-
-done:
-	for (i = 0; i < 3; i++)
-		git_iterator_free(iterators[i]);
-
-	if (error == GIT_ITEROVER)
-		error = 0;
-
-	return error;
+	return git_iterator_walk(iterators, 3, queue_difference, &find_data);
 }
 
 git_merge_diff_list *git_merge_diff_list__alloc(git_repository *repo)
@@ -1757,14 +1693,28 @@ on_error:
 	return error;
 }
 
-int git_merge_trees(
+static git_iterator *iterator_given_or_empty(git_iterator **empty, git_iterator *given)
+{
+	if (given)
+		return given;
+
+	if (git_iterator_for_nothing(empty, GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL) < 0)
+		return NULL;
+
+	return *empty;
+}
+
+int git_merge__iterators(
 	git_index **out,
 	git_repository *repo,
-	const git_tree *ancestor_tree,
-	const git_tree *our_tree,
-	const git_tree *their_tree,
+	git_iterator *ancestor_iter,
+	git_iterator *our_iter,
+	git_iterator *theirs_iter,
 	const git_merge_options *given_opts)
 {
+	git_iterator *empty_ancestor = NULL,
+		*empty_ours = NULL,
+		*empty_theirs = NULL;
 	git_merge_diff_list *diff_list;
 	git_merge_options opts;
 	git_merge_diff *conflict;
@@ -1772,11 +1722,12 @@ int git_merge_trees(
 	size_t i;
 	int error = 0;
 
-	assert(out && repo && (our_tree || their_tree));
+	assert(out && repo);
 
 	*out = NULL;
 
-	GITERR_CHECK_VERSION(given_opts, GIT_MERGE_OPTIONS_VERSION, "git_merge_options");
+	GITERR_CHECK_VERSION(
+		given_opts, GIT_MERGE_OPTIONS_VERSION, "git_merge_options");
 
 	if ((error = merge_normalize_opts(repo, &opts, given_opts)) < 0)
 		return error;
@@ -1784,7 +1735,12 @@ int git_merge_trees(
 	diff_list = git_merge_diff_list__alloc(repo);
 	GITERR_CHECK_ALLOC(diff_list);
 
-	if ((error = git_merge_diff_list__find_differences(diff_list, ancestor_tree, our_tree, their_tree)) < 0 ||
+	ancestor_iter = iterator_given_or_empty(&empty_ancestor, ancestor_iter);
+	our_iter = iterator_given_or_empty(&empty_ours, our_iter);
+	theirs_iter = iterator_given_or_empty(&empty_theirs, theirs_iter);
+
+	if ((error = git_merge_diff_list__find_differences(
+			diff_list, ancestor_iter, our_iter, theirs_iter)) < 0 ||
 		(error = git_merge_diff_list__find_renames(repo, diff_list, &opts)) < 0)
 		goto done;
 
@@ -1808,9 +1764,43 @@ int git_merge_trees(
 
 done:
 	git_merge_diff_list__free(diff_list);
+	git_iterator_free(empty_ancestor);
+	git_iterator_free(empty_ours);
+	git_iterator_free(empty_theirs);
 
 	return error;
 }
+
+int git_merge_trees(
+	git_index **out,
+	git_repository *repo,
+	const git_tree *ancestor_tree,
+	const git_tree *our_tree,
+	const git_tree *their_tree,
+	const git_merge_options *merge_opts)
+{
+	git_iterator *ancestor_iter = NULL, *our_iter = NULL, *their_iter = NULL;
+	int error;
+
+	if ((error = git_iterator_for_tree(&ancestor_iter, (git_tree *)ancestor_tree,
+			GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0 ||
+		(error = git_iterator_for_tree(&our_iter, (git_tree *)our_tree,
+			GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0 ||
+		(error = git_iterator_for_tree(&their_iter, (git_tree *)their_tree,
+			GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0)
+		goto done;
+
+	error = git_merge__iterators(
+		out, repo, ancestor_iter, our_iter, their_iter, merge_opts);
+
+done:
+	git_iterator_free(ancestor_iter);
+	git_iterator_free(our_iter);
+	git_iterator_free(their_iter);
+
+	return error;
+}
+
 
 int git_merge_commits(
 	git_index **out,
@@ -2446,7 +2436,7 @@ int git_merge__check_result(git_repository *repo, git_index *index_new)
 	for (i = 0; i < git_index_entrycount(index_new); i++) {
 		e = git_index_get_byindex(index_new, i);
 
-		if (git_index_entry_stage(e) != 0 &&
+		if (git_index_entry_is_conflict(e) &&
 			(git_vector_last(&paths) == NULL ||
 			strcmp(git_vector_last(&paths), e->path) != 0)) {
 
@@ -2461,9 +2451,9 @@ int git_merge__check_result(git_repository *repo, git_index *index_new)
 		goto done;
 
 	if ((conflicts = index_conflicts + wd_conflicts) > 0) {
-		giterr_set(GITERR_MERGE, "%d uncommitted change%s would be overwritten by merge",
+		giterr_set(GITERR_MERGE, "%" PRIuZ " uncommitted change%s would be overwritten by merge",
 			conflicts, (conflicts != 1) ? "s" : "");
-		error = GIT_EMERGECONFLICT;
+		error = GIT_ECONFLICT;
 	}
 
 done:
@@ -2498,7 +2488,7 @@ int git_merge__append_conflicts_to_merge_msg(
 	for (i = 0; i < git_index_entrycount(index); i++) {
 		const git_index_entry *e = git_index_get_byindex(index, i);
 
-		if (git_index_entry_stage(e) == 0)
+		if (!git_index_entry_is_conflict(e))
 			continue;
 
 		if (last == NULL || strcmp(e->path, last) != 0)

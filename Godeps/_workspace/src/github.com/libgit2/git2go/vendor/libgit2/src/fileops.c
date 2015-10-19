@@ -689,7 +689,7 @@ int git_futils_fake_symlink(const char *old, const char *new)
 static int cp_by_fd(int ifd, int ofd, bool close_fd_when_done)
 {
 	int error = 0;
-	char buffer[4096];
+	char buffer[FILEIO_BUFSIZE];
 	ssize_t len = 0;
 
 	while (!error && (len = p_read(ifd, buffer, sizeof(buffer))) > 0)
@@ -702,6 +702,9 @@ static int cp_by_fd(int ifd, int ofd, bool close_fd_when_done)
 		giterr_set(GITERR_OS, "Read error while copying file");
 		error = (int)len;
 	}
+
+	if (error < 0)
+		giterr_set(GITERR_OS, "write error while copying file");
 
 	if (close_fd_when_done) {
 		p_close(ifd);
@@ -861,7 +864,8 @@ static int _cp_r_callback(void *ref, git_buf *from)
 
 	/* make symlink or regular file */
 	if (info->flags & GIT_CPDIR_LINK_FILES) {
-		error = p_link(from->ptr, info->to.ptr);
+		if ((error = p_link(from->ptr, info->to.ptr)) < 0)
+			giterr_set(GITERR_OS, "failed to link '%s'", from->ptr);
 	} else if (S_ISLNK(from_st.st_mode)) {
 		error = cp_link(from->ptr, info->to.ptr, (size_t)from_st.st_size);
 	} else {
