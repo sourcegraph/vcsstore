@@ -65,7 +65,7 @@ index 78981922613b2afb6025042ff6bd878ac1994e85..422c2b7ab3b3c668038da977e4e93a5f
 `}
 
 	// Run this a lot to ferret out concurrency issues.
-	const n = 5000
+	const n = 50
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
 		wg.Add(1)
