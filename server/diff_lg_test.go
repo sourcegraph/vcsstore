@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"reflect"
 	"testing"
 
@@ -65,7 +66,13 @@ index 78981922613b2afb6025042ff6bd878ac1994e85..422c2b7ab3b3c668038da977e4e93a5f
 `}
 
 	// Run this a lot to ferret out concurrency issues.
-	const n = 50
+	var n int
+	envNumThreads := os.Getenv("TEST_CROSSREPO_DIFF_NUM_THREADS")
+	if envNumThreads == "" {
+		n = 5000
+	} else {
+		n, _ = strconv.Atoi(envNumThreads)
+	}
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
 		wg.Add(1)

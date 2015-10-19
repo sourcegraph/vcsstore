@@ -19,6 +19,7 @@ install:
 
   - export PATH=$PATH:$HOME/gopath/bin
   - export GOBIN=$HOME/gopath/bin
+  - export TEST_CROSSREPO_DIFF_NUM_THREADS=500
 
 # hg >~ 2.5 is needed, but Travis CI's Ubuntu 12.04 ships with hg ~2.0
   - sudo add-apt-repository -y ppa:mercurial-ppa/releases
