@@ -23,7 +23,7 @@ const (
 )
 
 type Tree struct {
-	gitObject
+	Object
 	cast_ptr *C.git_tree
 }
 
@@ -48,6 +48,24 @@ func (t Tree) EntryByName(filename string) *TreeEntry {
 	defer C.free(unsafe.Pointer(cname))
 
 	entry := C.git_tree_entry_byname(t.cast_ptr, cname)
+	if entry == nil {
+		return nil
+	}
+
+	return newTreeEntry(entry)
+}
+
+// EntryById performs a lookup for a tree entry with the given SHA value.
+//
+// It returns a *TreeEntry that is owned by the Tree. You don't have to
+// free it, but you must not use it after the Tree is freed.
+//
+// Warning: this must examine every entry in the tree, so it is not fast.
+func (t Tree) EntryById(id *Oid) *TreeEntry {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	entry := C.git_tree_entry_byid(t.cast_ptr, id.toC())
 	if entry == nil {
 		return nil
 	}
@@ -90,22 +108,28 @@ func (t Tree) EntryCount() uint64 {
 type TreeWalkCallback func(string, *TreeEntry) int
 
 //export CallbackGitTreeWalk
-func CallbackGitTreeWalk(_root unsafe.Pointer, _entry unsafe.Pointer, ptr unsafe.Pointer) C.int {
-	root := C.GoString((*C.char)(_root))
+func CallbackGitTreeWalk(_root *C.char, _entry unsafe.Pointer, ptr unsafe.Pointer) C.int {
+	root := C.GoString(_root)
 	entry := (*C.git_tree_entry)(_entry)
-	callback := *(*TreeWalkCallback)(ptr)
 
-	return C.int(callback(root, newTreeEntry(entry)))
+	if callback, ok := pointerHandles.Get(ptr).(TreeWalkCallback); ok {
+		return C.int(callback(root, newTreeEntry(entry)))
+	} else {
+		panic("invalid treewalk callback")
+	}
 }
 
 func (t Tree) Walk(callback TreeWalkCallback) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
+	ptr := pointerHandles.Track(callback)
+	defer pointerHandles.Untrack(ptr)
+
 	err := C._go_git_treewalk(
 		t.cast_ptr,
 		C.GIT_TREEWALK_PRE,
-		unsafe.Pointer(&callback),
+		ptr,
 	)
 
 	if err < 0 {

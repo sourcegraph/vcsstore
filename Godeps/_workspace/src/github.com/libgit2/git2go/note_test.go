@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -10,7 +9,7 @@ import (
 
 func TestCreateNote(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	commitId, _ := seedTestRepo(t, repo)
 
@@ -29,7 +28,8 @@ func TestCreateNote(t *testing.T) {
 
 func TestNoteIterator(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
+
 	seedTestRepo(t, repo)
 
 	notes := make([]*Note, 5)
@@ -53,7 +53,7 @@ func TestNoteIterator(t *testing.T) {
 			break
 		}
 
-		note, err := repo.ReadNote("", commitId)
+		note, err := repo.Notes.Read("", commitId)
 		checkFatal(t, err)
 
 		if !reflect.DeepEqual(note.Id(), noteId) {
@@ -64,7 +64,7 @@ func TestNoteIterator(t *testing.T) {
 
 func TestRemoveNote(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	commitId, _ := seedTestRepo(t, repo)
 
@@ -73,13 +73,13 @@ func TestRemoveNote(t *testing.T) {
 
 	note, _ := createTestNote(t, repo, commit)
 
-	_, err = repo.ReadNote("", commit.Id())
+	_, err = repo.Notes.Read("", commit.Id())
 	checkFatal(t, err)
 
-	err = repo.RemoveNote("", note.Author(), note.Committer(), commitId)
+	err = repo.Notes.Remove("", note.Author(), note.Committer(), commitId)
 	checkFatal(t, err)
 
-	_, err = repo.ReadNote("", commit.Id())
+	_, err = repo.Notes.Read("", commit.Id())
 	if err == nil {
 		t.Fatal("note remove failed")
 	}
@@ -87,9 +87,9 @@ func TestRemoveNote(t *testing.T) {
 
 func TestDefaultNoteRef(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
-	ref, err := repo.DefaultNoteRef()
+	ref, err := repo.Notes.DefaultRef()
 	checkFatal(t, err)
 
 	compareStrings(t, "refs/notes/commits", ref)
@@ -103,10 +103,10 @@ func createTestNote(t *testing.T, repo *Repository, commit *Commit) (*Note, *Oid
 		When:  time.Date(2015, 01, 05, 13, 0, 0, 0, loc),
 	}
 
-	noteId, err := repo.CreateNote("", sig, sig, commit.Id(), "I am a note\n", false)
+	noteId, err := repo.Notes.Create("", sig, sig, commit.Id(), "I am a note\n", false)
 	checkFatal(t, err)
 
-	note, err := repo.ReadNote("", commit.Id())
+	note, err := repo.Notes.Read("", commit.Id())
 	checkFatal(t, err)
 
 	return note, noteId

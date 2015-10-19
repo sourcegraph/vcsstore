@@ -1,13 +1,12 @@
 package git
 
 import (
-	"os"
 	"testing"
 )
 
 func TestRevparse(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	commitId, _ := seedTestRepo(t, repo)
 
@@ -19,7 +18,7 @@ func TestRevparse(t *testing.T) {
 
 func TestRevparseSingle(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	commitId, _ := seedTestRepo(t, repo)
 
@@ -31,11 +30,11 @@ func TestRevparseSingle(t *testing.T) {
 
 func TestRevparseExt(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	_, treeId := seedTestRepo(t, repo)
 
-	ref, err := repo.CreateReference("refs/heads/master", treeId, true, "")
+	ref, err := repo.References.Create("refs/heads/master", treeId, true, "")
 	checkFatal(t, err)
 
 	obj, ref, err := repo.RevparseExt("master")
@@ -47,7 +46,7 @@ func TestRevparseExt(t *testing.T) {
 	}
 }
 
-func checkObject(t *testing.T, obj Object, id *Oid) {
+func checkObject(t *testing.T, obj *Object, id *Oid) {
 	if obj == nil {
 		t.Fatalf("bad object")
 	}

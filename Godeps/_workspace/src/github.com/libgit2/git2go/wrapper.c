@@ -5,6 +5,11 @@
 
 typedef int (*gogit_submodule_cbk)(git_submodule *sm, const char *name, void *payload);
 
+void _go_git_populate_remote_cb(git_clone_options *opts)
+{
+	opts->remote_cb = (git_remote_create_cb)remoteCreateCallback;
+}
+
 int _go_git_visit_submodule(git_repository *repo, void *fct)
 {
 	  return git_submodule_foreach(repo, (gogit_submodule_cbk)&SubmoduleVisitor, fct);
@@ -59,7 +64,28 @@ int _go_git_diff_foreach(git_diff *diff, int eachFile, int eachHunk, int eachLin
 		lcb = (git_diff_line_cb)&diffForEachLineCb;
 	}
 
-	return git_diff_foreach(diff, fcb, hcb, lcb, payload);
+	return git_diff_foreach(diff, fcb, NULL, hcb, lcb, payload);
+}
+
+int _go_git_diff_blobs(git_blob *old, const char *old_path, git_blob *new, const char *new_path, git_diff_options *opts, int eachFile, int eachHunk, int eachLine, void *payload)
+{
+	git_diff_file_cb fcb = NULL;
+	git_diff_hunk_cb hcb = NULL;
+	git_diff_line_cb lcb = NULL;
+
+	if (eachFile) {
+		fcb = (git_diff_file_cb)&diffForEachFileCb;
+	}
+
+	if (eachHunk) {
+		hcb = (git_diff_hunk_cb)&diffForEachHunkCb;
+	}
+
+	if (eachLine) {
+		lcb = (git_diff_line_cb)&diffForEachLineCb;
+	}
+
+	return git_diff_blobs(old, old_path, new, new_path, opts, fcb, NULL, hcb, lcb, payload);
 }
 
 void _go_git_setup_diff_notify_callbacks(git_diff_options *opts) {
@@ -108,6 +134,11 @@ int _go_git_index_update_all(git_index *index, const git_strarray *pathspec, voi
 int _go_git_index_remove_all(git_index *index, const git_strarray *pathspec, void *callback) {
 	git_index_matched_path_cb cb = callback ? (git_index_matched_path_cb) &indexMatchedPathCallback : NULL;
 	return git_index_remove_all(index, pathspec, cb, callback);
+}
+
+int _go_git_tag_foreach(git_repository *repo, void *payload)
+{
+    return git_tag_foreach(repo, (git_tag_foreach_cb)&gitTagForeachCb, payload);
 }
 
 /* EOF */

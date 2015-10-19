@@ -178,7 +178,7 @@
 		},
 		{
 			"ImportPath": "github.com/libgit2/git2go",
-			"Rev": "b374e16db84c451cddc49d064cae69ca00993982"
+			"Rev": "698ed4a42d86ae88682379c4ad6f209735d0bf33"
 		},
 		{
 			"ImportPath": "github.com/lox/httpcache",

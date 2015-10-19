@@ -15,6 +15,7 @@ type CheckoutStrategy uint
 const (
 	CheckoutNone                      CheckoutStrategy = C.GIT_CHECKOUT_NONE                         // Dry run, no actual updates
 	CheckoutSafe                      CheckoutStrategy = C.GIT_CHECKOUT_SAFE                         // Allow safe updates that cannot overwrite uncommitted data
+	CheckoutForce                     CheckoutStrategy = C.GIT_CHECKOUT_FORCE                        // Allow all updates to force working directory to look like index
 	CheckoutRecreateMissing           CheckoutStrategy = C.GIT_CHECKOUT_RECREATE_MISSING             // Allow checkout to recreate missing files
 	CheckoutAllowConflicts            CheckoutStrategy = C.GIT_CHECKOUT_ALLOW_CONFLICTS              // Allow checkout to make safe updates even if conflicts are found
 	CheckoutRemoveUntracked           CheckoutStrategy = C.GIT_CHECKOUT_REMOVE_UNTRACKED             // Remove untracked files not in index (that are not ignored)
@@ -43,6 +44,7 @@ type CheckoutOpts struct {
 	FileMode        os.FileMode      // Default is 0644 or 0755 as dictated by blob
 	FileOpenFlags   int              // Default is O_CREAT | O_TRUNC | O_WRONLY
 	TargetDirectory string           // Alternative checkout path to workdir
+	Paths           []string
 }
 
 func checkoutOptionsFromC(c *C.git_checkout_options) CheckoutOpts {
@@ -83,6 +85,11 @@ func populateCheckoutOpts(ptr *C.git_checkout_options, opts *CheckoutOpts) *C.gi
 	if opts.TargetDirectory != "" {
 		ptr.target_directory = C.CString(opts.TargetDirectory)
 	}
+	if len(opts.Paths) > 0 {
+		ptr.paths.strings = makeCStringsFromStrings(opts.Paths)
+		ptr.paths.count = C.size_t(len(opts.Paths))
+	}
+
 	return ptr
 }
 
@@ -91,6 +98,9 @@ func freeCheckoutOpts(ptr *C.git_checkout_options) {
 		return
 	}
 	C.free(unsafe.Pointer(ptr.target_directory))
+	if ptr.paths.count > 0 {
+		freeStrarray(&ptr.paths)
+	}
 }
 
 // Updates files in the index and the working tree to match the content of

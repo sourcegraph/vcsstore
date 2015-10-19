@@ -76,8 +76,8 @@ const (
 	ErrNonFastForward ErrorCode = C.GIT_ENONFASTFORWARD
 	// Name/ref spec was not in a valid format
 	ErrInvalidSpec ErrorCode = C.GIT_EINVALIDSPEC
-	// Merge conflicts prevented operation
-	ErrMergeConflict ErrorCode = C.GIT_EMERGECONFLICT
+	// Checkout conflicts prevented operation
+	ErrConflict ErrorCode = C.GIT_ECONFLICT
 	// Lock file prevented operation
 	ErrLocked ErrorCode = C.GIT_ELOCKED
 	// Reference value does not match expected
@@ -86,13 +86,19 @@ const (
 	ErrPassthrough ErrorCode = C.GIT_PASSTHROUGH
 	// Signals end of iteration with iterator
 	ErrIterOver ErrorCode = C.GIT_ITEROVER
+	// Authentication failed
+	ErrAuth ErrorCode = C.GIT_EAUTH
 )
 
 var (
 	ErrInvalid = errors.New("Invalid state for operation")
 )
 
+var pointerHandles *HandleList
+
 func init() {
+	pointerHandles = NewHandleList()
+
 	C.git_libgit2_init()
 
 	// This is not something we should be doing, as we may be

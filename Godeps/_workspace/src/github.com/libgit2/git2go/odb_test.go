@@ -3,13 +3,13 @@ package git
 import (
 	"errors"
 	"io"
-	"os"
 	"testing"
 )
 
 func TestOdbStream(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
+
 	_, _ = seedTestRepo(t, repo)
 
 	odb, error := repo.Odb()
@@ -17,7 +17,7 @@ func TestOdbStream(t *testing.T) {
 
 	str := "hello, world!"
 
-	stream, error := odb.NewWriteStream(len(str), ObjectBlob)
+	stream, error := odb.NewWriteStream(int64(len(str)), ObjectBlob)
 	checkFatal(t, error)
 	n, error := io.WriteString(stream, str)
 	checkFatal(t, error)
@@ -38,7 +38,8 @@ func TestOdbStream(t *testing.T) {
 func TestOdbHash(t *testing.T) {
 
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
+
 	_, _ = seedTestRepo(t, repo)
 
 	odb, error := repo.Odb()
@@ -64,7 +65,8 @@ Initial commit.`
 
 func TestOdbForeach(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
+
 	_, _ = seedTestRepo(t, repo)
 
 	odb, err := repo.Odb()
@@ -79,7 +81,7 @@ func TestOdbForeach(t *testing.T) {
 
 	checkFatal(t, err)
 	if count != expect {
-		t.Fatalf("Expected %v objects, got %v")
+		t.Fatalf("Expected %v objects, got %v", expect, count)
 	}
 
 	expect = 1

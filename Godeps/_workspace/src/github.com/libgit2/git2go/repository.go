@@ -13,75 +13,98 @@ import (
 // Repository
 type Repository struct {
 	ptr *C.git_repository
+	// Remotes represents the collection of remotes and can be
+	// used to add, remove and configure remotes for this
+	// repository.
+	Remotes RemoteCollection
+	// Submodules represents the collection of submodules and can
+	// be used to add, remove and configure submodules in this
+	// repostiory.
+	Submodules SubmoduleCollection
+	// References represents the collection of references and can
+	// be used to create, remove or update refernces for this repository.
+	References ReferenceCollection
+	// Notes represents the collection of notes and can be used to
+	// read, write and delete notes from this repository.
+	Notes NoteCollection
+	// Tags represents the collection of tags and can be used to create,
+	// list and iterate tags in this repository.
+	Tags TagsCollection
+}
+
+func newRepositoryFromC(ptr *C.git_repository) *Repository {
+	repo := &Repository{ptr: ptr}
+
+	repo.Remotes.repo = repo
+	repo.Submodules.repo = repo
+	repo.References.repo = repo
+	repo.Notes.repo = repo
+	repo.Tags.repo = repo
+
+	runtime.SetFinalizer(repo, (*Repository).Free)
+
+	return repo
 }
 
 func OpenRepository(path string) (*Repository, error) {
-	repo := new(Repository)
-
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ret := C.git_repository_open(&repo.ptr, cpath)
+	var ptr *C.git_repository
+	ret := C.git_repository_open(&ptr, cpath)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
 
-	runtime.SetFinalizer(repo, (*Repository).Free)
-	return repo, nil
+	return newRepositoryFromC(ptr), nil
 }
 
 func OpenRepositoryExtended(path string) (*Repository, error) {
-	repo := new(Repository)
-
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ret := C.git_repository_open_ext(&repo.ptr, cpath, 0, nil)
+	var ptr *C.git_repository
+	ret := C.git_repository_open_ext(&ptr, cpath, 0, nil)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
 
-	runtime.SetFinalizer(repo, (*Repository).Free)
-	return repo, nil
+	return newRepositoryFromC(ptr), nil
 }
 
 func InitRepository(path string, isbare bool) (*Repository, error) {
-	repo := new(Repository)
-
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ret := C.git_repository_init(&repo.ptr, cpath, ucbool(isbare))
+	var ptr *C.git_repository
+	ret := C.git_repository_init(&ptr, cpath, ucbool(isbare))
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
 
-	runtime.SetFinalizer(repo, (*Repository).Free)
-	return repo, nil
+	return newRepositoryFromC(ptr), nil
 }
 
 func NewRepositoryWrapOdb(odb *Odb) (repo *Repository, err error) {
-	repo = new(Repository)
-
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ret := C.git_repository_wrap_odb(&repo.ptr, odb.ptr)
+	var ptr *C.git_repository
+	ret := C.git_repository_wrap_odb(&ptr, odb.ptr)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
 
-	runtime.SetFinalizer(repo, (*Repository).Free)
-	return repo, nil
+	return newRepositoryFromC(ptr), nil
 }
 
 func (v *Repository) SetRefdb(refdb *Refdb) {
@@ -122,7 +145,7 @@ func (v *Repository) Index() (*Index, error) {
 	return newIndexFromC(ptr), nil
 }
 
-func (v *Repository) lookupType(id *Oid, t ObjectType) (Object, error) {
+func (v *Repository) lookupType(id *Oid, t ObjectType) (*Object, error) {
 	var ptr *C.git_object
 
 	runtime.LockOSThread()
@@ -136,7 +159,7 @@ func (v *Repository) lookupType(id *Oid, t ObjectType) (Object, error) {
 	return allocObject(ptr, v), nil
 }
 
-func (v *Repository) Lookup(id *Oid) (Object, error) {
+func (v *Repository) Lookup(id *Oid) (*Object, error) {
 	return v.lookupType(id, ObjectAny)
 }
 
@@ -146,7 +169,7 @@ func (v *Repository) LookupTree(id *Oid) (*Tree, error) {
 		return nil, err
 	}
 
-	return obj.(*Tree), nil
+	return obj.AsTree()
 }
 
 func (v *Repository) LookupCommit(id *Oid) (*Commit, error) {
@@ -155,7 +178,7 @@ func (v *Repository) LookupCommit(id *Oid) (*Commit, error) {
 		return nil, err
 	}
 
-	return obj.(*Commit), nil
+	return obj.AsCommit()
 }
 
 func (v *Repository) LookupBlob(id *Oid) (*Blob, error) {
@@ -164,7 +187,7 @@ func (v *Repository) LookupBlob(id *Oid) (*Blob, error) {
 		return nil, err
 	}
 
-	return obj.(*Blob), nil
+	return obj.AsBlob()
 }
 
 func (v *Repository) LookupTag(id *Oid) (*Tag, error) {
@@ -173,23 +196,7 @@ func (v *Repository) LookupTag(id *Oid) (*Tag, error) {
 		return nil, err
 	}
 
-	return obj.(*Tag), nil
-}
-
-func (v *Repository) LookupReference(name string) (*Reference, error) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	var ptr *C.git_reference
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ecode := C.git_reference_lookup(&ptr, v.ptr, cname)
-	if ecode < 0 {
-		return nil, MakeGitError(ecode)
-	}
-
-	return newReferenceFromC(ptr, v), nil
+	return obj.AsTag()
 }
 
 func (v *Repository) Head() (*Reference, error) {
@@ -231,57 +238,16 @@ func (v *Repository) SetHeadDetached(id *Oid) error {
 	return nil
 }
 
-func (v *Repository) CreateReference(name string, id *Oid, force bool, msg string) (*Reference, error) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-
-	var cmsg *C.char
-	if msg == "" {
-		cmsg = nil
-	} else {
-		cmsg = C.CString(msg)
-		defer C.free(unsafe.Pointer(cmsg))
-	}
-
-	var ptr *C.git_reference
-
+func (v *Repository) IsHeadDetached() (bool, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ecode := C.git_reference_create(&ptr, v.ptr, cname, id.toC(), cbool(force), cmsg)
-	if ecode < 0 {
-		return nil, MakeGitError(ecode)
+	ret := C.git_repository_head_detached(v.ptr)
+	if ret < 0 {
+		return false, MakeGitError(ret)
 	}
 
-	return newReferenceFromC(ptr, v), nil
-}
-
-func (v *Repository) CreateSymbolicReference(name, target string, force bool, msg string) (*Reference, error) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-
-	ctarget := C.CString(target)
-	defer C.free(unsafe.Pointer(ctarget))
-
-	var cmsg *C.char
-	if msg == "" {
-		cmsg = nil
-	} else {
-		cmsg = C.CString(msg)
-		defer C.free(unsafe.Pointer(cmsg))
-	}
-
-	var ptr *C.git_reference
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ecode := C.git_reference_symbolic_create(&ptr, v.ptr, cname, ctarget, cbool(force), cmsg)
-	if ecode < 0 {
-		return nil, MakeGitError(ecode)
-	}
-
-	return newReferenceFromC(ptr, v), nil
+	return ret != 0, nil
 }
 
 func (v *Repository) Walk() (*RevWalk, error) {
@@ -348,36 +314,6 @@ func (v *Repository) CreateCommit(
 		authorSig, committerSig,
 		nil, cmsg, tree.cast_ptr, C.size_t(nparents), parentsarg)
 
-	if ret < 0 {
-		return nil, MakeGitError(ret)
-	}
-
-	return oid, nil
-}
-
-func (v *Repository) CreateTag(
-	name string, commit *Commit, tagger *Signature, message string) (*Oid, error) {
-
-	oid := new(Oid)
-
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-
-	cmessage := C.CString(message)
-	defer C.free(unsafe.Pointer(cmessage))
-
-	taggerSig, err := tagger.toC()
-	if err != nil {
-		return nil, err
-	}
-	defer C.git_signature_free(taggerSig)
-
-	ctarget := commit.gitObject.ptr
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ret := C.git_tag_create(oid.toC(), v.ptr, cname, ctarget, taggerSig, cmessage, 0)
 	if ret < 0 {
 		return nil, MakeGitError(ret)
 	}
@@ -463,172 +399,6 @@ func (v *Repository) TreeBuilderFromTree(tree *Tree) (*TreeBuilder, error) {
 
 	bld.repo = v
 	return bld, nil
-}
-
-// EnsureLog ensures that there is a reflog for the given reference
-// name and creates an empty one if necessary.
-func (v *Repository) EnsureLog(name string) error {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ret := C.git_reference_ensure_log(v.ptr, cname)
-	if ret < 0 {
-		return MakeGitError(ret)
-	}
-
-	return nil
-}
-
-// HasLog returns whether there is a reflog for the given reference
-// name
-func (v *Repository) HasLog(name string) (bool, error) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ret := C.git_reference_has_log(v.ptr, cname)
-	if ret < 0 {
-		return false, MakeGitError(ret)
-	}
-
-	return ret == 1, nil
-}
-
-// DwimReference looks up a reference by DWIMing its short name
-func (v *Repository) DwimReference(name string) (*Reference, error) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	var ptr *C.git_reference
-	ret := C.git_reference_dwim(&ptr, v.ptr, cname)
-	if ret < 0 {
-		return nil, MakeGitError(ret)
-	}
-
-	return newReferenceFromC(ptr, v), nil
-}
-
-// CreateNote adds a note for an object
-func (v *Repository) CreateNote(
-	ref string, author, committer *Signature, id *Oid,
-	note string, force bool) (*Oid, error) {
-
-	oid := new(Oid)
-
-	var cref *C.char
-	if ref == "" {
-		cref = nil
-	} else {
-		cref = C.CString(ref)
-		defer C.free(unsafe.Pointer(cref))
-	}
-
-	authorSig, err := author.toC()
-	if err != nil {
-		return nil, err
-	}
-	defer C.git_signature_free(authorSig)
-
-	committerSig, err := committer.toC()
-	if err != nil {
-		return nil, err
-	}
-	defer C.git_signature_free(committerSig)
-
-	cnote := C.CString(note)
-	defer C.free(unsafe.Pointer(cnote))
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ret := C.git_note_create(
-		oid.toC(), v.ptr, cref, authorSig,
-		committerSig, id.toC(), cnote, cbool(force))
-
-	if ret < 0 {
-		return nil, MakeGitError(ret)
-	}
-	return oid, nil
-}
-
-// ReadNote reads the note for an object
-func (v *Repository) ReadNote(ref string, id *Oid) (*Note, error) {
-	var cref *C.char
-	if ref == "" {
-		cref = nil
-	} else {
-		cref = C.CString(ref)
-		defer C.free(unsafe.Pointer(cref))
-	}
-
-	note := new(Note)
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	if ret := C.git_note_read(&note.ptr, v.ptr, cref, id.toC()); ret < 0 {
-		return nil, MakeGitError(ret)
-	}
-
-	runtime.SetFinalizer(note, (*Note).Free)
-	return note, nil
-}
-
-// RemoveNote removes the note for an object
-func (v *Repository) RemoveNote(ref string, author, committer *Signature, id *Oid) error {
-	var cref *C.char
-	if ref == "" {
-		cref = nil
-	} else {
-		cref = C.CString(ref)
-		defer C.free(unsafe.Pointer(cref))
-	}
-
-	authorSig, err := author.toC()
-	if err != nil {
-		return err
-	}
-	defer C.git_signature_free(authorSig)
-
-	committerSig, err := committer.toC()
-	if err != nil {
-		return err
-	}
-	defer C.git_signature_free(committerSig)
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	ret := C.git_note_remove(v.ptr, cref, authorSig, committerSig, id.toC())
-	if ret < 0 {
-		return MakeGitError(ret)
-	}
-	return nil
-}
-
-// DefaultNoteRef returns the default notes reference for a repository
-func (v *Repository) DefaultNoteRef() (string, error) {
-	buf := C.git_buf{}
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	if ret := C.git_note_default_ref(&buf, v.ptr); ret < 0 {
-		return "", MakeGitError(ret)
-	}
-
-	ret := C.GoString(buf.ptr)
-	C.git_buf_free(&buf)
-
-	return ret, nil
 }
 
 type RepositoryState int

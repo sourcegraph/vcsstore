@@ -2,15 +2,13 @@ package git
 
 import (
 	"errors"
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestFindSimilar(t *testing.T) {
 	repo := createTestRepo(t)
-	defer repo.Free()
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	originalTree, newTree := createTestTrees(t, repo)
 
@@ -65,8 +63,7 @@ func TestFindSimilar(t *testing.T) {
 func TestDiffTreeToTree(t *testing.T) {
 
 	repo := createTestRepo(t)
-	defer repo.Free()
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	originalTree, newTree := createTestTrees(t, repo)
 
@@ -189,4 +186,51 @@ func createTestTrees(t *testing.T, repo *Repository) (originalTree *Tree, newTre
 	checkFatal(t, err)
 
 	return originalTree, newTree
+}
+
+func TestDiffBlobs(t *testing.T) {
+	repo := createTestRepo(t)
+	defer cleanupTestRepo(t, repo)
+
+	odb, err := repo.Odb()
+	checkFatal(t, err)
+
+	id1, err := odb.Write([]byte("hello\nhello\n"), ObjectBlob)
+	checkFatal(t, err)
+
+	id2, err := odb.Write([]byte("hallo\nhallo\n"), ObjectBlob)
+	checkFatal(t, err)
+
+	blob1, err := repo.LookupBlob(id1)
+	checkFatal(t, err)
+
+	blob2, err := repo.LookupBlob(id2)
+	checkFatal(t, err)
+
+	var files, hunks, lines int
+	err = DiffBlobs(blob1, "hi", blob2, "hi", nil,
+		func(delta DiffDelta, progress float64) (DiffForEachHunkCallback, error) {
+			files++
+			return func(hunk DiffHunk) (DiffForEachLineCallback, error) {
+				hunks++
+				return func(line DiffLine) error {
+					lines++
+					return nil
+				}, nil
+			}, nil
+		},
+		DiffDetailLines)
+
+	if files != 1 {
+		t.Fatal("Bad number of files iterated")
+	}
+
+	if hunks != 1 {
+		t.Fatal("Bad number of hunks iterated")
+	}
+
+	// two removals, two additions
+	if lines != 4 {
+		t.Fatalf("Bad number of lines iterated")
+	}
 }

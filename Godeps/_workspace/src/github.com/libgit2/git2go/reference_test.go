@@ -1,7 +1,6 @@
 package git
 
 import (
-	"os"
 	"runtime"
 	"sort"
 	"testing"
@@ -10,18 +9,18 @@ import (
 
 func TestRefModification(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	commitId, treeId := seedTestRepo(t, repo)
 
-	_, err := repo.CreateReference("refs/tags/tree", treeId, true, "testTreeTag")
+	_, err := repo.References.Create("refs/tags/tree", treeId, true, "testTreeTag")
 	checkFatal(t, err)
 
-	tag, err := repo.LookupReference("refs/tags/tree")
+	tag, err := repo.References.Lookup("refs/tags/tree")
 	checkFatal(t, err)
 	checkRefType(t, tag, ReferenceOid)
 
-	ref, err := repo.LookupReference("HEAD")
+	ref, err := repo.References.Lookup("HEAD")
 	checkFatal(t, err)
 	checkRefType(t, ref, ReferenceSymbolic)
 
@@ -47,7 +46,7 @@ func TestRefModification(t *testing.T) {
 
 	_, err = tag.Rename("refs/tags/renamed", false, "")
 	checkFatal(t, err)
-	tag, err = repo.LookupReference("refs/tags/renamed")
+	tag, err = repo.References.Lookup("refs/tags/renamed")
 	checkFatal(t, err)
 	checkRefType(t, ref, ReferenceOid)
 
@@ -55,7 +54,7 @@ func TestRefModification(t *testing.T) {
 
 func TestReferenceIterator(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	loc, err := time.LoadLocation("Europe/Berlin")
 	checkFatal(t, err)
@@ -78,13 +77,13 @@ func TestReferenceIterator(t *testing.T) {
 	commitId, err := repo.CreateCommit("HEAD", sig, sig, message, tree)
 	checkFatal(t, err)
 
-	_, err = repo.CreateReference("refs/heads/one", commitId, true, "headOne")
+	_, err = repo.References.Create("refs/heads/one", commitId, true, "headOne")
 	checkFatal(t, err)
 
-	_, err = repo.CreateReference("refs/heads/two", commitId, true, "headTwo")
+	_, err = repo.References.Create("refs/heads/two", commitId, true, "headTwo")
 	checkFatal(t, err)
 
-	_, err = repo.CreateReference("refs/heads/three", commitId, true, "headThree")
+	_, err = repo.References.Create("refs/heads/three", commitId, true, "headThree")
 	checkFatal(t, err)
 
 	iter, err := repo.NewReferenceIterator()
@@ -133,10 +132,11 @@ func TestReferenceIterator(t *testing.T) {
 
 func TestReferenceOwner(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
+
 	commitId, _ := seedTestRepo(t, repo)
 
-	ref, err := repo.CreateReference("refs/heads/foo", commitId, true, "")
+	ref, err := repo.References.Create("refs/heads/foo", commitId, true, "")
 	checkFatal(t, err)
 
 	owner := ref.Owner()
@@ -151,14 +151,14 @@ func TestReferenceOwner(t *testing.T) {
 
 func TestUtil(t *testing.T) {
 	repo := createTestRepo(t)
-	defer os.RemoveAll(repo.Workdir())
+	defer cleanupTestRepo(t, repo)
 
 	commitId, _ := seedTestRepo(t, repo)
 
-	ref, err := repo.CreateReference("refs/heads/foo", commitId, true, "")
+	ref, err := repo.References.Create("refs/heads/foo", commitId, true, "")
 	checkFatal(t, err)
 
-	ref2, err := repo.DwimReference("foo")
+	ref2, err := repo.References.Dwim("foo")
 	checkFatal(t, err)
 
 	if ref.Cmp(ref2) != 0 {
@@ -169,10 +169,52 @@ func TestUtil(t *testing.T) {
 		t.Fatalf("refs/heads/foo has no foo shorthand")
 	}
 
-	hasLog, err := repo.HasLog("refs/heads/foo")
+	hasLog, err := repo.References.HasLog("refs/heads/foo")
 	checkFatal(t, err)
 	if !hasLog {
 		t.Fatalf("branches have logs by default")
+	}
+}
+
+func TestIsNote(t *testing.T) {
+	repo := createTestRepo(t)
+	defer cleanupTestRepo(t, repo)
+
+	commitID, _ := seedTestRepo(t, repo)
+
+	sig := &Signature{
+		Name:  "Rand Om Hacker",
+		Email: "random@hacker.com",
+		When:  time.Now(),
+	}
+
+	refname, err := repo.Notes.DefaultRef()
+	checkFatal(t, err)
+
+	_, err = repo.Notes.Create(refname, sig, sig, commitID, "This is a note", false)
+	checkFatal(t, err)
+
+	ref, err := repo.References.Lookup(refname)
+	checkFatal(t, err)
+
+	if !ref.IsNote() {
+		t.Fatalf("%s should be a note", ref.Name())
+	}
+
+	ref, err = repo.References.Create("refs/heads/foo", commitID, true, "")
+	checkFatal(t, err)
+
+	if ref.IsNote() {
+		t.Fatalf("%s should not be a note", ref.Name())
+	}
+}
+
+func TestReferenceIsValidName(t *testing.T) {
+	if !ReferenceIsValidName("HEAD") {
+		t.Errorf("HEAD should be a valid reference name")
+	}
+	if ReferenceIsValidName("HEAD1") {
+		t.Errorf("HEAD1 should not be a valid reference name")
 	}
 }
 
@@ -192,8 +234,7 @@ func checkRefType(t *testing.T, ref *Reference, kind ReferenceType) {
 	// The failure happens at wherever we were called, not here
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {
-		t.Fatal()
+		t.Fatalf("Unable to get caller")
 	}
-
 	t.Fatalf("Wrong ref type at %v:%v; have %v, expected %v", file, line, ref.Type(), kind)
 }
