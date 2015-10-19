@@ -3,11 +3,12 @@ package vcsstore
 import (
 	"fmt"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 )
 
 func EncodeRepositoryPath(repoPath string) (path string) {
-	return filepath.Clean(repoPath)
+	return pathpkg.Clean(repoPath)
 }
 
 func DecodeRepositoryPath(path string) (repoPath string) {
