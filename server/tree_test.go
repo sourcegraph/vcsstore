@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -130,6 +131,9 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 			},
 		},
 	}
+
+	sort.Sort(vcsclient.TreeEntriesByTypeByName(e.Entries))
+	sort.Sort(vcsclient.TreeEntriesByTypeByName(wantEntry.Entries))
 
 	if !reflect.DeepEqual(e, wantEntry) {
 		t.Errorf("got tree entry %+v, want %+v", e, wantEntry)
