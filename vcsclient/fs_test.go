@@ -343,7 +343,7 @@ func TestGetFileWithOptions_recurseSingleSubfolder(t *testing.T) {
 		},
 	}
 
-	e, err := GetFileWithOptions(testGetFileWithOptionsFS, "/", GetFileOptions{RecurseSingleSubfolder: true})
+	e, err := GetFileWithOptions(testGetFileWithOptionsFS, "/", GetFileOptions{RecurseSingleSubfolder: 9999})
 	if err != nil {
 		t.Errorf("GetFileWithOptions returned error: %v", err)
 	}

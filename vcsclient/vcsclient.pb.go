@@ -83,8 +83,9 @@ type GetFileOptions struct {
 	// sub-directories.
 	Recursive bool `protobuf:"varint,5,opt,name=recursive,proto3" json:"recursive,omitempty" url:",omitempty"`
 	// RecurseSingleSubfolder only applies if the returned entry is a directory.
-	// It will recursively find and include all sub-directories with a single sub-directory.
-	RecurseSingleSubfolder bool `protobuf:"varint,6,opt,name=recurse_single_subfolder,proto3" json:"recurse_single_subfolder,omitempty" url:",omitempty"`
+	// If nonzero, it will recursively find and include all singleton sub-directory chains,
+	// up to a limit of RecurseSingleSubfolder.
+	RecurseSingleSubfolder int32 `protobuf:"varint,6,opt,name=recurse_single_subfolder,proto3" json:"recurse_single_subfolder,omitempty" url:",omitempty"`
 }
 
 func (m *GetFileOptions) Reset()         { *m = GetFileOptions{} }

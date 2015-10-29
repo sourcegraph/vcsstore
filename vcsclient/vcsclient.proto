@@ -45,8 +45,9 @@ message GetFileOptions {
 	bool recursive = 5 [(gogoproto.moretags) = "url:\",omitempty\""];
 
 	// RecurseSingleSubfolder only applies if the returned entry is a directory.
-	// It will recursively find and include all sub-directories with a single sub-directory.
-	bool recurse_single_subfolder = 6 [(gogoproto.moretags) = "url:\",omitempty\""];
+	// If nonzero, it will recursively find and include all singleton sub-directory chains,
+	// up to a limit of RecurseSingleSubfolder.
+	int32 recurse_single_subfolder = 6 [(gogoproto.moretags) = "url:\",omitempty\""];
 }
 
 enum TreeEntryType {

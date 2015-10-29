@@ -162,7 +162,7 @@ func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*Fi
 	fwr := FileWithRange{TreeEntry: e}
 
 	if fi.Mode().IsDir() {
-		ee, err := readDir(fs, path, opt.RecurseSingleSubfolder, true)
+		ee, err := readDir(fs, path, int(opt.RecurseSingleSubfolder), true)
 		if err != nil {
 			return nil, err
 		}
@@ -200,12 +200,12 @@ func GetFileWithOptions(fs vfs.FileSystem, path string, opt GetFileOptions) (*Fi
 // readDir uses the passed vfs.FileSystem to read from starting at the base path.
 // If recurseSingleSubfolder is true, it will descend and include sub-folders
 // with a single sub-folder inside. first should always be set to true, other values are used internally.
-func readDir(fs vfs.FileSystem, base string, recurseSingleSubfolder bool, first bool) ([]*TreeEntry, error) {
+func readDir(fs vfs.FileSystem, base string, recurseSingleSubfolder int, first bool) ([]*TreeEntry, error) {
 	entries, err := fs.ReadDir(base)
 	if err != nil {
 		return nil, err
 	}
-	if recurseSingleSubfolder && !first && !singleSubDir(entries) {
+	if recurseSingleSubfolder > 0 && !first && !singleSubDir(entries) {
 		return nil, nil
 	}
 	te := make([]*TreeEntry, len(entries))
@@ -213,10 +213,11 @@ func readDir(fs vfs.FileSystem, base string, recurseSingleSubfolder bool, first 
 		te[i] = newTreeEntry(fi)
 	}
 
-	if recurseSingleSubfolder {
+	if recurseSingleSubfolder > 0 {
 		dirEntries := make(map[int]os.FileInfo)
 		for i, fi := range entries {
-			if len(dirEntries) > 20 { // expand at most 20 subdirectories
+			// expand at most recurseSingleSubfolder subdirectories
+			if len(dirEntries) > recurseSingleSubfolder {
 				break
 			}
 
