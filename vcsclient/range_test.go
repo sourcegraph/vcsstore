@@ -64,5 +64,8 @@ func TestComputeFileRange(t *testing.T) {
 		if *got != test.want {
 			t.Errorf("%s: got %+v, want %+v", label, *got, test.want)
 		}
+
+		// Validate indices against data.
+		_ = test.data[got.StartByte:got.EndByte]
 	}
 }
