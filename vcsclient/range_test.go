@@ -48,6 +48,11 @@ func TestComputeFileRange(t *testing.T) {
 			opt:  GetFileOptions{FileRange: FileRange{StartLine: 2, EndLine: 2}},
 			want: FileRange{StartLine: 2, EndLine: 2, StartByte: 2, EndByte: 4},
 		},
+		"OOB end line": {
+			data: []byte("a\nb"),
+			opt:  GetFileOptions{FileRange: FileRange{StartLine: 0, EndLine: 999999}},
+			want: FileRange{StartLine: 2, EndLine: 2, StartByte: 2, EndByte: 4},
+		},
 	}
 	for label, test := range tests {
 		got, _, err := ComputeFileRange(test.data, test.opt)
