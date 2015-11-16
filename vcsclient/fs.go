@@ -209,23 +209,11 @@ func readDir(fs vfs.FileSystem, base string, recurseSingleSubfolder int, first b
 		return nil, nil
 	}
 	te := make([]*TreeEntry, len(entries))
+	dirCount := 0
 	for i, fi := range entries {
 		te[i] = newTreeEntry(fi)
-	}
-
-	if recurseSingleSubfolder > 0 {
-		dirEntries := make(map[int]os.FileInfo)
-		for i, fi := range entries {
-			// expand at most recurseSingleSubfolder subdirectories
-			if len(dirEntries) > recurseSingleSubfolder {
-				break
-			}
-
-			if fi.Mode().IsDir() {
-				dirEntries[i] = fi
-			}
-		}
-		for i, fi := range dirEntries {
+		if fi.Mode().IsDir() && dirCount < recurseSingleSubfolder {
+			dirCount++
 			ee, err := readDir(fs, path.Join(base, fi.Name()), recurseSingleSubfolder, false)
 			if err != nil {
 				return nil, err
@@ -233,7 +221,6 @@ func readDir(fs vfs.FileSystem, base string, recurseSingleSubfolder int, first b
 			te[i].Entries = ee
 		}
 	}
-
 	return te, nil
 }
 
