@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"runtime"
 	"sync"
 
 	"sort"
@@ -215,6 +216,7 @@ func readDir(fs vfs.FileSystem, base string, recurseSingleSubfolderLimit int, fi
 		wg         sync.WaitGroup
 		recurseErr error
 		dirCount   = 0
+		sem        = make(chan bool, runtime.GOMAXPROCS(0))
 		te         = make([]*TreeEntry, len(entries))
 	)
 	for i, fi := range entries {
@@ -223,8 +225,10 @@ func readDir(fs vfs.FileSystem, base string, recurseSingleSubfolderLimit int, fi
 			dirCount++
 			i, name := i, fi.Name()
 			wg.Add(1)
+			sem <- true
 			go func() {
 				defer wg.Done()
+				defer func() { <-sem }()
 				ee, err := readDir(fs, path.Join(base, name), recurseSingleSubfolderLimit, false)
 				if err != nil {
 					recurseErr = err
