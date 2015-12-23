@@ -29,12 +29,8 @@ install:
   # install hglib for hg blame
   - sudo easy_install python-hglib
 
-  # install libgit2
-  - sudo apt-get install cmake
-  - sudo apt-get install libssh2-1-dev
   - cd $TRAVIS_BUILD_DIR
   - go get -u github.com/tools/godep
-  - make build-libgit2
 
 script:
   - make install

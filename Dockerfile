@@ -4,11 +4,9 @@ RUN apt-get update -q
 RUN apt-get install -qy build-essential curl git mercurial pkg-config
 
 # Install Go
-RUN curl -Ls https://golang.org/dl/go1.3.3.linux-amd64.tar.gz | tar -C /usr/local -xz
+RUN curl -Ls https://golang.org/dl/go1.5.2.linux-amd64.tar.gz | tar -C /usr/local -xz
 ENV PATH /usr/local/go/bin:$PATH
 ENV GOBIN /usr/local/bin
-
-RUN apt-get install -qy cmake libssh2-1-dev libssl-dev
 
 # Install hglib (for hg blame)
 RUN apt-get install -qy python-hglib
@@ -17,7 +15,6 @@ ENV GOPATH /opt
 RUN go get github.com/tools/godep
 ADD . /opt/src/sourcegraph.com/sourcegraph/vcsstore
 WORKDIR /opt/src/sourcegraph.com/sourcegraph/vcsstore
-RUN make build-libgit2
 RUN make install
 
 # Trust GitHub's SSH host key (for ssh cloning of GitHub repos)

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -122,7 +123,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("Cloned %d repositories in %s.", len(repoInfos), time.Since(cloneStart))
 
 		performRepoOps := func() error {
-			par := parallel.NewRun(1) // keep at 1, libgit2 has concurrency segfaults :(
+			par := parallel.NewRun(runtime.GOMAXPROCS(0))
 			// Perform some operations on the repos.
 			for ri_, repo_ := range repos {
 				par.Do(func() error {

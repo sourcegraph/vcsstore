@@ -1,12 +1,5 @@
 package main
 
-/*
-#cgo pkg-config: --static --define-variable=libdir=../../Godeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build --define-variable=includedir=../../Godeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/include ../../Godeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build/libgit2.pc
-// #cgo LDFLAGS: -lgit2
-#cgo LDFLAGS: -L../../Godeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build -lgit2
-*/
-import "C"
-
 import (
 	"crypto/subtle"
 	"encoding/base64"

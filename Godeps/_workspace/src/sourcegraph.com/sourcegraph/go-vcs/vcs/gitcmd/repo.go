@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,6 +50,10 @@ type Repository struct {
 	editLock sync.RWMutex // protects ops that change repository data
 }
 
+func (r *Repository) RepoDir() string {
+	return r.Dir
+}
+
 func (r *Repository) String() string {
 	return fmt.Sprintf("git (cmd) repo at %s", r.Dir)
 }
@@ -80,11 +85,11 @@ func Clone(url, dir string, opt vcs.CloneOpt) (*Repository, error) {
 	if opt.Mirror {
 		args = append(args, "--mirror")
 	}
-	args = append(args, "--", url, dir)
+	args = append(args, "--", url, filepath.ToSlash(dir))
 	cmd := exec.Command("git", args...)
 
 	if opt.SSH != nil {
-		gitSSHWrapper, keyFile, err := makeGitSSHWrapper(opt.SSH.PrivateKey)
+		gitSSHWrapper, gitSSHWrapperDir, keyFile, err := makeGitSSHWrapper(opt.SSH.PrivateKey)
 		defer func() {
 			if keyFile != "" {
 				if err := os.Remove(keyFile); err != nil {
@@ -96,7 +101,28 @@ func Clone(url, dir string, opt vcs.CloneOpt) (*Repository, error) {
 			return nil, err
 		}
 		defer os.Remove(gitSSHWrapper)
+		if gitSSHWrapperDir != "" {
+			defer os.RemoveAll(gitSSHWrapperDir)
+		}
 		cmd.Env = []string{"GIT_SSH=" + gitSSHWrapper}
+	}
+
+	if opt.HTTPS != nil {
+		env := environ(os.Environ())
+		env.Unset("GIT_TERMINAL_PROMPT")
+
+		gitPassHelper, gitPassHelperDir, err := makeGitPassHelper(opt.HTTPS.Pass)
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(gitPassHelper)
+		if gitPassHelperDir != "" {
+			defer os.RemoveAll(gitPassHelperDir)
+		}
+		env.Unset("GIT_ASKPASS")
+		env = append(env, "GIT_ASKPASS="+gitPassHelper)
+
+		cmd.Env = env
 	}
 
 	out, err := cmd.CombinedOutput()
@@ -132,7 +158,7 @@ func (r *Repository) ResolveRevision(spec string) (vcs.CommitID, error) {
 		return "", err
 	}
 
-	cmd := exec.Command("git", "rev-parse", spec+"^{commit}")
+	cmd := exec.Command("git", "rev-parse", spec+"^0")
 	cmd.Dir = r.Dir
 	stdout, stderr, err := dividedOutput(cmd)
 	if err != nil {
@@ -586,7 +612,7 @@ func (r *Repository) fetchRemote(repoDir string) error {
 	name := base64.URLEncoding.EncodeToString([]byte(repoDir))
 
 	// Fetch remote commit data.
-	cmd := exec.Command("git", "fetch", "-v", repoDir, "+refs/heads/*:refs/remotes/"+name+"/*")
+	cmd := exec.Command("git", "fetch", "-v", filepath.ToSlash(repoDir), "+refs/heads/*:refs/remotes/"+name+"/*")
 	cmd.Dir = r.Dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -595,18 +621,15 @@ func (r *Repository) fetchRemote(repoDir string) error {
 	return nil
 }
 
-func (r *Repository) UpdateEverything(opt vcs.RemoteOpts) error {
-	// TODO(sqs): this lock is different from libgit2's lock, but
-	// libgit2 Repositories call this method because of
-	// embedding. Therefore there could be a race condition.
+func (r *Repository) UpdateEverything(opt vcs.RemoteOpts) (*vcs.UpdateResult, error) {
 	r.editLock.Lock()
 	defer r.editLock.Unlock()
 
-	cmd := exec.Command("git", "remote", "update")
+	cmd := exec.Command("git", "remote", "update", "--prune")
 	cmd.Dir = r.Dir
 
 	if opt.SSH != nil {
-		gitSSHWrapper, keyFile, err := makeGitSSHWrapper(opt.SSH.PrivateKey)
+		gitSSHWrapper, gitSSHWrapperDir, keyFile, err := makeGitSSHWrapper(opt.SSH.PrivateKey)
 		defer func() {
 			if keyFile != "" {
 				if err := os.Remove(keyFile); err != nil {
@@ -615,17 +638,43 @@ func (r *Repository) UpdateEverything(opt vcs.RemoteOpts) error {
 			}
 		}()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer os.Remove(gitSSHWrapper)
+		if gitSSHWrapperDir != "" {
+			defer os.RemoveAll(gitSSHWrapperDir)
+		}
 		cmd.Env = []string{"GIT_SSH=" + gitSSHWrapper}
 	}
 
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("exec `git remote update` failed: %s. Output was:\n\n%s", err, out)
+	if opt.HTTPS != nil {
+		env := environ(os.Environ())
+		env.Unset("GIT_TERMINAL_PROMPT")
+
+		gitPassHelper, gitPassHelperDir, err := makeGitPassHelper(opt.HTTPS.Pass)
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(gitPassHelper)
+		if gitPassHelperDir != "" {
+			defer os.RemoveAll(gitPassHelperDir)
+		}
+		env = append(env, "GIT_ASKPASS="+gitPassHelper)
+
+		cmd.Env = env
 	}
-	return nil
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("exec `git remote update` failed: %v. Stderr was:\n\n%s", err, stderr.String())
+	}
+	result, err := parseRemoteUpdate(stderr.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("parsing output of `git remote update` failed: %v", err)
+	}
+	return &result, nil
 }
 
 func (r *Repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk, error) {
@@ -649,7 +698,7 @@ func (r *Repository) BlameFile(path string, opt *vcs.BlameOptions) ([]*vcs.Hunk,
 	if opt.StartLine != 0 || opt.EndLine != 0 {
 		args = append(args, fmt.Sprintf("-L%d,%d", opt.StartLine, opt.EndLine))
 	}
-	args = append(args, string(opt.NewestCommit), "--", path)
+	args = append(args, string(opt.NewestCommit), "--", filepath.ToSlash(path))
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
 	out, err := cmd.CombinedOutput()
@@ -769,7 +818,7 @@ func (r *Repository) MergeBase(a, b vcs.CommitID) (vcs.CommitID, error) {
 }
 
 func (r *Repository) CrossRepoMergeBase(a vcs.CommitID, repoB vcs.Repository, b vcs.CommitID) (vcs.CommitID, error) {
-	// libgit2 Repository inherits GitRootDir and CrossRepo from its
+	// git.Repository inherits GitRootDir and CrossRepo from its
 	// embedded gitcmd.Repository.
 
 	var repoBDir string // path to head repo on local filesystem
@@ -875,8 +924,10 @@ func (r *Repository) Search(at vcs.CommitID, opt vcs.SearchOptions) ([]*vcs.Sear
 		addResult(r)
 
 		if err := cmd.Process.Kill(); err != nil {
-			errc <- err
-			return
+			if runtime.GOOS != "windows" {
+				errc <- err
+				return
+			}
 		}
 		if err := cmd.Wait(); err != nil {
 			if c := exitStatus(err); c != -1 && c != 1 {
@@ -932,6 +983,30 @@ func (r *Repository) Committers(opt vcs.CommittersOptions) ([]*vcs.Committer, er
 		}
 	}
 	return committers, nil
+}
+
+func (r *Repository) ListFiles(at vcs.CommitID) ([]string, error) {
+	if err := checkSpecArgSafety(string(at)); err != nil {
+		return nil, err
+	}
+
+	r.editLock.RLock()
+	defer r.editLock.RUnlock()
+
+	if at == "" {
+		at = "HEAD"
+	}
+	cmd := exec.Command("git", "ls-tree", "--full-tree", "-r", "-z", "--name-only", string(at))
+	cmd.Dir = r.Dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("exec `git ls-tree --full-tree -r -z --name-only %v` failed: %v", at, err)
+	}
+	if len(out) == 0 {
+		return []string{}, nil
+	}
+	out = bytes.TrimSuffix(out, []byte("\x00"))
+	return strings.Split(string(out), "\x00"), nil
 }
 
 func (r *Repository) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
@@ -1025,7 +1100,7 @@ func (fs *gitFSCmd) getModTimeFromGitLog(path string) (time.Time, error) {
 	if !SetModTime {
 		return time.Time{}, nil
 	}
-	cmd := exec.Command("git", "log", "-1", "--format=%ad", string(fs.at), "--", path)
+	cmd := exec.Command("git", "log", "-1", "--format=%ad", string(fs.at), "--", filepath.ToSlash(path))
 	cmd.Dir = fs.dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1033,7 +1108,7 @@ func (fs *gitFSCmd) getModTimeFromGitLog(path string) (time.Time, error) {
 	}
 	timeStr := strings.Trim(string(out), "\n")
 	if timeStr == "" {
-		return time.Time{}, &os.PathError{Op: "mtime", Path: path, Err: os.ErrNotExist}
+		return time.Time{}, &os.PathError{Op: "mtime", Path: filepath.ToSlash(path), Err: os.ErrNotExist}
 	}
 	return time.Parse("Mon Jan _2 15:04:05 2006 -0700", timeStr)
 }
@@ -1080,14 +1155,14 @@ func (fs *gitFSCmd) lsTree(path string) ([]os.FileInfo, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("git", "ls-tree", "-z", "--full-name", "--long", string(fs.at), "--", path)
+	cmd := exec.Command("git", "ls-tree", "-z", "--full-name", "--long", string(fs.at), "--", filepath.ToSlash(path))
 	cmd.Dir = fs.dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if bytes.Contains(out, []byte("exists on disk, but not in")) {
-			return nil, &os.PathError{Op: "ls-tree", Path: path, Err: os.ErrNotExist}
+			return nil, &os.PathError{Op: "ls-tree", Path: filepath.ToSlash(path), Err: os.ErrNotExist}
 		}
-		return nil, fmt.Errorf("exec `git ls-files` failed: %s. Output was:\n\n%s", err, out)
+		return nil, fmt.Errorf("exec %v failed: %s. Output was:\n\n%s", cmd.Args, err, out)
 	}
 
 	if len(out) == 0 {
@@ -1192,9 +1267,9 @@ func (fs *gitFSCmd) String() string {
 }
 
 // makeGitSSHWrapper writes a GIT_SSH wrapper that runs ssh with the
-// private key. You should close and remove the sshWrapper and remove
+// private key. You should remove the sshWrapper, sshWrapperDir and
 // the keyFile after using them.
-func makeGitSSHWrapper(privKey []byte) (sshWrapper, keyFile string, err error) {
+func makeGitSSHWrapper(privKey []byte) (sshWrapper, sshWrapperDir, keyFile string, err error) {
 	var otherOpt string
 	if InsecureSkipCheckVerifySSH {
 		otherOpt = "-o StrictHostKeyChecking=no"
@@ -1202,43 +1277,46 @@ func makeGitSSHWrapper(privKey []byte) (sshWrapper, keyFile string, err error) {
 
 	kf, err := ioutil.TempFile("", "go-vcs-gitcmd-key")
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	keyFile = kf.Name()
-	if err := kf.Chmod(0600); err != nil {
-		return "", keyFile, err
-	}
-	if _, err := kf.Write(privKey); err != nil {
-		return "", keyFile, err
-	}
-	if err := kf.Close(); err != nil {
-		return "", keyFile, err
-	}
-
-	// TODO(sqs): encrypt and store the key in the env so that
-	// attackers can't decrypt if they have disk access after our
-	// process dies
-	script := `
-	#!/bin/sh
-	exec /usr/bin/ssh -o ControlMaster=no -o ControlPath=none ` + otherOpt + ` -i ` + keyFile + ` "$@"
-`
-
-	tf, err := ioutil.TempFile("", "go-vcs-gitcmd")
+	err = internal.WriteFileWithPermissions(keyFile, privKey, 0600)
 	if err != nil {
-		return "", keyFile, err
-	}
-	tmpFile := tf.Name()
-	if _, err := tf.WriteString(script); err != nil {
-		return "", keyFile, err
-	}
-	if err := tf.Chmod(0500); err != nil {
-		return "", "", err
-	}
-	if err := tf.Close(); err != nil {
-		return "", "", err
+		return "", "", keyFile, err
 	}
 
-	return tmpFile, keyFile, nil
+	tmpFile, tmpFileDir, err := gitSSHWrapper(keyFile, otherOpt)
+	return tmpFile, tmpFileDir, keyFile, err
+}
+
+// makeGitPassHelper writes a GIT_ASKPASS helper that supplies password over stdout.
+// You should remove the passHelper (and tempDir if any) after using it.
+func makeGitPassHelper(pass string) (passHelper string, tempDir string, err error) {
+
+	tmpFile, dir, err := internal.ScriptFile("go-vcs-gitcmd-ask")
+	if err != nil {
+		return tmpFile, dir, err
+	}
+
+	passPath := filepath.Join(dir, "password")
+	err = internal.WriteFileWithPermissions(passPath, []byte(pass), 0600)
+	if err != nil {
+		return tmpFile, dir, err
+	}
+
+	var script string
+
+	// We assume passPath can be escaped with a simple wrapping of single
+	// quotes. The path is not user controlled so this assumption should
+	// not be violated.
+	if runtime.GOOS == "windows" {
+		script = "@echo off\ntype " + passPath + "\n"
+	} else {
+		script = "#!/bin/sh\ncat '" + passPath + "'\n"
+	}
+
+	err = internal.WriteFileWithPermissions(tmpFile, []byte(script), 0500)
+	return tmpFile, dir, err
 }
 
 // InsecureSkipCheckVerifySSH controls whether the client verifies the
@@ -1246,3 +1324,46 @@ func makeGitSSHWrapper(privKey []byte) (sshWrapper, keyFile string, err error) {
 // is true, the program is susceptible to a man-in-the-middle
 // attack. This should only be used for testing.
 var InsecureSkipCheckVerifySSH bool
+
+// environ is a slice of strings representing the environment, in the form "key=value".
+type environ []string
+
+// Unset a single environment variable.
+func (e *environ) Unset(key string) {
+	for i := range *e {
+		if strings.HasPrefix((*e)[i], key+"=") {
+			(*e)[i] = (*e)[len(*e)-1]
+			*e = (*e)[:len(*e)-1]
+			break
+		}
+	}
+}
+
+// Makes system-dependent SSH wrapper
+func gitSSHWrapper(keyFile string, otherOpt string) (sshWrapperFile string, tempDir string, err error) {
+	// TODO(sqs): encrypt and store the key in the env so that
+	// attackers can't decrypt if they have disk access after our
+	// process dies
+
+	var script string
+
+	if runtime.GOOS == "windows" {
+		script = `
+	@echo off
+	ssh -o ControlMaster=no -o ControlPath=none ` + otherOpt + ` -i ` + filepath.ToSlash(keyFile) + ` "%@"
+`
+	} else {
+		script = `
+	#!/bin/sh
+	exec /usr/bin/ssh -o ControlMaster=no -o ControlPath=none ` + otherOpt + ` -i ` + filepath.ToSlash(keyFile) + ` "$@"
+`
+	}
+
+	sshWrapperName, tempDir, err := internal.ScriptFile("go-vcs-gitcmd")
+	if err != nil {
+		return sshWrapperName, tempDir, err
+	}
+
+	err = internal.WriteFileWithPermissions(sshWrapperName, []byte(script), 0500)
+	return sshWrapperName, tempDir, err
+}

@@ -65,6 +65,9 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 		Contents: []byte("mydata"),
 	}
 
+	// Round.
+	e.ModTime.Seconds = (e.ModTime.Seconds / 100) * 100
+
 	if !reflect.DeepEqual(e, wantEntry) {
 		t.Errorf("got tree entry %+v, want %+v", e, wantEntry)
 	}
@@ -130,6 +133,12 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 				ModTime: pbtypes.NewTimestamp(time.Time{}),
 			},
 		},
+	}
+
+	// Round
+	e.ModTime.Seconds = (e.ModTime.Seconds / 100) * 100
+	for _, e := range e.Entries {
+		e.ModTime.Seconds = (e.ModTime.Seconds / 100) * 100
 	}
 
 	sort.Sort(vcsclient.TreeEntriesByTypeByName(e.Entries))
@@ -198,6 +207,9 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 			StartLine: 1, EndLine: 1,
 		},
 	}
+
+	// Round
+	f.ModTime.Seconds = (f.ModTime.Seconds / 100) * 100
 
 	if !reflect.DeepEqual(f, want) {
 		t.Errorf("got file with range %+v, want %+v", f, want)
