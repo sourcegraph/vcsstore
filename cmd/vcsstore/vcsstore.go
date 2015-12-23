@@ -84,7 +84,7 @@ var subcommands = []subcommand{
 	{"serve", "start an HTTP server to serve VCS repository data", serveCmd},
 	{"repo", "display information about a repository", repoCmd},
 	{"clone", "clones a repository on the server", cloneCmd},
-	{"get", "gets a path from the server (or datad cluster)", getCmd},
+	{"get", "gets a path from the server", getCmd},
 }
 
 func serveCmd(args []string) {
@@ -300,7 +300,7 @@ func getCmd(args []string) {
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: vcsstore get [options] repo-id [extra-path]
 
-Gets a URL path from the server (optionally routing the request using datad).
+Gets a URL path from the server.
 
 The options are:
 `)
