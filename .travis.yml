@@ -32,6 +32,7 @@ install:
   - cd $TRAVIS_BUILD_DIR
   - go get -u github.com/tools/godep
 
+  - godep go install ./cmd/vcsstore
+
 script:
-  - make install
-  - make test
+  - godep go test -race -v ./...
