@@ -86,7 +86,7 @@
 		},
 		{
 			"ImportPath": "sourcegraph.com/sqs/pbtypes",
-			"Rev": "588352d106ca472fa2a91b2425b8e35b52e3822e"
+			"Rev": "4d1b9dc7ffc3f7b555de9b02055fa616f0ebcd18"
 		}
 	]
 }

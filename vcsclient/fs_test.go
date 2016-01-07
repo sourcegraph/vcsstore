@@ -288,7 +288,7 @@ func TestGetFileWithOptions(t *testing.T) {
 		{
 			Name:    "f.txt",
 			Type:    FileEntry,
-			Size:    1,
+			Size_:   1,
 			ModTime: zeroTimestamp,
 			Entries: nil,
 		},
@@ -337,7 +337,7 @@ func TestGetFileWithOptions_recurseSingleSubfolder(t *testing.T) {
 		{
 			Name:    "f.txt",
 			Type:    FileEntry,
-			Size:    1,
+			Size_:   1,
 			ModTime: zeroTimestamp,
 			Entries: nil,
 		},

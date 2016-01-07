@@ -60,7 +60,7 @@ func TestServeRepoTreeEntry_File(t *testing.T) {
 	wantEntry := &vcsclient.TreeEntry{
 		Name:     "myfile",
 		Type:     vcsclient.FileEntry,
-		Size:     6,
+		Size_:    6,
 		ModTime:  pbtypes.NewTimestamp(time.Time{}),
 		Contents: []byte("mydata"),
 	}
@@ -124,7 +124,7 @@ func TestServeRepoTreeEntry_Dir(t *testing.T) {
 			{
 				Name:    "myfile",
 				Type:    vcsclient.FileEntry,
-				Size:    6,
+				Size_:   6,
 				ModTime: pbtypes.NewTimestamp(time.Time{}),
 			},
 			{
@@ -198,7 +198,7 @@ func TestServeRepoTreeEntry_FileWithOptions(t *testing.T) {
 		TreeEntry: &vcsclient.TreeEntry{
 			Name:     "myfile",
 			Type:     vcsclient.FileEntry,
-			Size:     6,
+			Size_:    6,
 			ModTime:  pbtypes.NewTimestamp(time.Time{}),
 			Contents: []byte("da"),
 		},
