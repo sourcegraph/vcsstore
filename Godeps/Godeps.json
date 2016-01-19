@@ -52,6 +52,10 @@
 			"Rev": "10f3e44c050b12c13981908678e43c81bcfc7c54"
 		},
 		{
+			"ImportPath": "github.com/rainycape/vfs",
+			"Rev": "a62fd22bcf7010946a44f6a1250a82c03110a14b"
+		},
+		{
 			"ImportPath": "github.com/shazow/go-git",
 			"Rev": "30bfce69173a3a649b3efdc80906125f92a86037"
 		},
@@ -71,10 +75,6 @@
 		{
 			"ImportPath": "gopkg.in/gcfg.v1",
 			"Rev": "bf6a13274e638b65158eced37fe57b04c5b1838e"
-		},
-		{
-			"ImportPath": "gopkgs.com/vfs.v1",
-			"Rev": "60e0a240148f4dce1a8a1f5639b0e0c9e25fd288"
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/go-diff/diff",
